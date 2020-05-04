@@ -102,6 +102,8 @@ public:
         return !(*this == other);
     }
 
+
+    static void temp2xy(double temp, double &x, double &y);
 };
 
 } // namespace rtengine

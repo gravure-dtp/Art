@@ -30,6 +30,8 @@ ChMixer::ChMixer (): FoldableToolPanel(this, "chmixer", M("TP_CHMIXER_LABEL"), f
     EvRedPrimary = m->newEvent(RGBCURVE, "HISTORY_MSG_CHMIXER_RED_PRIMARY");
     EvGreenPrimary = m->newEvent(RGBCURVE, "HISTORY_MSG_CHMIXER_GREEN_PRIMARY");
     EvBluePrimary = m->newEvent(RGBCURVE, "HISTORY_MSG_CHMIXER_BLUE_PRIMARY");
+    EvTemp = m->newEvent(RGBCURVE, "HISTORY_MSG_CHMIXER_TEMP");
+    EvTint = m->newEvent(RGBCURVE, "HISTORY_MSG_CHMIXER_TINT");
     EvToolReset.set_action(RGBCURVE);
 
     imgIcon[0] = Gtk::manage (new RTImage ("circle-red-small.png"));
@@ -116,6 +118,7 @@ ChMixer::ChMixer (): FoldableToolPanel(this, "chmixer", M("TP_CHMIXER_LABEL"), f
     pack_start(*matrix_box);
 
     primaries_box = Gtk::manage(new Gtk::VBox());
+
     std::array<std::pair<const char *, const char *>, 3> hue_imgs = {
         std::make_pair("redpurple", "orange"),
         std::make_pair("greenyellow", "greencyan"),
@@ -145,6 +148,22 @@ ChMixer::ChMixer (): FoldableToolPanel(this, "chmixer", M("TP_CHMIXER_LABEL"), f
         f->add(*vb);
         primaries_box->pack_start(*f);
     }
+
+    Gtk::Frame *f = Gtk::manage(new Gtk::Frame(M("TP_CHMIXER_WB")));
+    Gtk::VBox *vb = Gtk::manage(new Gtk::VBox());
+    vb->set_spacing(2);
+    vb->set_border_width(2);
+    temp_tweak = Gtk::manage(new Adjuster(M("TP_CHMIXER_TEMP"), -100, 100, 1, 0, Gtk::manage(new RTImage("circle-blue-small.png")), Gtk::manage(new RTImage("circle-yellow-small.png"))));
+    temp_tweak->setAdjusterListener(this);
+    vb->pack_start(*temp_tweak, Gtk::PACK_EXPAND_WIDGET, 4);
+
+    tint_tweak = Gtk::manage(new Adjuster(M("TP_CHMIXER_TINT"), -100, 100, 1, 0, Gtk::manage(new RTImage("circle-magenta-small.png")), Gtk::manage(new RTImage("circle-green-small.png"))));
+    tint_tweak->setAdjusterListener(this);
+    vb->pack_start(*tint_tweak, Gtk::PACK_EXPAND_WIDGET, 4);
+
+    f->add(*vb);
+    primaries_box->pack_start(*f);
+        
     pack_start(*primaries_box);
     
     show_all();
@@ -170,6 +189,8 @@ void ChMixer::read(const ProcParams* pp)
         hue_tweak[i]->setValue(pp->chmixer.hue_tweak[i]);
         sat_tweak[i]->setValue(pp->chmixer.sat_tweak[i]);
     }
+    temp_tweak->setValue(pp->chmixer.temp_tweak);
+    tint_tweak->setValue(pp->chmixer.tint_tweak);
 
     modeChanged();
 
@@ -189,6 +210,8 @@ void ChMixer::write(ProcParams* pp)
     }
     pp->chmixer.enabled = getEnabled();
     pp->chmixer.mode = mode->get_active_row_number() == 0 ? ChannelMixerParams::RGB_MATRIX : ChannelMixerParams::PRIMARIES_CHROMA;
+    pp->chmixer.temp_tweak = temp_tweak->getValue();
+    pp->chmixer.tint_tweak = tint_tweak->getValue();
     
 }
 
@@ -203,6 +226,8 @@ void ChMixer::setDefaults(const ProcParams* defParams)
         hue_tweak[i]->setDefault(defParams->chmixer.hue_tweak[i]);
         sat_tweak[i]->setDefault(defParams->chmixer.sat_tweak[i]);
     }
+    temp_tweak->setDefault(defParams->chmixer.temp_tweak);
+    tint_tweak->setDefault(defParams->chmixer.tint_tweak);
 
     initial_params = defParams->chmixer;
 }
@@ -225,12 +250,18 @@ void ChMixer::adjusterChanged(Adjuster* a, double newval)
                 return;
             }
         }
-        
-        Glib::ustring descr = Glib::ustring::compose ("R=%1,%2,%3\nG=%4,%5,%6\nB=%7,%8,%9",
-                              red[0]->getValue(), red[1]->getValue(), red[2]->getValue(),
-                              green[0]->getValue(), green[1]->getValue(), green[2]->getValue(),
-                              blue[0]->getValue(), blue[1]->getValue(), blue[2]->getValue());
-        listener->panelChanged(EvChMixer, descr);
+
+        if (a == tint_tweak) {
+            listener->panelChanged(EvTint, tint_tweak->getTextValue());
+        } else if (a == temp_tweak) {
+            listener->panelChanged(EvTemp, temp_tweak->getTextValue());
+        } else {
+            Glib::ustring descr = Glib::ustring::compose ("R=%1,%2,%3\nG=%4,%5,%6\nB=%7,%8,%9",
+                                                          red[0]->getValue(), red[1]->getValue(), red[2]->getValue(),
+                                                          green[0]->getValue(), green[1]->getValue(), green[2]->getValue(),
+                                                          blue[0]->getValue(), blue[1]->getValue(), blue[2]->getValue());
+            listener->panelChanged(EvChMixer, descr);
+        }
     }
 }
 
@@ -271,6 +302,8 @@ void ChMixer::trimValues (rtengine::procparams::ProcParams* pp)
         hue_tweak[i]->trimValue(pp->chmixer.hue_tweak[i]);
         sat_tweak[i]->trimValue(pp->chmixer.sat_tweak[i]);
     }
+    temp_tweak->trimValue(pp->chmixer.temp_tweak);
+    tint_tweak->trimValue(pp->chmixer.tint_tweak);
 }
 
 

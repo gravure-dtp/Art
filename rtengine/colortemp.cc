@@ -153,10 +153,8 @@ void spectrum_to_xyz_blackbody(double _temp, double &x, double &y, double &z)
 }
 
 
-void temp2mulxyz(double temp, double &Xxyz, double &Zxyz)
+void temp2mulxyz(double temp, double &x, double &y, double &z)
 {
-    double x, y, z;
-
     // otherwise we use the Temp+Green generic solution
     if (temp <= INITIALBLACKBODY) {
         // if temperature is between 2000K and 4000K we use blackbody, because there will be no Daylight reference below 4000K...
@@ -182,7 +180,13 @@ void temp2mulxyz(double temp, double &Xxyz, double &Zxyz)
         double m2 = (0.03 - 31.4424 * x_D + 30.0717 * y_D) / interm;
         spectrum_to_xyz_daylight(m1, m2, x, y, z);
     }
+}
 
+
+void temp2mulxyz(double temp, double &Xxyz, double &Zxyz)
+{
+    double x, y, z;
+    temp2mulxyz(temp, x, y, z);
     Xxyz = x / y;
     Zxyz = (1.0 - x - y) / y;
 }
@@ -260,6 +264,13 @@ void ColorTemp::temp2mul (double temp, double green, double equal, double& rmul,
     rmul /= maxRGB;
     gmul /= maxRGB;
     bmul /= maxRGB;
+}
+
+
+void ColorTemp::temp2xy(double temp, double &x, double &y)
+{
+    double z;
+    temp2mulxyz(temp, x, y, z);
 }
 
 } // namespace rtengine

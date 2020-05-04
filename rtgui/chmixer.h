@@ -51,6 +51,8 @@ private:
     Gtk::Image *imgIcon[9];
     Adjuster *hue_tweak[3];
     Adjuster *sat_tweak[3];
+    Adjuster *temp_tweak;
+    Adjuster *tint_tweak;
 
     rtengine::procparams::ChannelMixerParams initial_params;
 
@@ -58,6 +60,8 @@ private:
     rtengine::ProcEvent EvRedPrimary;
     rtengine::ProcEvent EvGreenPrimary;
     rtengine::ProcEvent EvBluePrimary;
+    rtengine::ProcEvent EvTemp;
+    rtengine::ProcEvent EvTint;
 };
 
 #endif

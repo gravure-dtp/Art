@@ -54,11 +54,54 @@ void get_mixer_matrix(const ChannelMixerParams &chmix, const Glib::ustring &work
         A3{ float(m[2][0]), float(m[2][1]), float(m[2][2]) }
     };
 
+    const auto x_for_temp =
+        [](float temp, float y) -> float
+        {
+            constexpr float eps = 1e-4f;
+            float lo_x = 0.f, hi_x = 1.f;
+            while (hi_x - lo_x < eps) {
+                float cur_x = lo_x + (hi_x - lo_x) / 2.f;
+                
+                // McCamy's formula:
+                //    n = (x-0.3320)/(0.1858-y)
+                //    CCT = 437*n^3 + 3601*n^2 + 6861*n + 5517
+                float n = (cur_x-0.3320)/(0.1858-y);
+                float n2 = SQR(n);
+                float cur_temp = 437 * n2 * 2 + 3601 * n2 + 6861 * n + 5517;
+                if (std::abs(cur_temp - temp) < 1.f) {
+                    return cur_x;
+                } else if (cur_temp < temp) {
+                    lo_x = cur_x;
+                } else {
+                    hi_x = cur_x;
+                }
+            }
+            return lo_x;
+        };
+
+    constexpr float D65_temp = 6504.f;
     constexpr float D65_x = 0.3127f;
     constexpr float D65_y = 0.3290f;
-
-    
     const A3 D65_bb_white = { D65_x, D65_y, 1.f - D65_x - D65_y };
+
+    float target_white_temp = D65_temp * (1.f - float(chmix.temp_tweak)/100.f * 0.25f);
+    double target_white_x, target_white_y;
+    ColorTemp::temp2xy(target_white_temp, target_white_x, target_white_y);
+
+    if (chmix.tint_tweak) {
+        float x1 = target_white_x;
+        float y1 = target_white_y;
+        float y2 = target_white_y + 0.05f;
+        float x2 = x_for_temp(target_white_temp, y2);
+
+        target_white_y += float(chmix.tint_tweak)/100.f * 0.01f;
+        target_white_x = (target_white_y - y1) / (y2 - y1) * (x2 - x1) + x1;
+    }
+
+    if (options.rtSettings.verbose && (chmix.temp_tweak || chmix.tint_tweak)) {
+        printf("Channel mixer - source white: %.0fK, x = %.3f, y = %.3f\n                target white: %.0fK, x = %.3f, y = %.3f\n", D65_temp, D65_x, D65_y, target_white_temp, target_white_x, target_white_y);
+        fflush(stdout);
+    }
 
     const auto rgb2xy =
         [&](const A3 &rgb) -> A3
@@ -130,10 +173,18 @@ void get_mixer_matrix(const ChannelMixerParams &chmix, const Glib::ustring &work
             return ret;
         };
 
-    M33 N = get_matrix(tweak(red, chmix.hue_tweak[0], chmix.sat_tweak[0], 0.075f),
-                       tweak(green, chmix.hue_tweak[1], chmix.sat_tweak[1], 0.075f),
-                       tweak(blue, chmix.hue_tweak[2], chmix.sat_tweak[2], 0.075f),
-                       D65_bb_white);
+    // float target_white_y = D65_y + float(chmix.tint_tweak)/100.f * 0.03f;
+    // float target_white_x = D65_CCT_x(target_white_y);
+    A3 target_white = {
+        float(target_white_x),
+        float(target_white_y),
+        float(1.0 - target_white_x - target_white_y)
+    };
+
+    M33 N = get_matrix(tweak(red, chmix.hue_tweak[0], chmix.sat_tweak[0], 0.05f),
+                       tweak(green, chmix.hue_tweak[1], chmix.sat_tweak[1], 0.15f),
+                       tweak(blue, chmix.hue_tweak[2], chmix.sat_tweak[2], 0.15f),
+                       target_white);
 
     M33 Minv;
     if (!invertMatrix(M, Minv)) {
@@ -180,7 +231,6 @@ void ImProcFunctions::channelMixer(Imagefloat *img)
         float BR = float(params->chmixer.blue[0])/10.f;
         float BG = float(params->chmixer.blue[1])/10.f;
         float BB = float(params->chmixer.blue[2])/10.f;
-
 
         if (params->chmixer.mode == ChannelMixerParams::Mode::PRIMARIES_CHROMA){
             get_mixer_matrix(params->chmixer, "ProPhoto",//params->icm.workingProfile,

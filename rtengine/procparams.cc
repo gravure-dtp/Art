@@ -1816,13 +1816,18 @@ ChannelMixerParams::ChannelMixerParams() :
     green{0, 1000, 0},
     blue{0, 0, 1000},
     hue_tweak{0, 0, 0},
-    sat_tweak{0, 0, 0}
+    sat_tweak{0, 0, 0},
+    temp_tweak(0),
+    tint_tweak(0)
 {
 }
 
 bool ChannelMixerParams::operator ==(const ChannelMixerParams& other) const
 {
-    if (enabled != other.enabled || mode != other.mode) {
+    if (enabled != other.enabled
+        || mode != other.mode
+        || temp_tweak != other.temp_tweak
+        || tint_tweak != other.tint_tweak) {
         return false;
     }
 
@@ -2806,6 +2811,8 @@ int ProcParams::save(bool save_general,
             keyFile.set_integer_list("Channel Mixer", "HueTweak", h);
             Glib::ArrayHandle<int> s(chmixer.sat_tweak, 3, Glib::OWNERSHIP_NONE);
             keyFile.set_integer_list("Channel Mixer", "SatTweak", s);
+            saveToKeyfile("Channel Mixer", "TempTweak", chmixer.temp_tweak, keyFile);
+            saveToKeyfile("Channel Mixer", "TintTweak", chmixer.tint_tweak, keyFile);
         }
 
 // Black & White
@@ -3598,6 +3605,8 @@ int ProcParams::load(bool load_general,
                     }
                 }
             }
+            assignFromKeyfile(keyFile, "Channel Mixer", "TempTweak", chmixer.temp_tweak);
+            assignFromKeyfile(keyFile, "Channel Mixer", "TintTweak", chmixer.tint_tweak);
         }
 
         if (keyFile.has_group("Black & White") && RELEVANT_(blackwhite)) {

@@ -733,6 +733,8 @@ HISTORY_MSG_CHMIXER_MODE;Channel mixer - mode
 HISTORY_MSG_CHMIXER_RED_PRIMARY;Channel mixer - Red primary
 HISTORY_MSG_CHMIXER_GREEN_PRIMARY;Channel mixer - Green primary
 HISTORY_MSG_CHMIXER_BLUE_PRIMARY;Channel mixer - Blue primary
+HISTORY_MSG_CHMIXER_TEMP;Channel mixer - Temperature
+HISTORY_MSG_CHMIXER_TINT;Channel mixer - Tint
 HISTORY_MSG_CLAMPOOG;Clip out-of-gamut colors
 HISTORY_MSG_COLORCORRECTION_AB;CC - hue correction
 HISTORY_MSG_COLORCORRECTION_AREAMASK;CC - region area mask
@@ -1473,6 +1475,9 @@ TP_CHMIXER_PRIMARY_G;Green primary
 TP_CHMIXER_PRIMARY_B;Blue primary
 TP_CHMIXER_MODE_RGB_MATRIX;RGB matrix
 TP_CHMIXER_MODE_PRIMARIES_CHROMA;Primaries correction
+TP_CHMIXER_TINT;Tint
+TP_CHMIXER_TEMP;Temperature
+TP_CHMIXER_WB;WB fine tuning
 TP_COARSETRAF_TOOLTIP_HFLIP;Flip horizontally.
 TP_COARSETRAF_TOOLTIP_ROTLEFT;Rotate left.\n\nShortcuts:\n<b>[</b> - Multiple Editor Tabs Mode,\n<b>Alt-[</b> - Single Editor Tab Mode.
 TP_COARSETRAF_TOOLTIP_ROTRIGHT;Rotate right.\n\nShortcuts:\n<b>]</b> - Multiple Editor Tabs Mode,\n<b>Alt-]</b> - Single Editor Tab Mode.
@@ -1733,15 +1738,15 @@ TP_LABMASKS_MASK;Mask
 TP_LABMASKS_MASK_UNNAMED;Unnamed
 TP_LABMASKS_SHOW;Show mask
 TP_LABMASKS_CONTRASTTHRESHOLDMASK;Contrast threshold mask
-TP_LABMASKS_DELTAE;ΔE mask
+TP_LABMASKS_DELTAE;E mask
 TP_LABMASKS_DELTAE_L;L
 TP_LABMASKS_DELTAE_C;C
 TP_LABMASKS_DELTAE_H;H
 TP_LABMASKS_DELTAE_RANGE;Range
 TP_LABMASKS_DELTAE_DECAY;Decay
 TP_LABMASKS_DELTAE_PICK;Pick
-TP_LABMASKS_DELTAE_CHAN_WEIGHT;Weight in the ΔE computation
-TP_LABMASKS_DELTAE_TOOLTIP;Select regions of similar colour\n(according to the CIELAB ΔE* metric)
+TP_LABMASKS_DELTAE_CHAN_WEIGHT;Weight in the E computation
+TP_LABMASKS_DELTAE_TOOLTIP;Select regions of similar colour\n(according to the CIELAB E* metric)
 TP_LABMASKS_DRAWNMASK;Brush Mask
 TP_LABMASKS_DRAWNMASK_TOGGLE_TIP;Toggle on-canvas painting with the brush.\nHold <b>Shift</b> to temporarily toggle "Eraser mode".\nUse <b>Ctrl+scroll wheel</b> to change the brush radius,\n<b>Ctrl+Shift+scroll wheel</b> to change the brush hardness,\nand <b>Ctrl+click</b> to begin a new strokes group without changing parameters\n(so that multiple strokes on the same area will add up).
 TP_LABMASKS_DRAWNMASK_PEN_SETTINGS;Brush settings

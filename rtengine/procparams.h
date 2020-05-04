@@ -946,6 +946,8 @@ struct ChannelMixerParams {
 
     int hue_tweak[3];
     int sat_tweak[3];
+    int temp_tweak;
+    int tint_tweak;
 
     ChannelMixerParams();
 
