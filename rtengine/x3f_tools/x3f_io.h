@@ -19,11 +19,9 @@
 #define X3F_IO_H
 
 #include <inttypes.h>
-#include <stdio.h>
+#include "../myfile.h"
+//#include <stdio.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #define SIZE_UNIQUE_IDENTIFIER 16
 #define SIZE_WHITE_BALANCE 32
@@ -382,7 +380,7 @@ typedef struct x3f_camf_s {
 } x3f_camf_t;
 
 typedef struct x3f_directory_entry_header_s {
-  uint32_t identifier;        /* Should be ´SECp´, "SECi", ... */
+  uint32_t identifier;        /* Should be Â´SECpÂ´, "SECi", ... */
   uint32_t version;           /* 0x00020001 is version 2.1  */
   union {
     x3f_property_list_t property_list;
@@ -403,7 +401,7 @@ typedef struct x3f_directory_entry_s {
 } x3f_directory_entry_t;
 
 typedef struct x3f_directory_section_s {
-  uint32_t identifier;          /* Should be ´SECd´ */
+  uint32_t identifier;          /* Should be Â´SECdÂ´ */
   uint32_t version;             /* 0x00020001 is version 2.1  */
 
   /* 2.0 Fields */
@@ -413,7 +411,7 @@ typedef struct x3f_directory_section_s {
 
 typedef struct x3f_header_s {
   /* 2.0 Fields */
-  uint32_t identifier;          /* Should be ´FOVb´ */
+  uint32_t identifier;          /* Should be Â´FOVbÂ´ */
   uint32_t version;             /* 0x00020001 means 2.1 */
   uint8_t unique_identifier[SIZE_UNIQUE_IDENTIFIER];
   uint32_t mark_bits;
@@ -432,7 +430,7 @@ typedef struct x3f_header_s {
 typedef struct x3f_info_s {
   char *error;
   struct {
-    FILE *file;                 /* Use if more data is needed */
+    IMFILE *file;                 /* Use if more data is needed */
   } input, output;
 } x3f_info_t;
 
@@ -453,7 +451,7 @@ typedef enum x3f_return_e {
 extern int legacy_offset;
 extern bool_t auto_legacy_offset;
 
-extern x3f_t *x3f_new_from_file(FILE *infile);
+extern x3f_t *x3f_new_from_file(IMFILE *infile);
 
 extern x3f_return_t x3f_delete(x3f_t *x3f);
 
@@ -475,8 +473,5 @@ extern x3f_return_t x3f_load_image_block(x3f_t *x3f, x3f_directory_entry_t *DE);
 
 extern char *x3f_err(x3f_return_t err);
 
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* X3F_IO_H */

@@ -9,8 +9,8 @@
 
 #include "x3f_printf.h"
 
-#include <stdio.h>
-#include <stdarg.h>
+#include <cstdio>
+#include <cstdarg>
 
 x3f_verbosity_t x3f_printf_level = INFO;
 

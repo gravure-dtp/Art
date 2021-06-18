@@ -6,14 +6,14 @@
  * BSD-style - see doc/copyright.txt
  *
  */
-
 #include "x3f_io.h"
 #include "x3f_printf.h"
 
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <assert.h>
+#include <cstring>
+#include <cstdlib>
+#include "../myfile.h"
+//#include <stdio.h>
+#include <cassert>
 
 #if defined(_WIN32) || defined (_WIN64)
 #include <windows.h>
@@ -41,19 +41,19 @@
 /* Reading and writing - assuming little endian in the file              */
 /* --------------------------------------------------------------------- */
 
-static int x3f_get1(FILE *f)
+static int x3f_get1(IMFILE *f)
 {
   /* Little endian file */
   return getc(f);
 }
 
-static int x3f_get2(FILE *f)
+static int x3f_get2(IMFILE *f)
 {
   /* Little endian file */
   return (getc(f)<<0) + (getc(f)<<8);
 }
 
-static int x3f_get4(FILE *f)
+static int x3f_get4(IMFILE *f)
 {
   /* Little endian file */
   return (getc(f)<<0) + (getc(f)<<8) + (getc(f)<<16) + (getc(f)<<24);
@@ -86,22 +86,46 @@ static int x3f_get4(FILE *f)
   } while (0)
 #define GETN(_v,_s) PUT_GET_N(_v,_s,I->input.file,fread)
 
-#define GET_TABLE(_T, _GETX, _NUM)					\
+#define GET_TABLE_8(_T, _GETX, _NUM)					\
   do {									\
     int _i;								\
     (_T).size = (_NUM);							\
-    (_T).element = (void *)realloc((_T).element,			\
-				   (_NUM)*sizeof((_T).element[0]));	\
+    (_T).element = static_cast<uint8_t *>( \
+                   (void *)realloc((_T).element,			\
+				   (_NUM)*sizeof((_T).element[0])));	\
+    for (_i = 0; _i < (_T).size; _i++)					\
+      _GETX((_T).element[_i]);						\
+  } while (0)
+      
+#define GET_TABLE_16(_T, _GETX, _NUM)					\
+  do {									\
+    int _i;								\
+    (_T).size = (_NUM);							\
+    (_T).element = static_cast<uint16_t *>( \
+                   (void *)realloc((_T).element,			\
+				   (_NUM)*sizeof((_T).element[0])));	\
     for (_i = 0; _i < (_T).size; _i++)					\
       _GETX((_T).element[_i]);						\
   } while (0)
 
+#define GET_TABLE_32(_T, _GETX, _NUM)					\
+  do {									\
+    int _i;								\
+    (_T).size = (_NUM);							\
+    (_T).element = static_cast<uint32_t *>( \
+                   (void *)realloc((_T).element,			\
+				   (_NUM)*sizeof((_T).element[0])));	\
+    for (_i = 0; _i < (_T).size; _i++)					\
+      _GETX((_T).element[_i]);						\
+  } while (0)
+      
 #define GET_PROPERTY_TABLE(_T, _NUM)					\
   do {									\
     int _i;								\
     (_T).size = (_NUM);							\
-    (_T).element = (void *)realloc((_T).element,			\
-				   (_NUM)*sizeof((_T).element[0]));	\
+    (_T).element = static_cast<x3f_property_t *>( \
+                   (void *)realloc((_T).element,		\
+				   (_NUM)*sizeof((_T).element[0])));	\
     for (_i = 0; _i < (_T).size; _i++) {				\
       GET4((_T).element[_i].name_offset);				\
       GET4((_T).element[_i].value_offset);				\
@@ -114,8 +138,9 @@ static int x3f_get4(FILE *f)
     (_T).element = NULL;						\
     for (_i = 0; ; _i++) {						\
       (_T).size = _i + 1;						\
-      (_T).element = (void *)realloc((_T).element,			\
-				     (_i + 1)*sizeof((_T).element[0]));	\
+      (_T).element = static_cast<x3f_true_huffman_element_t *>( \
+                     (void *)realloc((_T).element,			\
+				     (_i + 1)*sizeof((_T).element[0])));	\
       GET1((_T).element[_i].code_size);					\
       GET1((_T).element[_i].code);					\
       if ((_T).element[_i].code_size == 0) break;			\
@@ -268,7 +293,7 @@ static x3f_huffman_t *new_huffman(x3f_huffman_t **HUFP)
 /* Creating a new x3f structure from file                                */
 /* --------------------------------------------------------------------- */
 
-/* extern */ x3f_t *x3f_new_from_file(FILE *infile)
+/* extern */ x3f_t *x3f_new_from_file(IMFILE *infile)
 {
   x3f_t *x3f = (x3f_t *)calloc(1, sizeof(x3f_t));
   x3f_info_t *I = NULL;
@@ -945,7 +970,7 @@ static void huffman_decode_row(x3f_info_t *I,
   int col;
   bit_state_t BS;
 
-  set_bit_state(&BS, ID->data + HUF->row_offsets.element[row]);
+  set_bit_state(&BS, static_cast<uint8_t *>(ID->data) + HUF->row_offsets.element[row]);
 
   for (col = 0; col < ID->columns; col++) {
     int color;
@@ -1137,7 +1162,7 @@ static void x3f_load_image_verbatim(x3f_info_t *I, x3f_directory_entry_t *DE)
 static char *utf16le_to_utf8(utf16_t *str)
 {
   size_t osize = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
-  char *buf = malloc(osize);
+  char *buf = static_cast<char *> malloc(osize);
 
   WideCharToMultiByte(CP_UTF8, 0, str, -1, buf, osize, NULL, NULL);
 
@@ -1156,7 +1181,7 @@ static char *utf16le_to_utf8(utf16_t *str)
   isize *= 2;			/* Size in bytes */
   osize = 2*isize;		/* Worst case scenario */
 
-  buf = malloc(osize+1);
+  buf = static_cast<char *>(malloc(osize+1));
   ibuf = (char *)str;
   obuf = buf;
 
@@ -1165,7 +1190,7 @@ static char *utf16le_to_utf8(utf16_t *str)
 
   iconv_close(ic);
 
-  return realloc(buf, obuf-buf+1);
+  return (char *) realloc(buf, obuf-buf+1);
 }
 #endif
 
@@ -1242,7 +1267,7 @@ static void x3f_load_true(x3f_info_t *I,
     GET4(Q->unknown);
   }
 
-  GET_TABLE(TRU->plane_size, GET4, TRUE_PLANES);
+  GET_TABLE_32(TRU->plane_size, GET4, TRUE_PLANES);
 
   /* Read image data */
   ID->data_size = read_data_block(&ID->data, I, DE, 0);
@@ -1256,7 +1281,7 @@ static void x3f_load_true(x3f_info_t *I,
   print_huffman_tree(TRU->tree.nodes, 0, 0);
 #endif
 
-  TRU->plane_address[0] = ID->data;
+  TRU->plane_address[0] = static_cast<uint8_t *> (ID->data);
   for (i=1; i<TRUE_PLANES; i++)
     TRU->plane_address[i] =
       TRU->plane_address[i-1] +
@@ -1275,8 +1300,8 @@ static void x3f_load_true(x3f_info_t *I,
     TRU->x3rgb16.rows = rows;
     TRU->x3rgb16.channels = channels;
     TRU->x3rgb16.row_stride = columns * channels;
-    TRU->x3rgb16.data = TRU->x3rgb16.buf =
-      (uint16_t *)malloc(sizeof(uint16_t)*size);
+    TRU->x3rgb16.buf = malloc(sizeof(uint16_t)*size);
+    TRU->x3rgb16.data = static_cast<uint16_t *>(TRU->x3rgb16.buf);
 
     columns = Q->plane[2].columns;
     rows = Q->plane[2].rows;
@@ -1287,8 +1312,8 @@ static void x3f_load_true(x3f_info_t *I,
     Q->top16.rows = rows;
     Q->top16.channels = channels;
     Q->top16.row_stride = columns * channels;
-    Q->top16.data = Q->top16.buf =
-      (uint16_t *)malloc(sizeof(uint16_t)*size);
+    Q->top16.buf = malloc(sizeof(uint16_t)*size);
+    Q->top16.data = static_cast<uint16_t *>(Q->top16.buf);
   } else {
     uint32_t size = ID->columns * ID->rows * 3;
 
@@ -1296,8 +1321,8 @@ static void x3f_load_true(x3f_info_t *I,
     TRU->x3rgb16.rows = ID->rows;
     TRU->x3rgb16.channels = 3;
     TRU->x3rgb16.row_stride = ID->columns * 3;
-    TRU->x3rgb16.data = TRU->x3rgb16.buf =
-      (uint16_t *)malloc(sizeof(uint16_t)*size);
+    TRU->x3rgb16.buf = malloc(sizeof(uint16_t)*size);
+    TRU->x3rgb16.data = static_cast<uint16_t *>(TRU->x3rgb16.buf);
   }
 
   true_decode(I, DE);
@@ -1316,11 +1341,11 @@ static void x3f_load_huffman_compressed(x3f_info_t *I,
 
   x3f_printf(DEBUG, "Load huffman compressed\n");
 
-  GET_TABLE(HUF->table, GET4, table_size);
+  GET_TABLE_32(HUF->table, GET4, table_size);
 
   ID->data_size = read_data_block(&ID->data, I, DE, row_offsets_size);
 
-  GET_TABLE(HUF->row_offsets, GET4, ID->rows);
+  GET_TABLE_32(HUF->row_offsets, GET4, ID->rows);
 
   x3f_printf(DEBUG, "Make huffman tree ...\n");
   new_huffman_tree(&HUF->tree, bits);
@@ -1364,7 +1389,7 @@ static void x3f_load_huffman(x3f_info_t *I,
   if (use_map_table) {
     int table_size = 1<<bits;
 
-    GET_TABLE(HUF->mapping, GET2, table_size);
+    GET_TABLE_16(HUF->mapping, GET2, table_size);
   }
 
   switch (ID->type_format) {
@@ -1375,8 +1400,9 @@ static void x3f_load_huffman(x3f_info_t *I,
     HUF->x3rgb16.rows = ID->rows;
     HUF->x3rgb16.channels = 3;
     HUF->x3rgb16.row_stride = ID->columns * 3;
-    HUF->x3rgb16.data = HUF->x3rgb16.buf =
-      (uint16_t *)malloc(sizeof(uint16_t)*size);
+     
+    HUF->x3rgb16.buf = malloc(sizeof(uint16_t)*size);
+    HUF->x3rgb16.data = static_cast<uint16_t *>(HUF->x3rgb16.buf);
     break;
   case X3F_IMAGE_THUMB_HUFFMAN:
     size = ID->columns * ID->rows * 3;
@@ -1384,8 +1410,8 @@ static void x3f_load_huffman(x3f_info_t *I,
     HUF->rgb8.columns = ID->rows;
     HUF->rgb8.channels = 3;
     HUF->rgb8.row_stride = ID->columns * 3;
-    HUF->rgb8.data = HUF->rgb8.buf =
-      (uint8_t *)malloc(sizeof(uint8_t)*size);
+    HUF->rgb8.buf = malloc(sizeof(uint8_t)*size);
+    HUF->rgb8.data = static_cast<uint8_t *>(HUF->rgb8.buf);
     break;
   default:
     /* TODO: Shouldn't this be treated as a fatal error? */
@@ -1453,14 +1479,14 @@ static void x3f_load_camf_decode_type2(x3f_camf_t *CAMF)
   CAMF->decoded_data = malloc(CAMF->decoded_data_size);
 
   for (i=0; i<CAMF->data_size; i++) {
-    uint8_t old, new;
+    uint8_t old, _new;
     uint32_t tmp;
 
     old = ((uint8_t *)CAMF->data)[i];
     key = (key * 1597 + 51749) % 244944;
     tmp = (uint32_t)(key * ((int64_t)301593171) >> 24);
-    new = (uint8_t)(old ^ (uint8_t)(((((key << 8) - tmp) >> 1) + tmp) >> 17));
-    ((uint8_t *)CAMF->decoded_data)[i] = new;
+    _new = (uint8_t)(old ^ (uint8_t)(((((key << 8) - tmp) >> 1) + tmp) >> 17));
+    ((uint8_t *)CAMF->decoded_data)[i] = _new;
   }
 }
 
@@ -1563,7 +1589,7 @@ static void x3f_load_camf_decode_type4(x3f_camf_t *CAMF)
   uint8_t *p;
   x3f_true_huffman_element_t *element = NULL;
 
-  for (i=0, p = CAMF->data; *p != 0; i++) {
+  for (i=0, p = static_cast<uint8_t*>(CAMF->data); *p != 0; i++) {
     /* TODO: Is this too expensive ??*/
     element =
       (x3f_true_huffman_element_t *)realloc(element, (i+1)*sizeof(*element));
@@ -1605,7 +1631,7 @@ static void camf_decode_type5(x3f_camf_t *CAMF)
   int32_t i;
 
   CAMF->decoded_data_size = CAMF->t5.decoded_data_size;
-  CAMF->decoded_data = malloc(CAMF->decoded_data_size);
+  CAMF->decoded_data = (void *) malloc(CAMF->decoded_data_size);
 
   dst = (uint8_t *)CAMF->decoded_data;
 
@@ -1625,7 +1651,7 @@ static void x3f_load_camf_decode_type5(x3f_camf_t *CAMF)
   uint8_t *p;
   x3f_true_huffman_element_t *element = NULL;
 
-  for (i=0, p = CAMF->data; *p != 0; i++) {
+  for (i=0, p = static_cast<uint8_t*>(CAMF->data); *p != 0; i++) {
     /* TODO: Is this too expensive ??*/
     element =
       (x3f_true_huffman_element_t *)realloc(element, (i+1)*sizeof(*element));
@@ -1658,18 +1684,15 @@ static void x3f_load_camf_decode_type5(x3f_camf_t *CAMF)
 static void x3f_setup_camf_text_entry(camf_entry_t *entry)
 {
   entry->text_size = *(uint32_t *)entry->value_address;
-  entry->text = entry->value_address + 4;
+  entry->text = static_cast<char*>(entry->value_address + 4);
 }
 
 static void x3f_setup_camf_property_entry(camf_entry_t *entry)
 {
   int i;
-  uint8_t *e =
-    entry->entry;
-  uint8_t *v =
-    entry->value_address;
-  uint32_t num =
-    entry->property_num = *(uint32_t *)v;
+  uint8_t *e = static_cast<uint8_t*>(entry->entry);
+  uint8_t *v = static_cast<uint8_t*>(entry->value_address);
+  uint32_t num = entry->property_num = *(uint32_t *)v;
   uint32_t off = *(uint32_t *)(v + 4);
 
   entry->property_name = (char **)malloc(num*sizeof(uint8_t*));
@@ -1727,7 +1750,7 @@ static void get_matrix_copy(camf_entry_t *entry)
 		 sizeof(double) :
 		 sizeof(uint32_t)) * elements;
 
-  entry->matrix_decoded = malloc(size);
+  entry->matrix_decoded = (void *) malloc(size);
 
   switch (element_size) {
   case 4:
@@ -1791,18 +1814,12 @@ static void x3f_setup_camf_matrix_entry(camf_entry_t *entry)
   int i;
   int totalsize = 1;
 
-  uint8_t *e =
-    entry->entry;
-  uint8_t *v =
-    entry->value_address;
-  uint32_t type =
-    entry->matrix_type = *(uint32_t *)(v + 0);
-  uint32_t dim =
-    entry->matrix_dim = *(uint32_t *)(v + 4);
-  uint32_t off =
-    entry->matrix_data_off = *(uint32_t *)(v + 8);
-  camf_dim_entry_t *dentry =
-    entry->matrix_dim_entry =
+  uint8_t *e = static_cast<uint8_t*>(entry->entry);
+  uint8_t *v = static_cast<uint8_t*>(entry->value_address);
+  uint32_t type = entry->matrix_type = *(uint32_t *)(v + 0);
+  uint32_t dim = entry->matrix_dim = *(uint32_t *)(v + 4);
+  uint32_t off = entry->matrix_data_off = *(uint32_t *)(v + 8);
+  camf_dim_entry_t *dentry = entry->matrix_dim_entry =
     (camf_dim_entry_t*)malloc(dim*sizeof(camf_dim_entry_t));
 
   for (i=0; i<dim; i++) {
