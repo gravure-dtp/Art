@@ -73,6 +73,7 @@ protected:
 
 public:
     bool has_gain_map(std::vector<uint8_t> *out_buf) const;
+    void read_foveon_spatial_gain();
 
     static void initCameraConstants(Glib::ustring baseDir);
     std::string get_filename() const

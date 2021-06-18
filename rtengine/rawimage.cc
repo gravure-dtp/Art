@@ -664,6 +664,8 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
             raw_image = nullptr;
         } else {
             if (get_maker() == "Sigma" && cc && cc->has_rawCrop(width, height)) { // foveon images
+                read_foveon_spatial_gain();
+            
                 raw_crop_cc = true;
                 int lm, tm, w, h;
                 cc->get_rawCrop(width, height, lm, tm, w, h);
