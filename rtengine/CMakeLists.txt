@@ -162,6 +162,11 @@ set(RTENGINESOURCEFILES
     nlmeans.cc
     x3f_tools/x3f_printf.cc
     x3f_tools/x3f_io.cc
+    x3f_tools/x3f_meta.cc
+    x3f_tools/x3f_matrix.cc
+    x3f_tools/x3f_image.cc
+    x3f_tools/x3f_process.cc
+    x3f_tools/x3f_spatial_gain.cc
     )
 
 

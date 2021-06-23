@@ -28,6 +28,7 @@
 #include "imageformat.h"
 #include "gainmap.h"
 
+
 namespace rtengine {
 
 class RawImage: protected DCraw
@@ -63,17 +64,18 @@ protected:
     char* profile_data; // Embedded ICC color profile
     float* allocation; // pointer to allocated memory
     int maximum_c4[4];
-    bool isFoveon() const
-    {
-        return is_foveon;
-    }
 
     std::vector<std::array<int, 4>> raw_optical_black_med_;
     bool has_raw_border_;
 
 public:
+    bool isFoveon() const
+    {
+        return is_foveon;
+    }
     bool has_gain_map(std::vector<uint8_t> *out_buf) const;
-    void read_foveon_spatial_gain();
+    std::vector<GainMap> read_foveon_spatial_gain();
+    bool get_foveon_camf_rect(uint32_t *crect);
 
     static void initCameraConstants(Glib::ustring baseDir);
     std::string get_filename() const

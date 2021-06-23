@@ -1061,6 +1061,8 @@ int RawImageSource::load (const Glib::ustring &fname, bool firstFrameOnly)
         std::vector<uint8_t> gainmap_buf;
         if (ri->has_gain_map(&gainmap_buf)) {
             gain_maps = GainMap::read(gainmap_buf);
+        } else if(ri->isFoveon()){
+            gain_maps = ri->read_foveon_spatial_gain();
         }
     }
     
@@ -2236,6 +2238,8 @@ void RawImageSource::copyOriginalPixels(const RAWParams &raw, RawImage *src, Raw
 
     if (raw.enable_flatfield && raw.ff_embedded) {
         apply_gain_map(black, idata->getGainMaps());
+    } else if(ri->isFoveon()){
+        apply_foveon_spatial_gain(black, idata->getGainMaps());
     }
 }
 
