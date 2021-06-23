@@ -11,8 +11,8 @@
 #include "x3f_io.h"
 #include "x3f_printf.h"
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 
 /* extern */ int x3f_get_camf_text(x3f_t *x3f, char *name, char **text)
 {

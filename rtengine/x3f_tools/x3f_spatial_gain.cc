@@ -11,10 +11,10 @@
 #include "x3f_meta.h"
 #include "x3f_printf.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
 
 
 static double lens_position(double focal_length, double object_distance){
@@ -159,7 +159,7 @@ int x3f_get_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag, x3f_spatial_gain_
                 &aperture_index, &dummy)==1 &&
                 x3f_get_camf_property_list(x3f, include_blocks[i], &names, &values, &num) &&
                 aperture_index>=0 && aperture_index<num_fstop){
-                    g = alloca(sizeof(merrill_spatial_gain_t));
+                    g = static_cast<merrill_spatial_gain_t*>(alloca(sizeof(merrill_spatial_gain_t)));
                     g->name = include_blocks[i];
                     //g->x = 1.0 / spatial_gain_fstop[aperture_index];
                     g->x = get_focal_length(x3f) / spatial_gain_fstop[aperture_index];
@@ -192,7 +192,7 @@ int x3f_get_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag, x3f_spatial_gain_
                         lenspos = lens_position(get_focal_length(x3f), get_MOD(x3f));
                     else continue;
 
-                    g = alloca(sizeof(merrill_spatial_gain_t));
+                    g = static_cast<merrill_spatial_gain_t*>(alloca(sizeof(merrill_spatial_gain_t)));
                     g->name = include_blocks[i];
                     //g->x = 1.0 / spatial_gain_fstop[aperture_index];
                     g->x = get_focal_length(x3f) / spatial_gain_fstop[aperture_index];
@@ -212,7 +212,7 @@ int x3f_get_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag, x3f_spatial_gain_
                         &aperture, &lenspos, &dummy)==2 &&
                         x3f_get_camf_property_list(x3f, include_blocks[i], 
                         &names, &values, &num)){
-                    g = alloca(sizeof(merrill_spatial_gain_t));
+                    g = static_cast<merrill_spatial_gain_t*>(alloca(sizeof(merrill_spatial_gain_t)));
                     g->name = include_blocks[i];
                     //g->x = 1.0 / aperture;
                     g->x = get_focal_length(x3f) / aperture;
@@ -277,9 +277,9 @@ int x3f_get_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag, x3f_spatial_gain_
     }
 
     for (i=0; i<4; i++){
-        if (isnan(q_weight_x[i])) 
+        if (std::isnan(q_weight_x[i])) 
             q_weight_x[i] = 1.0;
-        if (isnan(q_weight_y[i])) 
+        if (std::isnan(q_weight_y[i])) 
             q_weight_y[i] = 1.0;
         q_weight[i] = q_weight_x[i] * q_weight_y[i];
     }
@@ -367,7 +367,7 @@ int x3f_get_interp_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag,
     for (i=0; i<corr_num; i++){
         x3f_spatial_gain_corr_t *c = &corr[i];
         int j, num = c->rows * c->cols * c->channels;
-        c->gain = malloc(num * sizeof(double));
+        c->gain = static_cast<double*>(malloc(num * sizeof(double)));
         c->malloc = 1;
 
         for (j=0; j<num; j++){

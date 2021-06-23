@@ -12,8 +12,8 @@
 #include "x3f_meta.h"
 #include "x3f_printf.h"
 
-#include <stdio.h>
-#include <assert.h>
+#include <cstdio>
+#include <cassert>
 
 /* extern */ int x3f_image_area(x3f_t *x3f, x3f_area16_t *image)
 {

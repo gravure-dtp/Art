@@ -12,7 +12,6 @@
 #include <cstring>
 #include <cstdlib>
 #include "../myfile.h"
-//#include <stdio.h>
 #include <cassert>
 
 #if defined(_WIN32) || defined (_WIN64)

@@ -7,7 +7,7 @@
  *
  */
 
-#include <math.h>
+#include <cmath>
 
 #include "x3f_matrix.h"
 #include "x3f_printf.h"

@@ -8,6 +8,7 @@
  */
 
 #include "x3f_printf.h"
+#include "../settings.h"
 
 #include <cstdio>
 #include <cstdarg>
