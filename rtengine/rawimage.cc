@@ -17,6 +17,7 @@
 #include "utils.h"
 #include "metadata.h"
 
+
 namespace rtengine {
 
 extern const Settings* settings;
@@ -29,6 +30,7 @@ RawImage::RawImage(  const Glib::ustring &name )
     , profile_data(nullptr)
     , allocation(nullptr)
     , has_raw_border_(true)
+    , foveon_helper(nullptr)
 {
     memset(maximum_c4, 0, sizeof(maximum_c4));
     RT_matrix_from_constant = ThreeValBool::X;
@@ -65,6 +67,11 @@ RawImage::~RawImage()
     if(profile_data) {
         delete [] profile_data;
         profile_data = nullptr;
+    }
+    
+    if(foveon_helper) {
+        delete foveon_helper;
+        foveon_helper = nullptr;
     }
 }
 
@@ -503,6 +510,10 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
         }
 
         return 2;
+    }
+    
+    if(get_maker()=="Sigma" && FoveonHelper::is_supported(get_model())){
+        if(!foveon_helper) foveon_helper = new FoveonHelper(this);
     }
 
     if(!strcmp(make,"Fujifilm") && raw_height * raw_width * 2u != raw_size) {

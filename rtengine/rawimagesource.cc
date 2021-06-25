@@ -37,6 +37,7 @@
 #include "pdaflinesfilter.h"
 #include "camconst.h"
 #include "lensexif.h"
+#include "foveon.h"
 #include "../rtgui/multilangmgr.h"
 #define BENCHMARK
 #include "StopWatch.h"
@@ -1062,7 +1063,8 @@ int RawImageSource::load (const Glib::ustring &fname, bool firstFrameOnly)
         if (ri->has_gain_map(&gainmap_buf)) {
             gain_maps = GainMap::read(gainmap_buf);
         } else if(ri->isFoveon()){
-            gain_maps = ri->read_foveon_spatial_gain();
+            FoveonHelper *fv = ri->get_foveon_helper();
+            if (ri) gain_maps = fv->read_foveon_spatial_gain();
         }
     }
     

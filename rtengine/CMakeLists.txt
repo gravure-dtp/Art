@@ -151,6 +151,7 @@ set(RTENGINESOURCEFILES
     filmnegativeproc.cc
     filmnegativethumb.cc
     canon_cr3_decoder.cc
+    foveon.cc
     rawimage_gainmap.cc
     rawimage_foveon.cc
     subprocess.cc
