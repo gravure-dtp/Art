@@ -14,6 +14,8 @@
 
 #include <inttypes.h>
 
+namespace x3ftools{
+
 extern void x3f_3x1_invert(double *a, double *ainv);
 extern void x3f_3x1_comp_mul(double *a, double *b, double *c);
 
@@ -50,4 +52,6 @@ extern void x3f_sRGB_LUT(double *lut, int size, uint16_t max);
 extern void x3f_gamma_LUT(double *lut, int size, uint16_t max, double gamma);
 extern uint16_t x3f_LUT_lookup(double *lut, int size, double val);
 
+
+}// namespace x3ftools
 #endif	/* X3F_MATRIX_H */

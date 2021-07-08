@@ -10,6 +10,7 @@
 #ifndef X3F_PRINTF_H
 #define X3F_PRINTF_H
 
+namespace x3ftools{
 
 typedef enum {ERR=0, WARN=1, INFO=2, DEBUG=3} x3f_verbosity_t;
 
@@ -19,4 +20,5 @@ extern void x3f_printf(x3f_verbosity_t level, const char *fmt, ...)
   __attribute__((format(printf, 2, 3)));
 
 
+}// namespace x3ftools
 #endif

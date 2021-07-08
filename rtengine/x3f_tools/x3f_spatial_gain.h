@@ -8,7 +8,13 @@
  */
 #ifndef X3F_SPATIAL_GAIN_H
 #define X3F_SPATIAL_GAIN_H
+
 #include "x3f_io.h"
+
+namespace x3ftools{
+
+/* Quattro HP: R, G, B0, B1, B2, B3 */
+constexpr uint32_t MAXCORR = 6; 
 
 
 typedef struct{
@@ -29,26 +35,24 @@ typedef struct{
 }x3f_spatial_gain_corr_t;
 
 
-#define MAXCORR 6 /* Quattro HP: R, G, B0, B1, B2, B3 */
-
 extern int x3f_get_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag,
 					     x3f_spatial_gain_corr_t *corr);
 
 extern int x3f_get_interp_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag,
 						    x3f_spatial_gain_corr_t *corr);
 
-extern int x3f_get_classic_spatial_gain(x3f_t *x3f, char *wb,
+extern int x3f_get_classic_spatial_gain(x3f_t *x3f, const char *wb,
 					x3f_spatial_gain_corr_t *corr);
 
-extern int x3f_get_spatial_gain(x3f_t *x3f, char *wb,
+extern int x3f_get_spatial_gain(x3f_t *x3f, const char *wb,
 				x3f_spatial_gain_corr_t *corr);
 
 extern void x3f_cleanup_spatial_gain(x3f_spatial_gain_corr_t *corr,
 				     int corr_num);
 
-extern double x3f_calc_spatial_gain(x3f_spatial_gain_corr_t *corr,
-				    int corr_num,
-				    int row, int col, int chan,
-				    int rows, int cols);
+extern double x3f_calc_spatial_gain(x3f_spatial_gain_corr_t *corr, int corr_num,
+				    int row, int col, int chan, int rows, int cols);
 
+
+}// namespace x3ftools
 #endif

@@ -6,12 +6,19 @@
  * BSD-style - see doc/copyright.txt
  *
  */
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#pragma GCC diagnostic ignored "-Wnarrowing"
+#endif
 
 #include <cmath>
 
 #include "x3f_matrix.h"
 #include "x3f_printf.h"
 
+namespace x3ftools{
+    
 #define M0(m) *(m+0)
 #define M1(m) *(m+1)
 #define M2(m) *(m+2)
@@ -270,3 +277,5 @@ uint16_t x3f_LUT_lookup(double *lut, int size, double val)
   else
     return (uint16_t)round(lut[i] + frac*(lut[i+1] - lut[i]));
 }
+
+}// namespace x3ftools

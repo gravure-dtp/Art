@@ -6,6 +6,10 @@
  * BSD-style - see doc/copyright.txt
  *
  */
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
 
 #include "x3f_image.h"
 #include "x3f_io.h"
@@ -15,6 +19,8 @@
 #include <cstdio>
 #include <cassert>
 
+namespace x3ftools{
+
 /* extern */ int x3f_image_area(x3f_t *x3f, x3f_area16_t *image)
 {
   x3f_directory_entry_t *DE = x3f_get_raw(x3f);
@@ -22,7 +28,7 @@
   x3f_image_data_t *ID;
   x3f_huffman_t *HUF;
   x3f_true_t *TRU;
-  x3f_area16_t *area = NULL;
+  x3f_area16_t *area = nullptr;
 
   if (!DE) return 0;
 
@@ -31,15 +37,15 @@
   HUF = ID->huffman;
   TRU = ID->tru;
 
-  if (HUF != NULL)
+  if (HUF != nullptr)
     area = &HUF->x3rgb16;
 
-  if (TRU != NULL)
+  if (TRU != nullptr)
     area = &TRU->x3rgb16;
 
   if (!area || !area->data) return 0;
   *image = *area;
-  image->buf = NULL;		/* cleanup_true/cleanup_huffman is
+  image->buf = nullptr;		/* cleanup_true/cleanup_huffman is
 				   responsible for free() */
   return 1;
 }
@@ -59,7 +65,7 @@
 
   if (!Q || !Q->top16.data) return 0;
   *image = Q->top16;
-  image->buf = NULL;		/* cleanup_quattro is responsible for free() */
+  image->buf = nullptr;		/* cleanup_quattro is responsible for free() */
 
   return 1;
 }
@@ -167,71 +173,72 @@ static int x3f_transform_rect_to_keep_image(x3f_t *x3f,
   return 1;
 }
 
-/* extern */ int x3f_get_camf_rect(x3f_t *x3f, char *name,
-				   x3f_area16_t *image, int rescale,
-				   uint32_t *rect)
-{
-  if (!x3f_get_camf_matrix(x3f, name, 4, 0, 0, M_UINT, rect))
-    return 0;
 
-  return x3f_transform_rect_to_keep_image(x3f, image, rescale, rect);
+/* extern */ 
+int x3f_get_camf_rect(x3f_t *x3f, const char *name, x3f_area16_t *image,
+                      int rescale, uint32_t *rect){
+    if (!x3f_get_camf_matrix(x3f, name, 4, 0, 0, M_UINT, rect))
+        return 0;
+    return x3f_transform_rect_to_keep_image(x3f, image, rescale, rect);
 }
 
-/* extern */ int x3f_crop_area_column(x3f_t *x3f, col_side_t which_side,
-				      x3f_area16_t *image, int rescale,
-				      x3f_area16_t *crop)
-{
-  uint32_t rect[4];
-  uint32_t column[4];
 
-  if (!x3f_get_camf_matrix(x3f, "DarkShieldColRange", 2, 2, 0, M_UINT, column))
+/* extern */ 
+int x3f_crop_area_column(x3f_t *x3f, col_side_t which_side, x3f_area16_t *image, 
+                         int rescale, x3f_area16_t *crop){
+    uint32_t rect[4];
+    uint32_t column[4];
+
+    if (!x3f_get_camf_matrix(x3f, "DarkShieldColRange", 2, 2, 0, M_UINT, column))
+        return 0;
+
+    rect[1] = 0;           /* Cropped automatically later */
+    rect[3] = UINT32_MAX;  /* Cropped automatically later */
+
+    if (which_side==COL_SIDE_LEFT){
+        rect[0] = column[0];
+        rect[2] = column[1];
+    } else if (which_side==COL_SIDE_RIGHT){
+        rect[0] = column[2];
+        rect[2] = column[3];
+    } else
+        return 0;
+
+    if (x3f_transform_rect_to_keep_image(x3f, image, rescale, rect)){
+        int ret = x3f_crop_area(rect, image, crop);
+    	assert(ret);
+        return 1;
+    }
     return 0;
+}
 
-  rect[1] = 0;           /* Cropped automatically later */
-  rect[3] = UINT32_MAX;  /* Cropped automatically later */
 
-  if (which_side == COL_SIDE_LEFT) {
-    rect[0] = column[0];
-    rect[2] = column[1];
-  } else if (which_side == COL_SIDE_RIGHT) {
-    rect[0] = column[2];
-    rect[2] = column[3];
-  } else
-    return 0;
-
-  if (x3f_transform_rect_to_keep_image(x3f, image, rescale, rect)) {
-    assert(x3f_crop_area(rect, image, crop));
+/* extern */ 
+int x3f_crop_area_camf(x3f_t *x3f, const char *name, x3f_area16_t *image, 
+                     int rescale, x3f_area16_t *crop){
+    uint32_t rect[4];
+    if (!x3f_get_camf_rect(x3f, name, image, rescale, rect)) 
+        return 0;
+    /* This should not fail as long as x3f_get_camf_rect is implemented
+     correctly */
+    int ret = x3f_crop_area(rect, image, crop);
+    assert(ret);
     return 1;
-  }
-
-  return 0;
 }
 
-/* extern */ int x3f_crop_area_camf(x3f_t *x3f, char *name,
-				    x3f_area16_t *image, int rescale,
-				    x3f_area16_t *crop)
-{
-  uint32_t rect[4];
 
-  if (!x3f_get_camf_rect(x3f, name, image, rescale, rect)) return 0;
-  /* This should not fail as long as x3f_get_camf_rect is implemented
+/* extern */ 
+int x3f_crop_area8_camf(x3f_t *x3f, const char *name, x3f_area8_t *image, 
+                        int rescale, x3f_area8_t *crop){
+    uint32_t rect[4];
+    if (!x3f_get_camf_rect(x3f, name, (x3f_area16_t *)image, rescale, rect))
+        return 0;
+    /* This should not fail as long as x3f_get_camf_rect is implemented
      correctly */
-  assert(x3f_crop_area(rect, image, crop));
-
-  return 1;
+    int ret = x3f_crop_area8(rect, image, crop);
+    assert(ret);
+    return 1;
 }
 
-/* extern */ int x3f_crop_area8_camf(x3f_t *x3f, char *name,
-				     x3f_area8_t *image, int rescale,
-				     x3f_area8_t *crop)
-{
-  uint32_t rect[4];
 
-  if (!x3f_get_camf_rect(x3f, name, (x3f_area16_t *)image, rescale, rect))
-    return 0;
-  /* This should not fail as long as x3f_get_camf_rect is implemented
-     correctly */
-  assert(x3f_crop_area8(rect, image, crop));
-
-  return 1;
-}
+}// namespace x3ftools
