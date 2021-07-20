@@ -23,6 +23,7 @@
  
 #include "gainmap.h"
 #include "rawimage.h"
+
 #include "x3f_tools/x3f_io.h"
 #include "x3f_tools/x3f_meta.h"
 
@@ -37,11 +38,20 @@ public:
     
 protected:
     RawImage const *raw_image;
-    x3f_t *x3f;
+    x3ftools::x3f_t *x3f;
+    bool data_loaded;
+    int black[3];
+    int white[3];
     
 public:
-    std::vector<GainMap> read_foveon_spatial_gain() const;
+    std::vector<GainMap> read_foveon_spatial_gain();
     bool get_camf_rect(uint32_t *crect) const;
+    bool get_BlackLevels(int* black_c4);
+    bool get_WhiteLevels(int* white_c4);
+    bool get_ccMatrix(double *matrix);
+    bool get_cam_xyz(double matrix[4][3]);
+    bool get_asShotNeutral(float *gain);
+    bool get_wbGain(float *gain);
     
     static bool is_supported(const std::string& camera){
         static const std::vector<std::string> supported_cams = 
@@ -56,6 +66,8 @@ public:
     
 protected:
     void debug(std::vector<std::string> mess) const;
+    bool load_data();
+    bool get_Levels();
 };
 
 
