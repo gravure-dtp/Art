@@ -302,10 +302,7 @@ int x3f_get_prop_entry(x3f_t *x3f, const char *name, char **value){
 
     for (i=0; i<PL->property_table.size; i++){
         x3f_property_t *entry = &table[i];
-        x3f_printf(DEBUG, entry->value_utf8);
         if (!strcmp(name, entry->name_utf8)){
-            x3f_printf(DEBUG, "Getting PROP entry \"%s\" = \"%s\"\n",
-                       name, entry->value_utf8);
             *value = entry->value_utf8;
             return 1;
         }
@@ -391,7 +388,7 @@ int x3f_get_max_raw(x3f_t *x3f, uint32_t *max_raw){
     }
 
     /* It seems that RawSaturationLevel 
-     * should be used for TURE engine and
+     * should be used for TRUE engine and
      * SaturationLevel for pre-TRUE engine */
     if (x3f_is_TRUE_engine(x3f))
         return x3f_get_camf_signed_vector(x3f, "RawSaturationLevel",

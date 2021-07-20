@@ -12,7 +12,7 @@
 #include <cstdarg>
 
 namespace x3ftools{
-x3f_verbosity_t x3f_printf_level = DEBUG;
+x3f_verbosity_t x3f_printf_level = INFO;
 
 extern void x3f_printf(x3f_verbosity_t level, const char *fmt, ...){
     va_list ap;

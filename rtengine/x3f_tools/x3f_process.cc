@@ -87,7 +87,6 @@ extern int get_black_level(x3f_t *x3f, x3f_area16_t *image, int rescale,
             if (!strcmp(cammodel, "SIGMA DP2"))
                 use[BOTTOM] = 0;
     }
-    use[BOTTOM] = 0;
 
     /* Workaround for bug in sd Quattro H firmaware. 
      * DarkShieldBottom is specified incorrectly and thus ignored. */
@@ -126,6 +125,7 @@ extern int get_black_level(x3f_t *x3f, x3f_area16_t *image, int rescale,
             int color;
             int pixels = sum_area(area[i], colors, black);
             pixels_sum += pixels;
+            x3f_printf(DEBUG, "  %s (%d)\n", name[i], pixels);
             for (color = 0; color < colors; color++){
                 x3f_printf(DEBUG, "    mean[%d] = %f\n", color, (double)black[color] / pixels);
                 black_sum[color] += black[color];
@@ -157,6 +157,7 @@ extern int get_black_level(x3f_t *x3f, x3f_area16_t *image, int rescale,
 
     if (pixels_sum==0) 
         return 0;
+    x3f_printf(DEBUG, "  SUM\n");
 
     for (i=0; i<colors; i++){
         black_dev[i] = sqrt(black_sqdev_sum[i] / pixels_sum);
@@ -167,7 +168,8 @@ extern int get_black_level(x3f_t *x3f, x3f_area16_t *image, int rescale,
 } // get_black_level
 
 
-static void get_raw_neutral(double *raw_to_xyz, double *raw_neutral){
+/* extern */
+void get_raw_neutral(double *raw_to_xyz, double *raw_neutral){
     double d65_xyz[3] = {0.95047, 1.00000, 1.08883};
     double xyz_to_raw[9];
     x3f_3x3_inverse(raw_to_xyz, xyz_to_raw);
@@ -252,14 +254,17 @@ int x3f_get_raw_to_xyz(x3f_t *x3f, const char *wb, double *raw_to_xyz){
 /* x3f_denoise expects a 14-bit image 
  * since rescaling by a factor of 4
  * takes place internally. */
+#define MIN_DEPTH 12
 #define INTERMEDIATE_DEPTH 14
-#define INTERMEDIATE_UNIT ((1<<INTERMEDIATE_DEPTH) - 1)
-#define INTERMEDIATE_BIAS_FACTOR 4.0
+//#define INTERMEDIATE_UNIT ((1<<INTERMEDIATE_DEPTH) - 1)
+//#define INTERMEDIATE_BIAS_FACTOR 4.0
 
-static int get_max_intermediate(x3f_t *x3f, const char *wb,
-                double intermediate_bias, uint32_t *max_intermediate){
+/* extern */
+int get_max_intermediate(x3f_t *x3f, const char *wb,
+                double intermediate_bias, uint32_t *max_intermediate, int intermediate_depth){
     double gain[3], maxgain = 0.0;
     int i;
+    int INTERMEDIATE_UNIT = (1<<intermediate_depth) - 1;
 
     if (!x3f_get_gain(x3f, wb, gain)) 
         return 0;
@@ -274,14 +279,18 @@ static int get_max_intermediate(x3f_t *x3f, const char *wb,
 }
 
 
-static int get_intermediate_bias(x3f_t *x3f, const char *wb, double *black_level, 
-                                 double *black_dev, double *intermediate_bias){
+/* extern */
+int get_intermediate_bias(x3f_t *x3f, const char *wb, double *black_level,
+                          double *black_dev, double *intermediate_bias, int intermediate_depth){
     uint32_t max_raw[3], max_intermediate[3];
     int i;
 
+    if (intermediate_depth < MIN_DEPTH) intermediate_depth = MIN_DEPTH;
+    double INTERMEDIATE_BIAS_FACTOR = double(pow(2, intermediate_depth) / pow(2, MIN_DEPTH));
+
     if (!x3f_get_max_raw(x3f, max_raw)) 
         return 0;
-    if (!get_max_intermediate(x3f, wb, 0, max_intermediate)) 
+    if (!get_max_intermediate(x3f, wb, 0, max_intermediate, intermediate_depth))
         return 0;
 
     *intermediate_bias = 0.0;
@@ -318,7 +327,6 @@ typedef struct{
   (_INB((_c), (_r), (_cs), (_rs)) ?					\
    (_vec)[_PN((_c), (_r), (_cs)) >> 5] &				\
    1 << (_PN((_c), (_r), (_cs)) & 0x1f) : 1)
-
 /* Mark the pixel, in the bad pixel vector and the bad pixel list */
 #define MARK_PIX(_list, _vec, _c, _r, _cs, _rs)				\
   do {									\
@@ -582,14 +590,14 @@ static int preprocess_data(x3f_t *x3f, int fix_bad, const char *wb, x3f_image_le
     }  
     x3f_printf(DEBUG, "max_raw = {%u,%u,%u}\n", max_raw[0], max_raw[1], max_raw[2]);
 
-    if (!get_intermediate_bias(x3f, wb, black_level, black_dev, &intermediate_bias)){
+    if (!get_intermediate_bias(x3f, wb, black_level, black_dev, &intermediate_bias, INTERMEDIATE_DEPTH)){
         x3f_printf(ERR, "Could not get intermediate bias\n");
         return 0;
     }
     x3f_printf(DEBUG, "intermediate_bias = %g\n", intermediate_bias);
     ilevels->black[0] = ilevels->black[1] = ilevels->black[2] = intermediate_bias;
 
-    if (!get_max_intermediate(x3f, wb, intermediate_bias, ilevels->white)){
+    if (!get_max_intermediate(x3f, wb, intermediate_bias, ilevels->white, INTERMEDIATE_DEPTH)){
         x3f_printf(ERR, "Could not get maximum intermediate level\n");
         return 0;
     }

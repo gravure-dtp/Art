@@ -52,8 +52,13 @@ extern int x3f_get_preview(x3f_t *x3f,
 			   uint32_t max_width,
 			   x3f_area8_t *preview);
 
+extern int get_intermediate_bias(x3f_t *x3f, const char *wb, double *black_level,
+                                 double *black_dev, double *intermediate_bias, int intermediate_depth);
+extern int get_max_intermediate(x3f_t *x3f, const char *wb,
+        double intermediate_bias, uint32_t *max_intermediate, int intermediate_depth);
 extern int get_black_level(x3f_t *x3f, x3f_area16_t *image, int rescale, 
                     int colors, double *black_level, double *black_dev);
+extern void get_raw_neutral(double *raw_to_xyz, double *raw_neutral);
 
 }// namespace x3ftools
 #endif
