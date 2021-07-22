@@ -121,7 +121,6 @@ bool FoveonHelper::get_BlackLevels(int* black_c4){
 
 
 bool FoveonHelper::get_WhiteLevels(int* white_c4){
-	//return false;
 	if (get_Levels()){
 		for (size_t i=0; i<3; i++)
 			white_c4[i] = white[i];
@@ -137,7 +136,17 @@ bool FoveonHelper::get_ccMatrix(double *matrix){
 		debug({"FoveonHelper is not in a valid state."});
 		return false;
     } else {
-        const char *wb = X3F::x3f_get_wb(x3f);
+        const char *wb;
+        wb = X3F::x3f_get_wb(x3f);
+        /*double bmt_xyz[9];
+        double neutral_mat[9];
+        double gain[3];
+        double neutral[3];
+        if (X3F::x3f_get_bmt_to_xyz(x3f, wb, bmt_xyz) && get_asShotNeutral(gain)){
+        	X3F::x3f_3x1_invert(gain, neutral);
+        	X3F::x3f_3x3_diag(neutral, neutral_mat);
+        	X3F::x3f_3x3_3x3_mul(bmt_xyz, neutral_mat, matrix);
+        */
         if (X3F::x3f_get_raw_to_xyz(x3f, wb, matrix)){
         	debug({"FoveonHelper ccMatrix : [", std::to_string(matrix[0]), ", ",
 									  		    std::to_string(matrix[1]), ", ",
@@ -172,6 +181,7 @@ bool FoveonHelper::get_cam_xyz(double matrix[4][3]){
         	for(int i=0; i<4; i++)
         		for(int j=0; j<3; j++)
         			matrix[i][j] = cam_xyz[(i==3 ? 1 : i) * 3 + j];
+
         	debug({"FoveonHelper cam_xyz : [", std::to_string(cam_xyz[0]), ", ",
         									   std::to_string(cam_xyz[1]), ", ",
 											   std::to_string(cam_xyz[2]),
@@ -189,19 +199,63 @@ bool FoveonHelper::get_cam_xyz(double matrix[4][3]){
 }
 
 
-bool FoveonHelper::get_asShotNeutral(float *gain){
+bool FoveonHelper::get_gain(double *gain){
+	double gain_fact[3];
+	int max;
+	if (get_wbGain(gain)){
+		if (X3F::x3f_get_camf_float_vector(x3f, "SensorAdjustmentGainFact", gain_fact))
+			X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+		if (X3F::x3f_get_camf_float_vector(x3f, "TempGainFact", gain_fact))
+			X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+		if (X3F::x3f_get_camf_float_vector(x3f, "FNumberGainFact", gain_fact))
+			X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+		if (X3F::x3f_get_camf_float_vector(x3f, "CorrectColorGain_BR", gain_fact))
+			X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+		if (X3F::x3f_get_camf_float_vector(x3f, "CorrectColorGain_GR", gain_fact))
+			X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+		if (X3F::x3f_get_camf_float_vector(x3f, "CorrectColorGain_RR", gain_fact))
+			X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+		if (X3F::x3f_get_camf_float_vector(x3f, "DespAdjust", gain_fact))
+			X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+		max = 0;
+		for (int c=0; c<3; c++)
+			if (max < gain[c])
+				max = gain[c];
+		for (int c=0; c<3; c++)
+			gain[c] /= max;
+
+		debug({"FoveonHelper color gain corrections: [", std::to_string(gain[0]), ", ",
+							           	   	   	   	   	 std::to_string(gain[1]), ", ",
+														 std::to_string(gain[2]), "]"});
+		return true;
+	} else {
+	    debug({"FoveonHelper can not get color gain corrections."});
+	}
+	return false;
+}
+
+
+bool FoveonHelper::get_asShotNeutral(double *gain){
 	double total_gain[3];
 	double gain_inv[3];
 	if (!load_data()){
 		debug({"FoveonHelper is not in a valid state."});
 	    return false;
 	} else {
-		const char *wb = X3F::x3f_get_wb(x3f);
+		const char *wb;
+		wb = X3F::x3f_get_wb(x3f);
 		if(X3F::x3f_get_gain(x3f, wb, total_gain)){
 			//X3F::x3f_3x1_invert(total_gain, gain_inv);
-			gain[0] = float(total_gain[0]);
-			gain[1] = float(total_gain[1]);
-			gain[2] = float(total_gain[2]);
+			gain[0] = (total_gain[0]);
+			gain[1] = (total_gain[1]);
+			gain[2] = (total_gain[2]);
 			debug({"FoveonHelper asShotNeutral: [", std::to_string(gain[0]), ", ",
 					std::to_string(gain[1]), ", ", std::to_string(gain[2]), "]"});
 			return true;
@@ -213,7 +267,7 @@ bool FoveonHelper::get_asShotNeutral(float *gain){
 }
 
 
-bool FoveonHelper::get_wbGain(float *gain){
+bool FoveonHelper::get_wbGain(double *gain){
     double cam_to_xyz[9], wb_correction[9], _gain[3];
     if (!load_data()){
 		debug({"FoveonHelper is not in a valid state."});
@@ -222,9 +276,9 @@ bool FoveonHelper::get_wbGain(float *gain){
     	const char *wb = X3F::x3f_get_wb(x3f);
 		if (X3F::x3f_get_camf_matrix_for_wb(x3f, "WhiteBalanceGains", wb, 3, 0, _gain) ||
 			X3F::x3f_get_camf_matrix_for_wb(x3f, "DP1_WhiteBalanceGains", wb, 3, 0, _gain)){
-			gain[0] = float(_gain[0]);
-			gain[1] = float(_gain[1]);
-			gain[2] = float(_gain[2]);
+			gain[0] = (_gain[0]);
+			gain[1] = (_gain[1]);
+			gain[2] = (_gain[2]);
 			debug({"FoveonHelper wb gain : [", std::to_string(gain[0]), ", ",
 							                   std::to_string(gain[1]), ", ",
 											   std::to_string(gain[2]), "]"});
@@ -235,9 +289,9 @@ bool FoveonHelper::get_wbGain(float *gain){
 			X3F::x3f_3x3_3x3_mul(wb_correction, cam_to_xyz, raw_to_xyz);
 			X3F::get_raw_neutral(raw_to_xyz, raw_neutral);
 			X3F::x3f_3x1_invert(raw_neutral, _gain);
-			gain[0] = float(_gain[0]);
-			gain[1] = float(_gain[1]);
-			gain[2] = float(_gain[2]);
+			gain[0] = (_gain[0]);
+			gain[1] = (_gain[1]);
+			gain[2] = (_gain[2]);
 			debug({"FoveonHelper wb gain : [", std::to_string(gain[0]), ", ",
 			 	                               std::to_string(gain[1]), ", ",
 											   std::to_string(gain[2]), "]"});

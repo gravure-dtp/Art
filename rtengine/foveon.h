@@ -50,8 +50,9 @@ public:
     bool get_WhiteLevels(int* white_c4);
     bool get_ccMatrix(double *matrix);
     bool get_cam_xyz(double matrix[4][3]);
-    bool get_asShotNeutral(float *gain);
-    bool get_wbGain(float *gain);
+    bool get_gain(double *gain);
+    bool get_asShotNeutral(double *gain);
+    bool get_wbGain(double *gain);
     
     static bool is_supported(const std::string& camera){
         static const std::vector<std::string> supported_cams = 

@@ -347,8 +347,8 @@ skip_block:
             pre_mul_[2] = this->get_cam_mul(2);
             pre_mul_[3] = this->get_cam_mul(3);
         } else if(foveon_helper){
-        	float tmp[4];
-        	if(foveon_helper->get_wbGain(tmp)){
+        	double tmp[4];
+        	if(foveon_helper->get_gain(tmp)){
         		tmp[3] = 0;
         		for (int i=0; i<4; i++)
         			pre_mul_[i] = cam_mul[i] = float(tmp[i]);
