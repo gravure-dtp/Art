@@ -1,4 +1,5 @@
-/*
+/* -*- C++ -*-
+ *  
  *  This file is part of RawTherapee.
  *
  *  Copyright (c) 2004-2010 Gabor Horvath <hgabor@rawtherapee.com>
@@ -72,10 +73,9 @@ protected:
     void updateRawImage();
 };
 
-class FFManager
-{
+class FFManager {
 public:
-    void init( Glib::ustring pathname );
+    void init(const Glib::ustring &pathname);
     Glib::ustring getPathname()
     {
         return currentPath;

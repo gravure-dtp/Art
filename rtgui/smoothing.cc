@@ -42,7 +42,7 @@ public:
         return parent_->box;
     }
 
-    void getEvents(rtengine::ProcEvent &mask_list, rtengine::ProcEvent &parametric_mask, rtengine::ProcEvent &h_mask, rtengine::ProcEvent &c_mask, rtengine::ProcEvent &l_mask, rtengine::ProcEvent &blur, rtengine::ProcEvent &show, rtengine::ProcEvent &area_mask, rtengine::ProcEvent &deltaE_mask, rtengine::ProcEvent &contrastThreshold_mask, rtengine::ProcEvent &drawn_mask) override
+    void getEvents(rtengine::ProcEvent &mask_list, rtengine::ProcEvent &parametric_mask, rtengine::ProcEvent &h_mask, rtengine::ProcEvent &c_mask, rtengine::ProcEvent &l_mask, rtengine::ProcEvent &blur, rtengine::ProcEvent &show, rtengine::ProcEvent &area_mask, rtengine::ProcEvent &deltaE_mask, rtengine::ProcEvent &contrastThreshold_mask, rtengine::ProcEvent &drawn_mask, rtengine::ProcEvent &mask_postprocess) override
     {
         mask_list = parent_->EvList;
         parametric_mask = parent_->EvParametricMask;
@@ -55,6 +55,7 @@ public:
         deltaE_mask = parent_->EvDeltaEMask;
         contrastThreshold_mask = parent_->EvContrastThresholdMask;
         drawn_mask = parent_->EvDrawnMask;
+        mask_postprocess = parent_->EvMaskPostprocess;
     }
 
     ToolPanelListener *listener() override
@@ -131,11 +132,42 @@ public:
     Glib::ustring getColumnContent(int col, int row) override
     {
         auto &r = parent_->data[row];
-
-        return Glib::ustring::compose(
-            "%1 %2 %4 [%3]", r.radius, r.epsilon, 
+        const char *ch =
             r.channel == SmoothingParams::Region::Channel::LUMINANCE ? "L" :
-            (r.channel == SmoothingParams::Region::Channel::CHROMINANCE ? "C" : "RGB"), r.iterations);
+            (r.channel == SmoothingParams::Region::Channel::CHROMINANCE ? "C" : "RGB");
+
+        switch (r.mode) {
+        case SmoothingParams::Region::Mode::GUIDED:
+            return Glib::ustring::compose(
+                "%5: %1 %2 %4 [%3]", r.radius, r.epsilon, 
+                ch, r.iterations, M("TP_SMOOTHING_MODE_GUIDED"));
+        case SmoothingParams::Region::Mode::GAUSSIAN:
+            return Glib::ustring::compose(
+                "%4: %1 %2 [%3]", r.sigma, r.iterations, ch,
+                M("TP_SMOOTHING_MODE_GAUSSIAN"));
+        case SmoothingParams::Region::Mode::GAUSSIAN_GLOW:
+            return Glib::ustring::compose(
+                "%4: %1 %2 %3", r.sigma, r.iterations, r.falloff,
+                M("TP_SMOOTHING_MODE_GAUSSIAN_GLOW"));
+        case SmoothingParams::Region::Mode::NLMEANS:
+            return Glib::ustring::compose(
+                "%5: %1 %2 %3 [%4]", r.nlstrength, r.nldetail, r.iterations, 
+                ch, M("TP_SMOOTHING_MODE_NLMEANS"));
+        case SmoothingParams::Region::Mode::MOTION:
+            return Glib::ustring::compose(
+                "%5: %1 %2 %3 %4", r.radius, r.angle, r.curvature, r.offset,
+                M("TP_SMOOTHING_MODE_MOTION"));
+        case SmoothingParams::Region::Mode::LENS:
+            return Glib::ustring::compose(
+                "%4: %1 %2 %3", r.radius, r.numblades, r.angle,
+                M("TP_SMOOTHING_MODE_LENS"));
+        case SmoothingParams::Region::Mode::NOISE:
+            return Glib::ustring::compose(
+                "%3: %1 %2 [%4]", r.noise_strength, r.noise_coarseness,
+                M("TP_SMOOTHING_MODE_NOISE"), ch);
+        default:
+            return "";
+        }
     }
 
     void getEditIDs(EditUniqueID &hcurve, EditUniqueID &ccurve, EditUniqueID &lcurve, EditUniqueID &deltaE) override
@@ -169,6 +201,12 @@ Smoothing::Smoothing(): FoldableToolPanel(this, "smoothing", M("TP_SMOOTHING_LAB
     EvFalloff = m->newEvent(EVENT, "HISTORY_MSG_SMOOTHING_FALLOFF");
     EvNLStrength = m->newEvent(EVENT, "HISTORY_MSG_SMOOTHING_NLSTRENGTH");
     EvNLDetail = m->newEvent(EVENT, "HISTORY_MSG_SMOOTHING_NLDETAIL");
+    EvNumBlades = m->newEvent(EVENT, "HISTORY_MSG_SMOOTHING_NUMBLADES");
+    EvAngle = m->newEvent(EVENT, "HISTORY_MSG_SMOOTHING_ANGLE");
+    EvCurvature = m->newEvent(EVENT, "HISTORY_MSG_SMOOTHING_CURVATURE");
+    EvOffset = m->newEvent(EVENT, "HISTORY_MSG_SMOOTHING_OFFSET");
+    EvNoiseStrength = m->newEvent(EVENT, "HISTORY_MSG_SMOOTHING_NOISE_STRENGTH");
+    EvNoiseCoarseness = m->newEvent(EVENT, "HISTORY_MSG_SMOOTHING_NOISE_COARSENESS");
 
     EvList = m->newEvent(EVENT, "HISTORY_MSG_SMOOTHING_LIST");
     EvParametricMask = m->newEvent(EVENT, "HISTORY_MSG_SMOOTHING_PARAMETRICMASK");
@@ -181,13 +219,29 @@ Smoothing::Smoothing(): FoldableToolPanel(this, "smoothing", M("TP_SMOOTHING_LAB
     EvDeltaEMask = m->newEvent(EVENT, "HISTORY_MSG_SMOOTHING_DELTAEMASK");
     EvContrastThresholdMask = m->newEvent(EVENT, "HISTORY_MSG_SMOOTHING_CONTRASTTHRESHOLDMASK");
     EvDrawnMask = m->newEvent(EVENT, "HISTORY_MSG_SMOOTHING_DRAWNMASK");
+    EvMaskPostprocess = m->newEvent(EVENT, "HISTORY_MSG_SMOOTHING_MASK_POSTPROCESS");
 
     EvToolEnabled.set_action(EVENT);
     EvToolReset.set_action(EVENT);
 
     box = Gtk::manage(new Gtk::VBox());
 
+    mode = Gtk::manage(new MyComboBoxText());
+    mode->append(M("TP_SMOOTHING_MODE_GUIDED"));
+    mode->append(M("TP_SMOOTHING_MODE_GAUSSIAN"));
+    mode->append(M("TP_SMOOTHING_MODE_GAUSSIAN_GLOW"));
+    mode->append(M("TP_SMOOTHING_MODE_NLMEANS"));
+    mode->append(M("TP_SMOOTHING_MODE_MOTION"));
+    mode->append(M("TP_SMOOTHING_MODE_LENS"));
+    mode->append(M("TP_SMOOTHING_MODE_NOISE"));
+    mode->set_active(0);
+    mode->signal_changed().connect(sigc::mem_fun(*this, &Smoothing::modeChanged));
     Gtk::HBox *hb = Gtk::manage(new Gtk::HBox());
+    hb->pack_start(*Gtk::manage(new Gtk::Label(M("TP_SMOOTHING_MODE") + ":")), Gtk::PACK_SHRINK, 1);
+    hb->pack_start(*mode, Gtk::PACK_EXPAND_WIDGET, 1);
+    box->pack_start(*hb, Gtk::PACK_SHRINK, 1);
+
+    hb = Gtk::manage(new Gtk::HBox());
     hb->pack_start(*Gtk::manage(new Gtk::Label(M("TP_SMOOTHING_CHANNEL") + ":")), Gtk::PACK_SHRINK, 1);
     channel = Gtk::manage(new MyComboBoxText());
     channel->append(M("TP_SMOOTHING_CHANNEL_L"));
@@ -197,18 +251,7 @@ Smoothing::Smoothing(): FoldableToolPanel(this, "smoothing", M("TP_SMOOTHING_LAB
     channel->signal_changed().connect(sigc::mem_fun(*this, &Smoothing::channelChanged));
     hb->pack_start(*channel, Gtk::PACK_EXPAND_WIDGET, 1);
     box->pack_start(*hb, Gtk::PACK_SHRINK, 1);
-
-    mode = Gtk::manage(new MyComboBoxText());
-    mode->append(M("TP_SMOOTHING_MODE_GUIDED"));
-    mode->append(M("TP_SMOOTHING_MODE_GAUSSIAN"));
-    mode->append(M("TP_SMOOTHING_MODE_GAUSSIAN_GLOW"));
-    mode->append(M("TP_SMOOTHING_MODE_NLMEANS"));
-    mode->set_active(0);
-    mode->signal_changed().connect(sigc::mem_fun(*this, &Smoothing::modeChanged));
-    hb = Gtk::manage(new Gtk::HBox());
-    hb->pack_start(*Gtk::manage(new Gtk::Label(M("TP_SMOOTHING_MODE") + ":")), Gtk::PACK_SHRINK, 1);
-    hb->pack_start(*mode, Gtk::PACK_EXPAND_WIDGET, 1);
-    box->pack_start(*hb, Gtk::PACK_SHRINK, 1);
+    chan_box = hb;
 
     guided_box = Gtk::manage(new Gtk::VBox());
     gaussian_box = Gtk::manage(new Gtk::VBox());
@@ -234,10 +277,34 @@ Smoothing::Smoothing(): FoldableToolPanel(this, "smoothing", M("TP_SMOOTHING_LAB
     nlstrength->setAdjusterListener(this);
     nl_box->pack_start(*nlstrength);
     nl_box->pack_start(*nldetail);
+
+    lens_motion_box = Gtk::manage(new Gtk::VBox());
+    numblades = Gtk::manage(new Adjuster(M("TP_SMOOTHING_NUMBLADES"), 3, 11, 1, 5));
+    angle = Gtk::manage(new Adjuster(M("TP_SMOOTHING_ANGLE"), -90, 90, 1, 0));
+    curvature = Gtk::manage(new Adjuster(M("TP_SMOOTHING_CURVATURE"), -2, 2, 0.01, 0));
+    offset = Gtk::manage(new Adjuster(M("TP_SMOOTHING_OFFSET"), -1, 1, 0.01, 0));
+    lens_motion_box->pack_start(*numblades);
+    lens_motion_box->pack_start(*angle);
+    lens_motion_box->pack_start(*curvature);
+    lens_motion_box->pack_start(*offset);
+    numblades->setAdjusterListener(this);
+    angle->setAdjusterListener(this);
+    curvature->setAdjusterListener(this);
+    offset->setAdjusterListener(this);
+
+    noise_box = Gtk::manage(new Gtk::VBox());
+    noise_strength = Gtk::manage(new Adjuster(M("TP_SMOOTHING_NLSTRENGTH"), 0, 100, 1, 10));
+    noise_strength->setAdjusterListener(this);
+    noise_box->pack_start(*noise_strength);
+    noise_coarseness = Gtk::manage(new Adjuster(M("TP_SMOOTHING_NOISE_COARSENESS"), 0, 100, 1, 30));
+    noise_coarseness->setAdjusterListener(this);
+    noise_box->pack_start(*noise_coarseness);
     
     box->pack_start(*guided_box);
     box->pack_start(*gaussian_box);
     box->pack_start(*nl_box);
+    box->pack_start(*lens_motion_box);
+    box->pack_start(*noise_box);
 
     iterations = Gtk::manage(new Adjuster(M("TP_SMOOTHING_ITERATIONS"), 1, 10, 1, 1));
     iterations->setAdjusterListener(this);
@@ -256,6 +323,12 @@ Smoothing::Smoothing(): FoldableToolPanel(this, "smoothing", M("TP_SMOOTHING_LAB
     falloff->delay = options.adjusterMaxDelay;
     nlstrength->delay = options.adjusterMaxDelay;
     nldetail->delay = options.adjusterMaxDelay;
+    numblades->delay = options.adjusterMaxDelay;
+    angle->delay = options.adjusterMaxDelay;
+    curvature->delay = options.adjusterMaxDelay;
+    offset->delay = options.adjusterMaxDelay;
+    noise_strength->delay = options.adjusterMaxDelay;
+    noise_coarseness->delay = options.adjusterMaxDelay;
 
     labMasksContentProvider.reset(new SmoothingMasksContentProvider(this));
     labMasks = Gtk::manage(new LabMasksPanel(labMasksContentProvider.get()));
@@ -276,7 +349,7 @@ void Smoothing::read(const ProcParams *pp)
         data.emplace_back(rtengine::procparams::SmoothingParams::Region());
         m.emplace_back(rtengine::procparams::Mask());
     }
-    labMasks->setMasks(m, pp->smoothing.showMask);
+    labMasks->setMasks(m, pp->smoothing.selectedRegion, pp->smoothing.showMask >= 0 && pp->smoothing.showMask == pp->smoothing.selectedRegion);
     modeChanged();
 
     enableListener();
@@ -291,10 +364,12 @@ void Smoothing::write(ProcParams *pp)
     pp->smoothing.regions = data;
 
     labMasks->getMasks(pp->smoothing.labmasks, pp->smoothing.showMask);
+    pp->smoothing.selectedRegion = labMasks->getSelected();
     assert(pp->smoothing.regions.size() == pp->smoothing.labmasks.size());
 
     labMasks->updateSelected();
 }
+
 
 void Smoothing::setDefaults(const ProcParams *defParams)
 {
@@ -305,6 +380,12 @@ void Smoothing::setDefaults(const ProcParams *defParams)
     falloff->setDefault(defParams->smoothing.regions[0].falloff);
     nlstrength->setDefault(defParams->smoothing.regions[0].nlstrength);
     nldetail->setDefault(defParams->smoothing.regions[0].nldetail);
+    numblades->setDefault(defParams->smoothing.regions[0].numblades);
+    angle->setDefault(defParams->smoothing.regions[0].angle);
+    curvature->setDefault(defParams->smoothing.regions[0].curvature);
+    offset->setDefault(defParams->smoothing.regions[0].offset);
+    noise_strength->setDefault(defParams->smoothing.regions[0].noise_strength);
+    noise_coarseness->setDefault(defParams->smoothing.regions[0].noise_coarseness);
 
     initial_params = defParams->smoothing;
 }
@@ -329,6 +410,18 @@ void Smoothing::adjusterChanged(Adjuster* a, double newval)
             listener->panelChanged(EvNLStrength, a->getTextValue());
         } else if (a == nldetail) {
             listener->panelChanged(EvNLDetail, a->getTextValue());
+        } else if (a == numblades) {
+            listener->panelChanged(EvNumBlades, a->getTextValue());
+        } else if (a == angle) {
+            listener->panelChanged(EvAngle, a->getTextValue());
+        } else if (a == curvature) {
+            listener->panelChanged(EvCurvature, a->getTextValue());
+        } else if (a == offset) {
+            listener->panelChanged(EvOffset, a->getTextValue());
+        } else if (a == noise_strength) {
+            listener->panelChanged(EvNoiseStrength, a->getTextValue());
+        } else if (a == noise_coarseness) {
+            listener->panelChanged(EvNoiseCoarseness, a->getTextValue());
         }
     }
 }
@@ -389,6 +482,12 @@ void Smoothing::regionGet(int idx)
     r.falloff = falloff->getValue();
     r.nlstrength = nlstrength->getValue();
     r.nldetail = nldetail->getValue();
+    r.numblades = numblades->getValue();
+    r.angle = angle->getValue();
+    r.offset = offset->getValue();
+    r.curvature = curvature->getValue();
+    r.noise_strength = noise_strength->getValue();
+    r.noise_coarseness = noise_coarseness->getValue();
 }
 
 
@@ -409,6 +508,12 @@ void Smoothing::regionShow(int idx)
     falloff->setValue(r.falloff);
     nlstrength->setValue(r.nlstrength);
     nldetail->setValue(r.nldetail);
+    numblades->setValue(r.numblades);
+    angle->setValue(r.angle);
+    offset->setValue(r.offset);
+    curvature->setValue(r.curvature);
+    noise_strength->setValue(r.noise_strength);
+    noise_coarseness->setValue(r.noise_coarseness);
     
     if (disable) {
         enableListener();
@@ -430,14 +535,27 @@ void Smoothing::modeChanged()
     nl_box->hide();
     gaussian_box->hide();
     guided_box->hide();
+    lens_motion_box->hide();
+    noise_box->hide();
     if (r == 0) {
         guided_box->show();
     } else if (r == 1 || r == 2) {
         gaussian_box->show();
-    } else {
+    } else if (r == 3) {
         nl_box->show();
+    } else if (r == 6) {
+        noise_box->show();
+    } else {
+        guided_box->show();
+        lens_motion_box->show();
+        numblades->set_visible(r != 4);
+        curvature->set_visible(r == 4);
+        offset->set_visible(r == 4);
     }
-    falloff->set_visible(mode->get_active_row_number() == 2);
+    chan_box->set_visible((r <= 3 && r != 2) || r == 6);
+    epsilon->set_visible(r == 0);
+    falloff->set_visible(r == 2);
+    iterations->set_visible(r <= 3);
     if (listener && getEnabled()) {
         listener->panelChanged(EvMode, mode->get_active_text());
     }

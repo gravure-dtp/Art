@@ -34,7 +34,7 @@ int refreshmap[rtengine::NUMOFEVENTS] = {
     LUMINANCECURVE,   // EvBrightness,
     LUMINANCECURVE,   // EvContrast,
     RGBCURVE,         // EvBlack,
-    AUTOEXP,          // EvExpComp,
+    ALLNORAW,         // EvExpComp,
     RGBCURVE,         // EvHLCompr,
     RGBCURVE,         // EvSHCompr,
     LUMINANCECURVE,   // EvToneCurve1,
@@ -115,10 +115,10 @@ int refreshmap[rtengine::NUMOFEVENTS] = {
     RGBCURVE,         // EvRGBrCurveLumamode
     DETAIL,   // EvIDNEnabled,
     DETAIL,   // EvIDNThresh,
-    ALLNORAW,         // EvDPDNEnabled,
-    ALLNORAW,         // EvDPDNLuma,
-    ALLNORAW,         // EvDPDNChroma,
-    ALLNORAW,         // EvDPDNGamma,
+    HDR,         // EvDPDNEnabled,
+    HDR,         // EvDPDNLuma,
+    HDR,         // EvDPDNChroma,
+    HDR,         // EvDPDNGamma,
     DISPLAY,         // EvDirPyrEqualizer,
     DISPLAY,         // EvDirPyrEqlEnabled,
     LUMINANCECURVE,   // EvLSaturation,
@@ -157,8 +157,8 @@ int refreshmap[rtengine::NUMOFEVENTS] = {
     FLATFIELD,        // EvFlatFieldBlurRadius,
     FLATFIELD,        // EvFlatFieldBlurType,
     TRANSFORM,        // EvAutoDIST,
-    ALLNORAW,         // EvDPDNLumCurve,
-    ALLNORAW,         // EvDPDNChromCurve,
+    HDR,         // EvDPDNLumCurve,
+    HDR,         // EvDPDNChromCurve,
     GAMMA,            // EvGAMMA
     GAMMA,            // EvGAMPOS
     GAMMA,            // EvGAMFREE
@@ -199,7 +199,7 @@ int refreshmap[rtengine::NUMOFEVENTS] = {
     RGBCURVE,         // EvVibranceSkinTonesCurve
     LUMINANCECURVE,   // EvLLCCurve
     LUMINANCECURVE,   // EvLLCredsk
-    ALLNORAW,         // EvDPDNLdetail
+    HDR,         // EvDPDNLdetail
     ALLNORAW,         // EvCATEnabled
     LUMINANCECURVE,   // EvCATDegree
     LUMINANCECURVE,   // EvCATMethodsur
@@ -227,9 +227,9 @@ int refreshmap[rtengine::NUMOFEVENTS] = {
     LUMINANCECURVE,   // EvCATcurvemode3
     LUMINANCECURVE,   // EvCATdatacie
     LUMINANCECURVE,   // EvCATtonecie
-    ALLNORAW,         // EvDPDNbluechro
-    ALLNORAW,         // EvDPDNperform
-    ALLNORAW,         // EvDPDNmet
+    HDR,         // EvDPDNbluechro
+    HDR,         // EvDPDNperform
+    HDR,         // EvDPDNmet
     DEMOSAIC,         // EvDemosaicLMMSEIter
     LUMINANCECURVE,   // EvCATbadpix
     LUMINANCECURVE,   // EvCATAutoadap
@@ -276,13 +276,13 @@ int refreshmap[rtengine::NUMOFEVENTS] = {
     LUMINANCECURVE,   // EvLLHCurve
     LUMINANCECURVE,   // EvLHHCurve
     DISPLAY,         // EvDirPyrEqualizerThreshold
-    ALLNORAW,         // EvDPDNenhance
+    HDR,         // EvDPDNenhance
     RGBCURVE,         // EvBWMethodalg
     ALLNORAW,         // EvDirPyrEqualizerSkin
     ALLNORAW,         // EvDirPyrEqlgamutlab
     ALLNORAW,         // EvDirPyrEqualizerHueskin
-    ALLNORAW,         // EvDPDNmedian
-    ALLNORAW,         // EvDPDNmedmet
+    HDR,         // EvDPDNmedian
+    HDR,         // EvDPDNmedmet
     RGBCURVE,         // EvColorToningEnabled
     RGBCURVE,         // EvColorToningColor
     RGBCURVE,         // EvColorToningOpacity
@@ -311,9 +311,9 @@ int refreshmap[rtengine::NUMOFEVENTS] = {
     RGBCURVE,         // EvColorToningSatThreshold
     RGBCURVE,         // EvColorToningStrength
     RGBCURVE,         // EvColorToningautosat
-    ALLNORAW,         // EvDPDNmetmed
-    ALLNORAW,         // EvDPDNrgbmet
-    ALLNORAW,         // EvDPDNpasses
+    HDR,         // EvDPDNmetmed
+    HDR,         // EvDPDNrgbmet
+    HDR,         // EvDPDNpasses
     FLATFIELD,        // EvFlatFieldClipControl
     FLATFIELD,        // EvFlatFieldAutoClipControl
     DARKFRAME,        // EvPreProcessExpBlackRed
@@ -322,14 +322,14 @@ int refreshmap[rtengine::NUMOFEVENTS] = {
     RGBCURVE,         // EvFilmSimulationEnabled
     RGBCURVE,         // EvFilmSimulationStrength
     RGBCURVE,         // EvFilmSimulationFilename
-    ALLNORAW,         // EvDPDNLCurve
-    ALLNORAW,         // EvDPDNsmet
+    HDR,         // EvDPDNLCurve
+    HDR,         // EvDPDNsmet
     DARKFRAME,        // EvPreProcessDeadPixel
-    ALLNORAW,         // EvDPDNCCCurve
-    ALLNORAW,         // EvDPDNautochroma
-    ALLNORAW,         // EvDPDNLmet
-    ALLNORAW,         // EvDPDNCmet
-    ALLNORAW,         // EvDPDNC2met
+    HDR,         // EvDPDNCCCurve
+    HDR,         // EvDPDNautochroma
+    HDR,         // EvDPDNLmet
+    HDR,         // EvDPDNCmet
+    HDR,         // EvDPDNC2met
     DIRPYREQUALIZER,  // EvWavelet
     DIRPYREQUALIZER,  // EvEnabled
     DIRPYREQUALIZER,  // EvWavLmethod

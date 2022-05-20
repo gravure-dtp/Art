@@ -36,11 +36,17 @@ namespace {
 
 inline float find_sigma(float r, float f)
 {
+    if (f < 1e-2f) {
+        return 1e-2f;
+    }
     float m = 0.1f;
+    int iter = 0;
+    constexpr int maxiter = 100;
     while (true) {
         float sigma = 5.f * SQR(f * m);
         float val = xexpf((-SQR(std::max(f - r, 0.f)) / sigma));
-        if (val < 5e-3f) {
+        ++iter;
+        if (val < 5e-3f || iter >= maxiter) {
             return sigma;
         }
         m *= 0.9f;

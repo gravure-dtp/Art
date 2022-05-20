@@ -310,14 +310,14 @@ rtengine::procparams::ProcParams* Thumbnail::createProcParamsForUpdate(bool retu
         getCacheFileName("profiles", paramFileExtension);
 
     if (!run_cpb) {
-        if (defProf == DEFPROFILE_DYNAMIC && create && cfs && cfs->exifValid) {
+        if (defProf == Options::DEFPROFILE_DYNAMIC && create && cfs && cfs->exifValid) {
             auto imageMetaData = getMetaData();
             auto pp = ProfileStore::getInstance()->loadDynamicProfile(imageMetaData.get());
             ProcParams params;
             if (pp->applyTo(params) && params.save(cachemgr->getProgressListener(), outFName) == 0) {
                 loadProcParams();
             }
-        } else if (create && defProf != DEFPROFILE_DYNAMIC) {
+        } else if (create && defProf != Options::DEFPROFILE_DYNAMIC) {
             const PartialProfile *p = ProfileStore::getInstance()->getProfile(defProf);
             ProcParams params;
             if (p && p->applyTo(params) && params.save(cachemgr->getProgressListener(), outFName) == 0) {
@@ -329,12 +329,12 @@ rtengine::procparams::ProcParams* Thumbnail::createProcParamsForUpdate(bool retu
         Glib::ustring tmpFileName( Glib::build_filename(options.cacheBaseDir, Glib::ustring::compose("CPB_temp_%1.txt", index++)) );
 
         CPBDump(tmpFileName, fname, outFName,
-                defaultPparamsPath == DEFPROFILE_INTERNAL ? DEFPROFILE_INTERNAL : Glib::build_filename(defaultPparamsPath, Glib::path_get_basename(defProf) + paramFileExtension), cfs, flaggingMode);
+                defaultPparamsPath == Options::DEFPROFILE_INTERNAL ? Options::DEFPROFILE_INTERNAL : Glib::build_filename(defaultPparamsPath, Glib::path_get_basename(defProf) + paramFileExtension), cfs, flaggingMode);
         
         // For the filename etc. do NOT use streams, since they are not UTF8 safe
         Glib::ustring cmdLine = options.CPBPath + Glib::ustring(" \"") + tmpFileName + Glib::ustring("\"");
 
-        if (options.rtSettings.verbose) {
+        if (options.rtSettings.verbose > 1) {
             printf("Custom profile builder's command line: %s\n", Glib::ustring(cmdLine).c_str());
         }
 
@@ -1281,7 +1281,7 @@ void Thumbnail::saveMetadata()
         meta.setExif(pparams.master.metadata.exif);
         meta.setIptc(pparams.master.metadata.iptc);
         meta.saveToXmp(fn);
-        if (options.rtSettings.verbose) {
+        if (options.rtSettings.verbose > 1) {
             std::cout << "saved edited metadata for " << fname << " to "
                       << fn << std::endl;
         }

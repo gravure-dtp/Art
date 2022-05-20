@@ -30,6 +30,7 @@
 #include "improcfun.h"
 #include "rawimagesource.h"
 #include "rt_math.h"
+#include "linalgebra.h"
 
 namespace rtengine
 {
@@ -46,36 +47,30 @@ namespace {
 
 DCPProfile::Matrix invert3x3(const DCPProfile::Matrix& a)
 {
-    DCPProfile::Matrix res = a;
-    if (!invertMatrix(a, res) && settings->verbose) {
+    const double res00 = a[1][1] * a[2][2] - a[2][1] * a[1][2];
+    const double res10 = a[2][0] * a[1][2] - a[1][0] * a[2][2];
+    const double res20 = a[1][0] * a[2][1] - a[2][0] * a[1][1];
+
+    const double det = a[0][0] * res00 + a[0][1] * res10 + a[0][2] * res20;
+
+    if (std::fabs(det) < 1.0e-10 && settings->verbose) {
         std::cerr << "DCP matrix cannot be inverted! Expect weird output." << std::endl;
+        return a;
     }
+
+    DCPProfile::Matrix res;
+
+    res[0][0] = res00 / det;
+    res[0][1] = (a[2][1] * a[0][2] - a[0][1] * a[2][2]) / det;
+    res[0][2] = (a[0][1] * a[1][2] - a[1][1] * a[0][2]) / det;
+    res[1][0] = res10 / det;
+    res[1][1] = (a[0][0] * a[2][2] - a[2][0] * a[0][2]) / det;
+    res[1][2] = (a[1][0] * a[0][2] - a[0][0] * a[1][2]) / det;
+    res[2][0] = res20 / det;
+    res[2][1] = (a[2][0] * a[0][1] - a[0][0] * a[2][1]) / det;
+    res[2][2] = (a[0][0] * a[1][1] - a[1][0] * a[0][1]) / det;
+
     return res;
-
-    // const double res00 = a[1][1] * a[2][2] - a[2][1] * a[1][2];
-    // const double res10 = a[2][0] * a[1][2] - a[1][0] * a[2][2];
-    // const double res20 = a[1][0] * a[2][1] - a[2][0] * a[1][1];
-
-    // const double det = a[0][0] * res00 + a[0][1] * res10 + a[0][2] * res20;
-
-    // if (std::fabs(det) < 1.0e-10) {
-    //     std::cerr << "DCP matrix cannot be inverted! Expect weird output." << std::endl;
-    //     return a;
-    // }
-
-    // DCPProfile::Matrix res;
-
-    // res[0][0] = res00 / det;
-    // res[0][1] = (a[2][1] * a[0][2] - a[0][1] * a[2][2]) / det;
-    // res[0][2] = (a[0][1] * a[1][2] - a[1][1] * a[0][2]) / det;
-    // res[1][0] = res10 / det;
-    // res[1][1] = (a[0][0] * a[2][2] - a[2][0] * a[0][2]) / det;
-    // res[1][2] = (a[1][0] * a[0][2] - a[0][0] * a[1][2]) / det;
-    // res[2][0] = res20 / det;
-    // res[2][1] = (a[2][0] * a[0][1] - a[0][0] * a[2][1]) / det;
-    // res[2][2] = (a[0][0] * a[1][1] - a[1][0] * a[0][1]) / det;
-
-    // return res;
 }
 
 DCPProfile::Matrix multiply3x3(const DCPProfile::Matrix& a, const DCPProfile::Matrix& b)
@@ -434,7 +429,7 @@ std::map<std::string, std::string> getAliases(const Glib::ustring& profile_dir)
                 const cJSON* const alias = cJSON_GetArrayItem(camera, index);
                 if (cJSON_IsString(alias)) {
                     res[alias->valuestring] = camera->string;
-                    if (settings->verbose) {
+                    if (settings->verbose > 1) {
                         std::cout << "dcp - alias: " << alias->valuestring << " -> " << camera->string << std::endl;
                     }
                 }
@@ -2212,7 +2207,7 @@ DCPProfile* DCPStore::getProfile(const Glib::ustring& filename) const
     if (res->isValid()) {
         // Add profile
         profile_cache[filename] = res;
-        if (options.rtSettings.verbose) {
+        if (options.rtSettings.verbose > 1) {
             printf("DCP profile '%s' loaded from disk\n", filename.c_str());
         }
         return res;

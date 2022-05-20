@@ -426,7 +426,7 @@ void Ciecam02::initcam1float (float yb, float pilotd, float f, float la, float x
     pfl = pow_F ( fl, 0.25f );
 #ifdef _DEBUG
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         printf ("Source float d=%f aw=%f fl=%f wh=%f c=%f  awc=%f\n", d, aw, fl, wh, c, (4.f / c) * (aw + 4.f));
     }
 
@@ -451,7 +451,7 @@ void Ciecam02::initcam2float (float yb, float pilotd, float f, float la, float x
     aw = achromatic_response_to_whitefloat ( xw, yw, zw, d, fl, nbb);
 #ifdef _DEBUG
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         printf ("Viewing float d=%f aw=%f fl=%f n=%f\n", d, aw, fl, n);
     }
 

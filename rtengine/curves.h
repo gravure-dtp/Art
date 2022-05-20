@@ -44,8 +44,7 @@
 
 using namespace std;
 
-namespace rtengine
-{
+namespace rtengine {
 
 class ToneCurve;
 
@@ -54,26 +53,6 @@ bool sanitizeCurve(std::vector<double>& curve);
 namespace curves {
 
 extern const std::vector<double> filmcurve_def;
-
-inline void setLutVal(const LUTf &lut, float &val)
-{
-    val = lut[std::max(val, 0.f)];
-}
-
-
-inline void setLutVal(const LUTf &lut, float &rval, float &gval, float &bval)
-{
-    rval = lut[std::max(rval, 0.f)];
-    gval = lut[std::max(gval, 0.f)];
-    bval = lut[std::max(bval, 0.f)];
-}
-
-
-inline void setLutVal(float &val, float lutval, float maxval)
-{
-    val = lutval;
-}
-
 
 } // namespace curves
 
@@ -312,12 +291,13 @@ public:
         }
     }
 
-public:
     static void complexCurve (double ecomp, double black, double hlcompr, double hlcomprthresh, double shcompr, double br, double contr,
                               const std::vector<double>& curvePoints, const std::vector<double>& curvePoints2,
                               LUTu & histogram, LUTf & hlCurve, LUTf & shCurve, LUTf & outCurve, LUTu & outBeforeCCurveHistogram, ToneCurve & outToneCurve, ToneCurve & outToneCurve2,
 
                               int skip = 1);
+public:
+    static void contrastCurve(double contr, LUTu &histogram, LUTf &outCurve, int skip=1);
 
     static void RGBCurve (const std::vector<double>& curvePoints, LUTf & outCurve, int skip);
 
@@ -443,15 +423,32 @@ public:
 };
 
 
-class ToneCurve
+namespace curves {
+
+inline void setLutVal(const LUTf &lut, const Curve *curve, float &val)
 {
+    if (val <= 65535.f || !curve) {
+        val = lut[std::max(val, 0.f)];
+    } else {
+        val = curve->getVal(val / 65535.f) * 65535.f;
+    }
+}
+
+} // namespace curves
+
+
+class ToneCurve {
 public:
     LUTf lutToneCurve;  // 0xffff range
+    float whitecoeff;
+    float whitept;
+    const Curve *curve;
 
+    ToneCurve(): whitecoeff(1.f), whitept(65535.f), curve(nullptr) {}
     virtual ~ToneCurve() {};
 
     void Reset();
-    void Set(const Curve &pCurve, float gamma = 0);
+    void Set(const Curve &pCurve, float whitecoeff=1.f);
     operator bool (void) const
     {
         return lutToneCurve;
@@ -522,9 +519,9 @@ public:
     // Applies the tone curve to `r`, `g`, `b` arrays, starting at `r[start]`
     // and ending at `r[end]` (and respectively for `b` and `g`). Uses SSE
     // and requires that `r`, `g`, and `b` pointers have the same alignment.
-    void BatchApply(
-            const size_t start, const size_t end,
-            float *r, float *g, float *b) const;
+    // void BatchApply(
+    //         const size_t start, const size_t end,
+    //         float *r, float *g, float *b) const;
 };
 
 class AdobeToneCurve : public ToneCurve
@@ -546,19 +543,19 @@ class WeightedStdToneCurve : public ToneCurve
 {
 private:
     float Triangle(float refX, float refY, float X2) const;
-#ifdef __SSE2__
-    vfloat Triangle(vfloat refX, vfloat refY, vfloat X2) const;
-#endif
+// #ifdef __SSE2__
+//     vfloat Triangle(vfloat refX, vfloat refY, vfloat X2) const;
+// #endif
 public:
     void Apply(float& r, float& g, float& b) const;
-    void BatchApply(const size_t start, const size_t end, float *r, float *g, float *b) const;
+    //void BatchApply(const size_t start, const size_t end, float *r, float *g, float *b) const;
 };
 
 class LuminanceToneCurve : public ToneCurve
 {
 public:
     // void Apply(float& r, float& g, float& b) const;
-    void Apply(float& r, float& g, float& b, const double ws[3][3]) const;
+    void Apply(float& r, float& g, float& b, const float ws[3][3]) const;
 };
 
 class PerceptualToneCurveState
@@ -595,66 +592,82 @@ public:
     void BatchApply(const size_t start, const size_t end, float *r, float *g, float *b, const PerceptualToneCurveState &state) const;
 };
 
+
+class NeutralToneCurve: public ToneCurve {
+public:
+    struct ApplyState {
+        float ws[3][3];
+        float iws[3][3];
+        float whitepoint;
+        
+        explicit ApplyState(const Glib::ustring &workingSpace, float whitept);
+    };
+    void BatchApply(const size_t start, const size_t end, float *r, float *g, float *b, const ApplyState &state) const;
+};
+
+
 // Standard tone curve
 inline void StandardToneCurve::Apply (float& r, float& g, float& b) const
 {
 
     assert (lutToneCurve);
 
-    curves::setLutVal(lutToneCurve, r, g, b);
+    curves::setLutVal(lutToneCurve, curve, r);
+    curves::setLutVal(lutToneCurve, curve, g);
+    curves::setLutVal(lutToneCurve, curve, b);
 }
 
-inline void StandardToneCurve::BatchApply(
-        const size_t start, const size_t end,
-        float *r, float *g, float *b) const {
-    assert (lutToneCurve);
-    assert (lutToneCurve.getClip() & LUT_CLIP_BELOW);
-    assert (lutToneCurve.getClip() & LUT_CLIP_ABOVE);
+// inline void StandardToneCurve::BatchApply(
+//         const size_t start, const size_t end,
+//         float *r, float *g, float *b) const {
+//     assert (lutToneCurve);
+//     assert (lutToneCurve.getClip() & LUT_CLIP_BELOW);
+//     assert (lutToneCurve.getClip() & LUT_CLIP_ABOVE);
 
-    // All pointers must have the same alignment for SSE usage. In the loop body below,
-    // we will only check `r`, assuming that the same result would hold for `g` and `b`.
-    assert (reinterpret_cast<uintptr_t>(r) % 16 == reinterpret_cast<uintptr_t>(g) % 16);
-    assert (reinterpret_cast<uintptr_t>(g) % 16 == reinterpret_cast<uintptr_t>(b) % 16);
+//     // All pointers must have the same alignment for SSE usage. In the loop body below,
+//     // we will only check `r`, assuming that the same result would hold for `g` and `b`.
+//     assert (reinterpret_cast<uintptr_t>(r) % 16 == reinterpret_cast<uintptr_t>(g) % 16);
+//     assert (reinterpret_cast<uintptr_t>(g) % 16 == reinterpret_cast<uintptr_t>(b) % 16);
 
-    size_t i = start;
-    while (true) {
-        if (i >= end) {
-            // If we get to the end before getting to an aligned address, just return.
-            // (Or, for non-SSE mode, if we get to the end.)
-            return;
-#ifdef __SSE2__
-        } else if (reinterpret_cast<uintptr_t>(&r[i]) % 16 == 0) {
-            // Otherwise, we get to the first aligned address; go to the SSE part.
-            break;
-#endif
-        }
-        r[i] = lutToneCurve[r[i]];
-        g[i] = lutToneCurve[g[i]];
-        b[i] = lutToneCurve[b[i]];
-        i++;
-    }
+//     size_t i = start;
+//     while (true) {
+//         if (i >= end) {
+//             // If we get to the end before getting to an aligned address, just return.
+//             // (Or, for non-SSE mode, if we get to the end.)
+//             return;
+// #ifdef __SSE2__
+//         } else if (reinterpret_cast<uintptr_t>(&r[i]) % 16 == 0) {
+//             // Otherwise, we get to the first aligned address; go to the SSE part.
+//             break;
+// #endif
+//         }
+//         r[i] = lutToneCurve[r[i]];
+//         g[i] = lutToneCurve[g[i]];
+//         b[i] = lutToneCurve[b[i]];
+//         i++;
+//     }
 
-#ifdef __SSE2__
-    for (; i + 3 < end; i += 4) {
-        vfloat r_val = LVF(r[i]);
-        vfloat g_val = LVF(g[i]);
-        vfloat b_val = LVF(b[i]);
-        r_val = lutToneCurve[r_val];
-        g_val = lutToneCurve[g_val];
-        b_val = lutToneCurve[b_val];
-        STVF(r[i], r_val);
-        STVF(g[i], g_val);
-        STVF(b[i], b_val);
-    }
+// #ifdef __SSE2__
+//     for (; i + 3 < end; i += 4) {
+//         vfloat r_val = LVF(r[i]);
+//         vfloat g_val = LVF(g[i]);
+//         vfloat b_val = LVF(b[i]);
+//         r_val = lutToneCurve[r_val];
+//         g_val = lutToneCurve[g_val];
+//         b_val = lutToneCurve[b_val];
+//         STVF(r[i], r_val);
+//         STVF(g[i], g_val);
+//         STVF(b[i], b_val);
+//     }
 
-    // Remainder in non-SSE.
-    for (; i < end; ++i) {
-        r[i] = lutToneCurve[r[i]];
-        g[i] = lutToneCurve[g[i]];
-        b[i] = lutToneCurve[b[i]];
-    }
-#endif
-}
+//     // Remainder in non-SSE.
+//     for (; i < end; ++i) {
+//         r[i] = lutToneCurve[r[i]];
+//         g[i] = lutToneCurve[g[i]];
+//         b[i] = lutToneCurve[b[i]];
+//     }
+// #endif
+// }
 
 // Tone curve according to Adobe's reference implementation
 // values in 0xffff space
@@ -663,9 +676,9 @@ inline void AdobeToneCurve::Apply (float& ir, float& ig, float& ib) const
 {
 
     assert (lutToneCurve);
-    float r = CLIP(ir);
-    float g = CLIP(ig);
-    float b = CLIP(ib);
+    float r = LIM<float>(ir, 0.f, whitept);
+    float g = LIM<float>(ig, 0.f, whitept);
+    float b = LIM<float>(ib, 0.f, whitept);
 
     if (r >= g) {
         if      (g > b) {
@@ -675,8 +688,10 @@ inline void AdobeToneCurve::Apply (float& ir, float& ig, float& ib) const
         } else if (b > g) {
             RGBTone (r, b, g);    // Case 3: r >= b >  g
         } else {                           // Case 4: r >= g == b
-            r = lutToneCurve[r];
-            g = lutToneCurve[g];
+            // r = lutToneCurve[r];
+            // g = lutToneCurve[g];
+            curves::setLutVal(lutToneCurve, curve, r);
+            curves::setLutVal(lutToneCurve, curve, g);
             b = g;
         }
     } else {
@@ -698,28 +713,32 @@ inline void AdobeToneCurve::RGBTone (float& r, float& g, float& b) const
 {
     float rold = r, gold = g, bold = b;
 
-    r = lutToneCurve[rold];
-    b = lutToneCurve[bold];
+    // r = lutToneCurve[rold];
+    // b = lutToneCurve[bold];
+    curves::setLutVal(lutToneCurve, curve, r);
+    curves::setLutVal(lutToneCurve, curve, b);
     g = b + ((r - b) * (gold - bold) / (rold - bold));
 }
 
 // Modifying the Luminance channel only
-inline void LuminanceToneCurve::Apply(float &ir, float &ig, float &ib, const double ws[3][3]) const
+inline void LuminanceToneCurve::Apply(float &ir, float &ig, float &ib, const float ws[3][3]) const
 {
     assert (lutToneCurve);
 
-    float r = CLIP(ir);
-    float g = CLIP(ig);
-    float b = CLIP(ib);
+    float r = LIM<float>(ir, 0.f, whitept);
+    float g = LIM<float>(ig, 0.f, whitept);
+    float b = LIM<float>(ib, 0.f, whitept);
 
 //    float currLuminance = r * 0.2126729f + g * 0.7151521f + b * 0.0721750f;
     float currLuminance = Color::rgbLuminance(r, g, b, ws);
-    const float newLuminance = lutToneCurve[currLuminance];
+    float newLuminance = currLuminance;
+    //lutToneCurve[currLuminance];
+    curves::setLutVal(lutToneCurve, curve, newLuminance);
     currLuminance = currLuminance == 0.f ? 0.00001f : currLuminance;
     const float coef = newLuminance / currLuminance;
-    r = LIM<float>(r * coef, 0.f, 65535.f);
-    g = LIM<float>(g * coef, 0.f, 65535.f);
-    b = LIM<float>(b * coef, 0.f, 65535.f);
+    r = LIM<float>(r * coef, 0.f, whitept);
+    g = LIM<float>(g * coef, 0.f, whitept);
+    b = LIM<float>(b * coef, 0.f, whitept);
 
     ir = r;
     ig = g;
@@ -736,7 +755,7 @@ inline float WeightedStdToneCurve::Triangle(float a, float a1, float b) const
         if (b < a) {
             b1 = b + a2 *      b  /     a ;
         } else       {
-            b1 = b + a2 * (65535.f - b) / (65535.f - a);
+            b1 = b + a2 * (whitept - b) / (whitept - a);
         }
 
         return b1;
@@ -745,17 +764,17 @@ inline float WeightedStdToneCurve::Triangle(float a, float a1, float b) const
     return a1;
 }
 
-#ifdef __SSE2__
-inline vfloat WeightedStdToneCurve::Triangle(vfloat a, vfloat a1, vfloat b) const
-{
-        vmask eqmask = vmaskf_eq(b, a);
-        vfloat a2 = a1 - a;
-        vmask cmask = vmaskf_lt(b, a);
-        vfloat b3 = vself(cmask, b, F2V(65535.f) - b);
-        vfloat a3 = vself(cmask, a, F2V(65535.f) - a);
-        return vself(eqmask, a1, b + a2 * b3 / a3);
-}
-#endif
+// #ifdef __SSE2__
+// inline vfloat WeightedStdToneCurve::Triangle(vfloat a, vfloat a1, vfloat b) const
+// {
+//         vmask eqmask = vmaskf_eq(b, a);
+//         vfloat a2 = a1 - a;
+//         vmask cmask = vmaskf_lt(b, a);
+//         vfloat b3 = vself(cmask, b, F2V(65535.f) - b);
+//         vfloat a3 = vself(cmask, a, F2V(65535.f) - a);
+//         return vself(eqmask, a1, b + a2 * b3 / a3);
+// }
+// #endif
 
 // Tone curve modifying the value channel only, preserving hue and saturation
 // values in 0xffff space
@@ -764,97 +783,101 @@ inline void WeightedStdToneCurve::Apply (float& ir, float& ig, float& ib) const
 
     assert (lutToneCurve);
 
-    float r = CLIP(ir);
-    float g = CLIP(ig);
-    float b = CLIP(ib);
-    float r1 = lutToneCurve[r];
+    float r = LIM<float>(ir, 0.f, whitept);
+    float g = LIM<float>(ig, 0.f, whitept);
+    float b = LIM<float>(ib, 0.f, whitept);
+    //float r1 = lutToneCurve[r];
+    float r1 = r;
+    curves::setLutVal(lutToneCurve, curve, r1);
     float g1 = Triangle(r, r1, g);
     float b1 = Triangle(r, r1, b);
 
-    float g2 = lutToneCurve[g];
+    float g2 = g;//lutToneCurve[g];
+    curves::setLutVal(lutToneCurve, curve, g2);
     float r2 = Triangle(g, g2, r);
     float b2 = Triangle(g, g2, b);
 
-    float b3 = lutToneCurve[b];
+    float b3 = b;//lutToneCurve[b];
+    curves::setLutVal(lutToneCurve, curve, b3);
     float r3 = Triangle(b, b3, r);
     float g3 = Triangle(b, b3, g);
 
-    r = CLIP<float>(r1 * 0.50f + r2 * 0.25f + r3 * 0.25f);
-    g = CLIP<float>(g1 * 0.25f + g2 * 0.50f + g3 * 0.25f);
-    b = CLIP<float>(b1 * 0.25f + b2 * 0.25f + b3 * 0.50f);
+    r = LIM<float>(r1 * 0.50f + r2 * 0.25f + r3 * 0.25f, 0.f, whitept);
+    g = LIM<float>(g1 * 0.25f + g2 * 0.50f + g3 * 0.25f, 0.f, whitept);
+    b = LIM<float>(b1 * 0.25f + b2 * 0.25f + b3 * 0.50f, 0.f, whitept);
 
     ir = r;
     ig = g;
     ib = b;
 }
 
-inline void WeightedStdToneCurve::BatchApply(const size_t start, const size_t end, float *r, float *g, float *b) const {
-    assert (lutToneCurve);
-    assert (lutToneCurve.getClip() & LUT_CLIP_BELOW);
-    assert (lutToneCurve.getClip() & LUT_CLIP_ABOVE);
+// inline void WeightedStdToneCurve::BatchApply(const size_t start, const size_t end, float *r, float *g, float *b) const {
+//     assert (lutToneCurve);
+//     assert (lutToneCurve.getClip() & LUT_CLIP_BELOW);
+//     assert (lutToneCurve.getClip() & LUT_CLIP_ABOVE);
 
-    // All pointers must have the same alignment for SSE usage. In the loop body below,
-    // we will only check `r`, assuming that the same result would hold for `g` and `b`.
-    assert (reinterpret_cast<uintptr_t>(r) % 16 == reinterpret_cast<uintptr_t>(g) % 16);
-    assert (reinterpret_cast<uintptr_t>(g) % 16 == reinterpret_cast<uintptr_t>(b) % 16);
+//     // All pointers must have the same alignment for SSE usage. In the loop body below,
+//     // we will only check `r`, assuming that the same result would hold for `g` and `b`.
+//     assert (reinterpret_cast<uintptr_t>(r) % 16 == reinterpret_cast<uintptr_t>(g) % 16);
+//     assert (reinterpret_cast<uintptr_t>(g) % 16 == reinterpret_cast<uintptr_t>(b) % 16);
 
-    size_t i = start;
-    while (true) {
-        if (i >= end) {
-            // If we get to the end before getting to an aligned address, just return.
-            // (Or, for non-SSE mode, if we get to the end.)
-            return;
-#ifdef __SSE2__
-        } else if (reinterpret_cast<uintptr_t>(&r[i]) % 16 == 0) {
-            // Otherwise, we get to the first aligned address; go to the SSE part.
-            break;
-#endif
-        }
-        Apply(r[i], g[i], b[i]);
-        i++;
-    }
+//     size_t i = start;
+//     while (true) {
+//         if (i >= end) {
+//             // If we get to the end before getting to an aligned address, just return.
+//             // (Or, for non-SSE mode, if we get to the end.)
+//             return;
+// #ifdef __SSE2__
+//         } else if (reinterpret_cast<uintptr_t>(&r[i]) % 16 == 0) {
+//             // Otherwise, we get to the first aligned address; go to the SSE part.
+//             break;
+// #endif
+//         }
+//         Apply(r[i], g[i], b[i]);
+//         i++;
+//     }
 
-#ifdef __SSE2__
-    const vfloat c65535v = F2V(65535.f);
-    const vfloat zd5v = F2V(0.5f);
-    const vfloat zd25v = F2V(0.25f);
+// #ifdef __SSE2__
+//     const vfloat c65535v = F2V(65535.f);
+//     const vfloat zd5v = F2V(0.5f);
+//     const vfloat zd25v = F2V(0.25f);
 
-    for (; i + 3 < end; i += 4) {
-        vfloat r_val = vclampf(LVF(r[i]), ZEROV, c65535v);
-        vfloat g_val = vclampf(LVF(g[i]), ZEROV, c65535v);
-        vfloat b_val = vclampf(LVF(b[i]), ZEROV, c65535v);
-        vfloat r1 = lutToneCurve[r_val];
-        vfloat g1 = Triangle(r_val, r1, g_val);
-        vfloat b1 = Triangle(r_val, r1, b_val);
+//     for (; i + 3 < end; i += 4) {
+//         vfloat r_val = vclampf(LVF(r[i]), ZEROV, c65535v);
+//         vfloat g_val = vclampf(LVF(g[i]), ZEROV, c65535v);
+//         vfloat b_val = vclampf(LVF(b[i]), ZEROV, c65535v);
+//         vfloat r1 = lutToneCurve[r_val];
+//         vfloat g1 = Triangle(r_val, r1, g_val);
+//         vfloat b1 = Triangle(r_val, r1, b_val);
 
-        vfloat g2 = lutToneCurve[g_val];
-        vfloat r2 = Triangle(g_val, g2, r_val);
-        vfloat b2 = Triangle(g_val, g2, b_val);
+//         vfloat g2 = lutToneCurve[g_val];
+//         vfloat r2 = Triangle(g_val, g2, r_val);
+//         vfloat b2 = Triangle(g_val, g2, b_val);
 
-        vfloat b3 = lutToneCurve[b_val];
-        vfloat r3 = Triangle(b_val, b3, r_val);
-        vfloat g3 = Triangle(b_val, b3, g_val);
+//         vfloat b3 = lutToneCurve[b_val];
+//         vfloat r3 = Triangle(b_val, b3, r_val);
+//         vfloat g3 = Triangle(b_val, b3, g_val);
 
-        vfloat r_old = LVF(r[i]);
-        vfloat g_old = LVF(g[i]);
-        vfloat b_old = LVF(b[i]);
-        vfloat r_new = vclampf(r1 * zd5v + r2 * zd25v + r3 * zd25v, ZEROV, c65535v);
-        vfloat g_new = vclampf(g1 * zd25v + g2 * zd5v + g3 * zd25v, ZEROV, c65535v);
-        vfloat b_new = vclampf(b1 * zd25v + b2 * zd25v + b3 * zd5v, ZEROV, c65535v);
-        r_old = r_new;
-        g_old = g_new;
-        b_old = b_new;
-        STVF(r[i], r_old);
-        STVF(g[i], g_old);
-        STVF(b[i], b_old);
-    }
+//         vfloat r_old = LVF(r[i]);
+//         vfloat g_old = LVF(g[i]);
+//         vfloat b_old = LVF(b[i]);
+//         vfloat r_new = vclampf(r1 * zd5v + r2 * zd25v + r3 * zd25v, ZEROV, c65535v);
+//         vfloat g_new = vclampf(g1 * zd25v + g2 * zd5v + g3 * zd25v, ZEROV, c65535v);
+//         vfloat b_new = vclampf(b1 * zd25v + b2 * zd25v + b3 * zd5v, ZEROV, c65535v);
+//         r_old = r_new;
+//         g_old = g_new;
+//         b_old = b_new;
+//         STVF(r[i], r_old);
+//         STVF(g[i], g_old);
+//         STVF(b[i], b_old);
+//     }
 
-    // Remainder in non-SSE.
-    for (; i < end; ++i) {
-        Apply(r[i], g[i], b[i]);
-    }
-#endif
-}
+//     // Remainder in non-SSE.
+//     for (; i < end; ++i) {
+//         Apply(r[i], g[i], b[i]);
+//     }
+// #endif
+// }
 
 // Tone curve modifying the value channel only, preserving hue and saturation
 // values in 0xffff space
@@ -895,7 +918,7 @@ inline void SatAndValueBlendingToneCurve::Apply (float& ir, float& ig, float& ib
     ib = b;
 }
 
-}
+} // namespace rtengine
 
 #undef CLIPI
 

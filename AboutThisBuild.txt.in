@@ -10,10 +10,11 @@ Gtkmm: V${GTKMM_VERSION}
 Lensfun: V${LENSFUN_VERSION}
 Exiv2: V${EXIV2_VERSION}
 LCMS2: V${LCMS_VERSION_INFO}
+LibRaw: ${ART_LIBRAW_VERSION_INFO}
 Build type: ${BUILD_TYPE}
 Build flags: ${CXX_FLAGS}
 Link flags: ${LFLAGS}
 OpenMP support: ${OPTION_OMP}
-MMAP support: ${WITH_MYFILE_MMAP}
+Mi-malloc: ${ART_MIMALLOC_VERSION_INFO}
 Build OS: ${BUILDINFO_OS}
 Build date: ${BUILDINFO_DATE}

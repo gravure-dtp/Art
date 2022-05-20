@@ -346,7 +346,10 @@ bool ImProcFunctions::toneEqualizer(Imagefloat *rgb)
 
     BENCHFUN
     rgb->setMode(Imagefloat::Mode::RGB, multiThread);
-    rgb->normalizeFloatTo1(multiThread);
+
+    const float gain = 1.f / 65535.f * std::pow(2.f, -params->toneEqualizer.pivot);
+    
+    rgb->multiply(gain, multiThread);
 
     const int W = rgb->getWidth();
     const int H = rgb->getHeight();
@@ -358,7 +361,7 @@ bool ImProcFunctions::toneEqualizer(Imagefloat *rgb)
     bool show_color_map = params->toneEqualizer.show_colormap && cur_pipeline == Pipeline::PREVIEW;
     tone_eq(R, G, B, params->toneEqualizer, params->icm.workingProfile, scale, multiThread, show_color_map, monitor);
     
-    rgb->normalizeFloatTo65535(multiThread);
+    rgb->multiply(1.f/gain, multiThread);
 
     return show_color_map;
 }

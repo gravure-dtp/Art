@@ -24,10 +24,69 @@
 #include "sleef.h"
 #include "opthelper.h"
 #include "iccstore.h"
+#include "linalgebra.h"
 
 using namespace std;
 
 namespace rtengine {
+
+namespace {
+
+typedef Vec3f A3;
+
+// D50 <-> D65 adapted from darktable
+
+void XYZ_D50_to_D65(float &X, float &Y, float &Z)
+{
+    // Bradford adaptation matrix from http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
+    constexpr float M[3][3] = {
+        {  0.9555766f, -0.0230393f,  0.0631636f },
+        { -0.0282895f,  1.0099416f,  0.0210077f },
+        {  0.0122982f, -0.0204830f,  1.3299098f }
+    };
+    A3 res = dot_product(M, A3(X, Y, Z));
+    X = res[0];
+    Y = res[1];
+    Z = res[2];
+}
+
+
+void XYZ_D65_to_D50(float &X, float &Y, float &Z)
+{
+    // Bradford adaptation matrix from http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
+    constexpr float M[3][3] = {
+        {  1.0478112f,  0.0228866f, -0.0501270f },
+        {  0.0295424f,  0.9904844f, -0.0170491f },
+        { -0.0092345f,  0.0150436f,  0.7521316f }
+    };
+    A3 res = dot_product(M, A3(X, Y, Z));
+    X = res[0];
+    Y = res[1];
+    Z = res[2];
+}
+
+
+float PQ(float X)
+{
+    X = std::max(X, 1e-10f);
+    const float XX = std::pow(X*1e-4f, 0.1593017578125f);
+    return std::pow(
+        (0.8359375f + 18.8515625f*XX) / (1 + 18.6875f*XX),
+        134.034375f);
+}
+
+
+float PQ_inv(float X)
+{
+    X = std::max(X, 1e-10f);
+    const auto XX = std::pow(X, 7.460772656268214e-03f);
+    return 1e4f * std::pow(
+        (0.8359375f - XX) / (18.6875f*XX - 18.8515625f),
+        6.277394636015326f);
+}
+
+} // namespace
+
 
 extern const Settings* settings;
 
@@ -100,6 +159,9 @@ LUTf Color::_10GY30, Color::_10GY40, Color::_10GY50, Color::_10GY60, Color::_10G
 LUTf Color::_75GY30, Color::_75GY40, Color::_75GY50, Color::_75GY60, Color::_75GY70, Color::_75GY80;
 LUTf Color::_5GY30, Color::_5GY40, Color::_5GY50, Color::_5GY60, Color::_5GY70, Color::_5GY80;
 
+LUTf Color::jzazbz_pq_;
+LUTf Color::jzazbz_pq_inv_;
+
 #ifdef _DEBUG
 MunsellDebugInfo::MunsellDebugInfo()
 {
@@ -142,6 +204,9 @@ void Color::init ()
     igammatab_115_2(maxindex, 0);
     gammatab_145_3(maxindex, 0);
     igammatab_145_3(maxindex, 0);
+
+    jzazbz_pq_(maxindex, 0);
+    jzazbz_pq_inv_(maxindex, 0);
 
 #ifdef _OPENMP
     #pragma omp parallel sections
@@ -313,6 +378,14 @@ void Color::init ()
         #pragma omp section
 #endif
         linearGammaTRC = cmsBuildGamma(nullptr, 1.0);
+
+#ifdef _OPENMP
+        #pragma omp section
+#endif
+        for (int i = 0; i < maxindex; ++i) {
+            jzazbz_pq_[i] = PQ(float(i)/65535.f);
+            jzazbz_pq_inv_[i] = PQ_inv(float(i)/65535.f);
+        }
     }
 }
 
@@ -329,6 +402,8 @@ void Color::rgb2lab01 (const Glib::ustring &profile, const Glib::ustring &profil
     cmsHPROFILE oprof = nullptr;
     if (workingSpace) {
         oprof = ICCStore::getInstance()->workingSpace(profileW);
+    } else if (profile == procparams::ColorManagementParams::NoICMString) {
+        oprof = ICCStore::getInstance()->getsRGBProfile();
     } else {
         oprof = ICCStore::getInstance()->getProfile(profile);
     }
@@ -2653,7 +2728,7 @@ void Color::LabGamutMunsell(float *labL, float *laba, float *labb, const int N, 
 #ifdef _DEBUG
     t2e.set();
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         printf("Color::LabGamutMunsell (correction performed in %d usec):\n", t2e.etime(t1e));
         printf("   Gamut              : G1negat=%iiter G165535=%iiter \n", negat, moreRGB);
 
@@ -6761,7 +6836,7 @@ void Color::initMunsell ()
 #ifdef _DEBUG
     t2e.set();
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         printf("Lutf Munsell  %d usec\n", t2e.etime(t1e));
     }
 
@@ -6783,10 +6858,10 @@ inline void filmlike_clip_rgb_tone(float *r, float *g, float *b, const float L)
 
 } // namespace
 
-void Color::filmlike_clip(float *r, float *g, float *b)
+void Color::filmlike_clip(float *r, float *g, float *b, float Lmax)
 {
     // This is Adobe's hue-stable film-like curve with a diagonal, ie only used for clipping. Can probably be further optimized.
-    const float L = 65535.0;
+    const float L = Lmax;//65535.0;
 
     if (*r >= *g) {
         if (*g > *b) {         // Case 1: r >= g >  b
@@ -6824,6 +6899,45 @@ void Color::hsl2yuv(float h, float s, float &u, float &v)
     float2 sincosval = xsincosf(h);
     u = s * sincosval.x;
     v = s * sincosval.y;
+}
+
+
+void Color::xyz2jzazbz(float X, float Y, float Z, float &Jz, float &az, float &bz)
+{
+    const auto get_PQ =
+        [&](float x) -> float
+        {
+            return (x >= 0.f && x <= 1.f) ? jzazbz_pq_[x * 65535.f] : PQ(x);
+        };
+    
+    XYZ_D50_to_D65(X, Y, Z);
+    auto Lp = get_PQ(0.674207838f*X + 0.382799340f*Y - 0.047570458f*Z);
+    auto Mp = get_PQ(0.149284160f*X + 0.739628340f*Y + 0.083327300f*Z);
+    auto Sp = get_PQ(0.070941080f*X + 0.174768000f*Y + 0.670970020f*Z);
+    auto Iz = 0.5f * (Lp + Mp);
+    az = 3.524000f*Lp - 4.066708f*Mp + 0.542708f*Sp;
+    bz = 0.199076f*Lp + 1.096799f*Mp - 1.295875f*Sp;
+    Jz = (0.44f * Iz) / (1.f - 0.56f*Iz) - 1.6295499532821566e-11f;
+}
+
+void Color::jzazbz2xyz(float Jz, float az, float bz, float &X, float &Y, float &Z)
+{
+    const auto get_PQ_inv =
+        [&](float x) -> float
+        {
+            return (x >= 0.f && x <= 1.f) ? jzazbz_pq_inv_[x * 65535.f] : PQ_inv(x);
+        };
+
+    Jz = Jz + 1.6295499532821566e-11f;
+    auto Iz = Jz / (0.44f + 0.56f*Jz);
+    auto L = get_PQ_inv(Iz + 1.386050432715393e-1f*az + 5.804731615611869e-2f*bz);
+    auto M = get_PQ_inv(Iz - 1.386050432715393e-1f*az - 5.804731615611891e-2f*bz);
+    auto S = get_PQ_inv(Iz - 9.601924202631895e-2f*az - 8.118918960560390e-1f*bz);
+    X = + 1.661373055774069e+00f*L - 9.145230923250668e-01f*M + 2.313620767186147e-01f*S;
+    Y = - 3.250758740427037e-01f*L + 1.571847038366936e+00f*M - 2.182538318672940e-01f*S;
+    Z = - 9.098281098284756e-02f*L - 3.127282905230740e-01f*M + 1.522766561305260e+00f*S;
+
+    XYZ_D65_to_D50(X, Y, Z);
 }
 
 } // namespace rtengine

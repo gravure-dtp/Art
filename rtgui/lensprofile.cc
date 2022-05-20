@@ -545,7 +545,7 @@ LensProfilePanel::LFDbHelper::LFDbHelper()
 
 void LensProfilePanel::LFDbHelper::fillLensfunCameras()
 {
-    if (options.rtSettings.verbose) {
+    if (options.rtSettings.verbose > 1) {
         std::cout << "LENSFUN, scanning cameras:" << std::endl;
     }
 
@@ -555,7 +555,7 @@ void LensProfilePanel::LFDbHelper::fillLensfunCameras()
     for (const auto& c : camlist) {
         camnames[c.getMake()].insert(c.getModel());
 
-        if (options.rtSettings.verbose) {
+        if (options.rtSettings.verbose > 1) {
             std::cout << "  found: " << c.getDisplayString().c_str() << std::endl;
         }
     }
@@ -575,7 +575,7 @@ void LensProfilePanel::LFDbHelper::fillLensfunCameras()
 
 void LensProfilePanel::LFDbHelper::fillLensfunLenses()
 {
-    if (options.rtSettings.verbose) {
+    if (options.rtSettings.verbose > 1) {
         std::cout << "LENSFUN, scanning lenses:" << std::endl;
     }
 
@@ -587,7 +587,7 @@ void LensProfilePanel::LFDbHelper::fillLensfunLenses()
         const auto& make = l.getMake();
         lenses[make].insert(name);
 
-        if (options.rtSettings.verbose) {
+        if (options.rtSettings.verbose > 1) {
             std::cout << "  found: " << l.getDisplayString().c_str() << std::endl;
         }
     }

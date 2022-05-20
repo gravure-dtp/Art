@@ -744,3 +744,11 @@ void Adjuster::showIcons(bool yes)
         imageIcon2->set_visible(yes);
     }
 }
+
+
+void Adjuster::forceNotifyListener()
+{
+    if (adjusterListener) {
+        adjusterListener->adjusterChanged(this, spin->get_value ());
+    }
+}

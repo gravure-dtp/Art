@@ -561,7 +561,7 @@ std::unique_ptr<LFModifier> LFDatabase::findModifier(const LensProfParams &lensP
         swap_xy
     );
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         std::cout << "LENSFUN:\n"
                   << "  camera: " << c.getDisplayString() << "\n"
                   << "  lens: " << l.getDisplayString() << "\n"

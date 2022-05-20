@@ -29,6 +29,19 @@ FilterPanel::FilterPanel () : listener (nullptr)
     pack_start (*enabled, Gtk::PACK_SHRINK, 2);
     pack_start (*Gtk::manage(new Gtk::HSeparator ()), Gtk::PACK_SHRINK, 2);
 
+    enaFiletype = Gtk::manage(new Gtk::CheckButton(M("EXIFFILTER_FILETYPE") + ":"));
+    Gtk::VBox* ftvb = Gtk::manage(new Gtk::VBox ());
+    ftvb->pack_start (*enaFiletype, Gtk::PACK_SHRINK, 0);
+    filetype = Gtk::manage(new Gtk::ListViewText (1, false, Gtk::SELECTION_MULTIPLE));
+    filetype->set_headers_visible (false);
+    Gtk::ScrolledWindow* sfiletype = Gtk::manage(new Gtk::ScrolledWindow());
+    sfiletype->set_policy(Gtk::POLICY_AUTOMATIC, Gtk::POLICY_ALWAYS);
+    sfiletype->set_size_request(-1, 80);
+    sfiletype->add(*filetype);
+    ftvb->pack_start (*sfiletype, Gtk::PACK_EXPAND_WIDGET, 0);
+    pack_start (*ftvb, Gtk::PACK_EXPAND_WIDGET, 4);
+
+    
     enaFNumber = Gtk::manage (new Gtk::CheckButton (M("EXIFFILTER_APERTURE") + ":"));
     Gtk::VBox* fnvb = Gtk::manage(new Gtk::VBox ());
     Gtk::HBox* fnhb = Gtk::manage(new Gtk::HBox ());
@@ -135,18 +148,6 @@ FilterPanel::FilterPanel () : listener (nullptr)
     lvb->pack_start (*slens, Gtk::PACK_EXPAND_WIDGET, 0);
     pack_start (*lvb, Gtk::PACK_EXPAND_WIDGET, 4);
 
-    enaFiletype = Gtk::manage(new Gtk::CheckButton(M("EXIFFILTER_FILETYPE") + ":"));
-    Gtk::VBox* ftvb = Gtk::manage(new Gtk::VBox ());
-    ftvb->pack_start (*enaFiletype, Gtk::PACK_SHRINK, 0);
-    filetype = Gtk::manage(new Gtk::ListViewText (1, false, Gtk::SELECTION_MULTIPLE));
-    filetype->set_headers_visible (false);
-    Gtk::ScrolledWindow* sfiletype = Gtk::manage(new Gtk::ScrolledWindow());
-    sfiletype->set_policy(Gtk::POLICY_AUTOMATIC, Gtk::POLICY_ALWAYS);
-    sfiletype->set_size_request(-1, 80);
-    sfiletype->add(*filetype);
-    ftvb->pack_start (*sfiletype, Gtk::PACK_EXPAND_WIDGET, 0);
-    pack_start (*ftvb, Gtk::PACK_EXPAND_WIDGET, 4);
-
     // add panel ending
     Gtk::VBox* vboxpe = Gtk::manage (new Gtk::VBox ());
     Gtk::HSeparator* hseptpe = Gtk::manage (new Gtk::HSeparator ());
@@ -182,54 +183,88 @@ FilterPanel::FilterPanel () : listener (nullptr)
     show_all ();
 }
 
-void FilterPanel::setFilter (ExifFilterSettings& defefs, bool updateLists)
+
+void FilterPanel::setFilter(ExifFilterSettings& defefs, bool update)
 {
     for (size_t i = 0; i < sChange.size(); i++) {
-        sChange[i].block (true);
+        sChange[i].block(true);
     }
 
-//  enaFNumber->set_active (curefs.filterFNumber);
-    fnumberFrom->set_text (FramesMetaData::apertureToString (defefs.fnumberFrom));
-    curefs.fnumberFrom = defefs.fnumberFrom;
-    fnumberTo->set_text (FramesMetaData::apertureToString (defefs.fnumberTo));
-    curefs.fnumberTo = defefs.fnumberTo;
+    if (!!update) {
+        enabled->set_active(defefs.enabled);
+    }
 
-//  enaShutter->set_active (curefs.filterShutter);
-    shutterFrom->set_text (FramesMetaData::shutterToString (defefs.shutterFrom));
-    curefs.shutterFrom = defefs.shutterFrom;
-    shutterTo->set_text (FramesMetaData::shutterToString (defefs.shutterTo));
-    curefs.shutterTo = defefs.shutterTo;
+    if (!!update) {
+        enaFNumber->set_active(defefs.filterFNumber);
+    }
+    if (!update || defefs.filterFNumber) {
+        fnumberFrom->set_text (FramesMetaData::apertureToString (defefs.fnumberFrom));
+        curefs.fnumberFrom = defefs.fnumberFrom;
+        fnumberTo->set_text (FramesMetaData::apertureToString (defefs.fnumberTo));
+        curefs.fnumberTo = defefs.fnumberTo;
+    }
 
-//  enaISO->set_active (curefs.filterISO);
-    isoFrom->set_text (Glib::ustring::format (defefs.isoFrom));
-    curefs.isoFrom = defefs.isoFrom;
-    isoTo->set_text (Glib::ustring::format (defefs.isoTo));
-    curefs.isoTo = defefs.isoTo;
+    if (!!update) {
+        enaShutter->set_active(defefs.filterShutter);
+    }
+    if (!update || defefs.filterShutter) {
+        shutterFrom->set_text (FramesMetaData::shutterToString (defefs.shutterFrom));
+        curefs.shutterFrom = defefs.shutterFrom;
+        shutterTo->set_text (FramesMetaData::shutterToString (defefs.shutterTo));
+        curefs.shutterTo = defefs.shutterTo;
+    }
 
-//  enaFocalLen->set_active (curefs.filterFocalLen);
-    focalFrom->set_text (Glib::ustring::format (defefs.focalFrom));
-    curefs.focalFrom = defefs.focalFrom;
-    focalTo->set_text (Glib::ustring::format (defefs.focalTo));
-    curefs.focalTo = defefs.focalTo;
+    if (!!update) {
+        enaISO->set_active(defefs.filterISO);
+    }
+    if (!update || defefs.filterISO) {
+        isoFrom->set_text (Glib::ustring::format (defefs.isoFrom));
+        curefs.isoFrom = defefs.isoFrom;
+        isoTo->set_text (Glib::ustring::format (defefs.isoTo));
+        curefs.isoTo = defefs.isoTo;
+    }
 
-    dateFrom->set_date(defefs.dateFrom);
-    dateTo->set_date(defefs.dateTo);
-    curefs.dateFrom = defefs.dateFrom;
-    curefs.dateTo = defefs.dateTo;
+    if (!!update) {
+        enaFocalLen->set_active(defefs.filterFocalLen);
+    }
+    if (!update || defefs.filterFocalLen) {
+        focalFrom->set_text (Glib::ustring::format (defefs.focalFrom));
+        curefs.focalFrom = defefs.focalFrom;
+        focalTo->set_text (Glib::ustring::format (defefs.focalTo));
+        curefs.focalTo = defefs.focalTo;
+    }
 
-//  enaCompExp->set_active (curefs.filterExpComp);
+    if (!!update) {
+        enaDate->set_active(defefs.filterDate);
+    }
+    if (!update || defefs.filterDate) {
+        dateFrom->set_date(defefs.dateFrom);
+        dateTo->set_date(defefs.dateTo);
+        curefs.dateFrom = defefs.dateFrom;
+        curefs.dateTo = defefs.dateTo;
+    }
+
+    if (!!update) {
+        enaExpComp->set_active(defefs.filterExpComp);
+    }
     Glib::RefPtr<Gtk::TreeSelection> eselection = expcomp->get_selection ();
 
-//  enaFiletype->set_active (curefs.filterFiletype);
+    if (!!update) {
+        enaFiletype->set_active(defefs.filterFiletype);
+    }
     Glib::RefPtr<Gtk::TreeSelection> ftselection = filetype->get_selection ();
 
-//  enaCamera->set_active (curefs.filterCamera);
+    if (!!update) {
+        enaCamera->set_active(defefs.filterCamera);
+    }
     Glib::RefPtr<Gtk::TreeSelection> cselection = camera->get_selection ();
 
-//  enaLens->set_active (curefs.filterLens);
+    if (!!update) {
+        enaLens->set_active(defefs.filterLens);
+    }
     Glib::RefPtr<Gtk::TreeSelection> lselection = lens->get_selection ();
 
-    if( updateLists ) {
+    if (!update) {
         expcomp->clear_items();
         curefs.expcomp.clear();
 
@@ -270,47 +305,55 @@ void FilterPanel::setFilter (ExifFilterSettings& defefs, bool updateLists)
 
         ftselection->select_all();
     } else {
-        for( Gtk::TreeModel::Children::iterator iter = expcomp->get_model()->children().begin(); iter != expcomp->get_model()->children().end(); ++iter) {
-            Glib::ustring v;
-            iter->get_value(0, v);
+        if (defefs.filterExpComp) {
+            for( Gtk::TreeModel::Children::iterator iter = expcomp->get_model()->children().begin(); iter != expcomp->get_model()->children().end(); ++iter) {
+                Glib::ustring v;
+                iter->get_value(0, v);
 
-            if( defefs.expcomp.find( v ) != defefs.expcomp.end() ) {
-                eselection->select( iter );
-            } else {
-                eselection->unselect( iter );
+                if( defefs.expcomp.find( v ) != defefs.expcomp.end() ) {
+                    eselection->select( iter );
+                } else {
+                    eselection->unselect( iter );
+                }
             }
         }
 
-        for( Gtk::TreeModel::Children::iterator iter = lens->get_model()->children().begin(); iter != lens->get_model()->children().end(); ++iter) {
-            Glib::ustring v;
-            iter->get_value(0, v);
+        if (defefs.filterLens) {
+            for( Gtk::TreeModel::Children::iterator iter = lens->get_model()->children().begin(); iter != lens->get_model()->children().end(); ++iter) {
+                Glib::ustring v;
+                iter->get_value(0, v);
 
-            if( defefs.lenses.find( v ) != defefs.lenses.end() ) {
-                lselection->select( iter );
-            } else {
-                lselection->unselect( iter );
+                if( defefs.lenses.find( v ) != defefs.lenses.end() ) {
+                    lselection->select( iter );
+                } else {
+                    lselection->unselect( iter );
+                }
             }
         }
 
-        for( Gtk::TreeModel::Children::iterator iter = camera->get_model()->children().begin(); iter != camera->get_model()->children().end(); ++iter) {
-            Glib::ustring v;
-            iter->get_value(0, v);
+        if (defefs.filterCamera) {
+            for( Gtk::TreeModel::Children::iterator iter = camera->get_model()->children().begin(); iter != camera->get_model()->children().end(); ++iter) {
+                Glib::ustring v;
+                iter->get_value(0, v);
 
-            if( defefs.cameras.find( v ) != defefs.cameras.end() ) {
-                cselection->select(iter);
-            } else {
-                cselection->unselect(iter);
+                if( defefs.cameras.find( v ) != defefs.cameras.end() ) {
+                    cselection->select(iter);
+                } else {
+                    cselection->unselect(iter);
+                }
             }
         }
 
-        for( Gtk::TreeModel::Children::iterator iter = filetype->get_model()->children().begin(); iter != filetype->get_model()->children().end(); ++iter) {
-            Glib::ustring v;
-            iter->get_value(0, v);
+        if (defefs.filterFiletype) {
+            for( Gtk::TreeModel::Children::iterator iter = filetype->get_model()->children().begin(); iter != filetype->get_model()->children().end(); ++iter) {
+                Glib::ustring v;
+                iter->get_value(0, v);
 
-            if( defefs.filetypes.find( v ) != defefs.filetypes.end() ) {
-                ftselection->select(iter);
-            } else {
-                ftselection->unselect(iter);
+                if( defefs.filetypes.find( v ) != defefs.filetypes.end() ) {
+                    ftselection->select(iter);
+                } else {
+                    ftselection->unselect(iter);
+                }
             }
         }
     }
@@ -322,27 +365,20 @@ void FilterPanel::setFilter (ExifFilterSettings& defefs, bool updateLists)
     }
 }
 
+
 bool FilterPanel::isEnabled ()
 {
 
     return enabled->get_active () && is_sensitive();
 }
 
-ExifFilterSettings FilterPanel::getFilter ()
+
+ExifFilterSettings FilterPanel::getFilter(bool full_data)
 {
-
     ExifFilterSettings efs;
-    efs.fnumberFrom = atof (fnumberFrom->get_text().c_str());
-    efs.fnumberTo   = atof (fnumberTo->get_text().c_str());
-    efs.focalFrom   = atof (focalFrom->get_text().c_str());
-    efs.focalTo     = atof (focalTo->get_text().c_str());
-    efs.isoFrom     = atoi (isoFrom->get_text().c_str());
-    efs.isoTo       = atoi (isoTo->get_text().c_str());
-    efs.shutterFrom = FramesMetaData::shutterFromString (shutterFrom->get_text());
-    efs.shutterTo   = FramesMetaData::shutterFromString (shutterTo->get_text());
-    efs.dateFrom = dateFrom->get_date();
-    efs.dateTo = dateTo->get_date();
 
+    efs.enabled = enabled->get_active();
+    
     efs.filterFNumber  = enaFNumber->get_active ();
     efs.filterShutter  = enaShutter->get_active ();
     efs.filterFocalLen = enaFocalLen->get_active ();
@@ -353,28 +389,57 @@ ExifFilterSettings FilterPanel::getFilter ()
     efs.filterFiletype = enaFiletype->get_active ();
     efs.filterDate = enaDate->get_active();
 
+    if (efs.filterFNumber || full_data) {
+        efs.fnumberFrom = atof(fnumberFrom->get_text().c_str());
+        efs.fnumberTo = atof (fnumberTo->get_text().c_str());
+    }
+    if (efs.filterFocalLen || full_data) {
+        efs.focalFrom = atof (focalFrom->get_text().c_str());
+        efs.focalTo = atof (focalTo->get_text().c_str());
+    }
+    if (efs.filterISO || full_data) {
+        efs.isoFrom = atoi (isoFrom->get_text().c_str());
+        efs.isoTo = atoi (isoTo->get_text().c_str());
+    }
+    if (efs.filterShutter || full_data) {
+        efs.shutterFrom = FramesMetaData::shutterFromString (shutterFrom->get_text());
+        efs.shutterTo = FramesMetaData::shutterFromString (shutterTo->get_text());
+    }
+    if (efs.filterDate || full_data) {
+        efs.dateFrom = dateFrom->get_date();
+        efs.dateTo = dateTo->get_date();
+    }
+    
     std::vector<int> sel = camera->get_selected ();
 
-    for (size_t i = 0; i < sel.size(); i++) {
-        efs.cameras.insert (camera->get_text (sel[i]));
+    if (efs.filterCamera || full_data) {
+        for (size_t i = 0; i < sel.size(); i++) {
+            efs.cameras.insert (camera->get_text (sel[i]));
+        }
     }
 
     sel = expcomp->get_selected ();
 
-    for (size_t i = 0; i < sel.size(); i++) {
-        efs.expcomp.insert (expcomp->get_text (sel[i]));
+    if (efs.filterExpComp || full_data) {
+        for (size_t i = 0; i < sel.size(); i++) {
+            efs.expcomp.insert (expcomp->get_text (sel[i]));
+        }
     }
 
     sel = lens->get_selected ();
 
-    for (size_t i = 0; i < sel.size(); i++) {
-        efs.lenses.insert (lens->get_text (sel[i]));
+    if (efs.filterLens || full_data) {
+        for (size_t i = 0; i < sel.size(); i++) {
+            efs.lenses.insert (lens->get_text (sel[i]));
+        }
     }
 
     sel = filetype->get_selected ();
 
-    for (size_t i = 0; i < sel.size(); i++) {
-        efs.filetypes.insert (filetype->get_text (sel[i]));
+    if (efs.filterFiletype || full_data) {
+        for (size_t i = 0; i < sel.size(); i++) {
+            efs.filetypes.insert (filetype->get_text (sel[i]));
+        }
     }
 
     return efs;

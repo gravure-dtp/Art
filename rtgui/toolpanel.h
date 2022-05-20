@@ -30,6 +30,7 @@
 #include "paramsedited.h"
 #include "edit.h"
 #include "pparamschangelistener.h"
+#include "shortcutmanager.h"
 
 class ToolPanel;
 class FoldableToolPanel;
@@ -115,6 +116,8 @@ public:
 
     virtual Glib::ustring getToolName() { return toolName; }
     virtual PParamsChangeListener *getPParamsChangeListener() { return nullptr; }
+
+    virtual void registerShortcuts(ToolShortcutManager *mgr) {}
 };
 
 
@@ -209,6 +212,8 @@ public:
     virtual void toolReset(bool to_initial)
     {
     }
+
+    Glib::ustring getUILabel() const { return EvToolReset.get_message(); }
 };
 
 #endif

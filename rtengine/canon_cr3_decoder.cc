@@ -502,7 +502,8 @@ int DCraw::parseCR3(unsigned long long oAtomList,
       current_track.MediaOffset = (((unsigned long long)get4()) << 32) | get4();
     }
 
-    if (current_track.MediaSize && current_track.MediaOffset &&
+    if (nTrack >= 0 && nTrack < LIBRAW_CRXTRACKS_MAXCOUNT &&
+        current_track.MediaSize && current_track.MediaOffset &&
         ((oAtom + szAtom) >= (oAtomList + szAtomList)) &&
         !strncmp(AtomNameStack, "moovtrakmdiaminfstbl", 20))
     {

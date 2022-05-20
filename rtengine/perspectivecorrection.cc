@@ -46,6 +46,7 @@
 #include "perspectivecorrection.h"
 #include "improcfun.h"
 #include "rt_math.h"
+#include "linalgebra.h"
 #include <string.h>
 #include <math.h>
 #include <assert.h>
@@ -73,14 +74,14 @@ namespace {
 
 inline int mat3inv(float *const dst, const float *const src)
 {
-    std::array<std::array<float, 3>, 3> tmpsrc;
-    std::array<std::array<float, 3>, 3> tmpdst;
+    Mat33f tmpsrc;
+    Mat33f tmpdst;
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
             tmpsrc[i][j] = src[3 * i + j];
         }
     }
-    if (invertMatrix(tmpsrc, tmpdst)) {
+    if (inverse(tmpsrc, tmpdst)) {
         for (int i = 0; i < 3; ++i) {
             for (int j = 0; j < 3; ++j) {
                 dst[3 * i + j] = tmpdst[i][j];

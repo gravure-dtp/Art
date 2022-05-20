@@ -139,10 +139,14 @@ public:
         }
     }
 
+    double getStepValue() const { return vStep; }
+
     void setLabel (Glib::ustring lbl)
     {
         label->set_label(lbl);
     }
+    Glib::ustring getLabel() const { return label->get_label(); }
+    
     void setValue (double a);
     void setLimits (double vmin, double vmax, double vstep, double vdefault);
     void setEnabled (bool enabled);
@@ -172,7 +176,8 @@ public:
     };
     void spinChanged ();
     void sliderChanged ();
-    bool notifyListener ();
+    bool notifyListener();
+    void forceNotifyListener();
     void sliderReleased (GdkEventButton* event);
     void spinReleased (GdkEventButton* event);
     void resetValue (bool toInitial);

@@ -28,7 +28,7 @@ if(REL_INFO_FILE STREQUAL REL_INFO_FILE-NOTFOUND)
         # Get version description.
         # Depending on whether you checked out a branch (dev) or a tag (release),
         # "git describe" will return "5.0-gtk2-2-g12345678" or "5.0-gtk2", respectively.
-        execute_process(COMMAND ${GIT_CMD} describe --tags --always OUTPUT_VARIABLE GIT_DESCRIBE OUTPUT_STRIP_TRAILING_WHITESPACE WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+        execute_process(COMMAND ${GIT_CMD} describe --tags --always --exact-match OUTPUT_VARIABLE GIT_DESCRIBE OUTPUT_STRIP_TRAILING_WHITESPACE WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 
         # Get branch name.
         # Will return empty if you checked out a commit or tag. Empty string handled later.
@@ -75,8 +75,8 @@ if(REL_INFO_FILE STREQUAL REL_INFO_FILE-NOTFOUND)
         
         # we emulate the behaviour of git with Mercurial
         execute_process(COMMAND ${HG_CMD} log -r .
-            #--template "{latesttag('re:.*v?[0-9.]+(rc)?[0-9]+$') % '{sub('^.*/.*:', '', tag)}{ifeq(distance, 0, '', '-')}{ifeq(distance, 0, '', distance)}{ifeq(distance, 0, '', '-g')}{ifeq(distance, 0, '', short(gitnode))}'}"
-            --template "{latesttag('re:.*v?[0-9.]+(rc)?[0-9]+$') % '{sub('^.*/.*:', '', tag)}{ifeq(distance, 0, '', '-')}{ifeq(distance, 0, '', count(revset('ancestors(\".\") and descendants(last(tag(r\"re:^v?[0-9]+[.][0-9.]+(rc[0-9]+)?$\"), 1))'))-1)}{ifeq(distance, 0, '', '-g')}{ifeq(distance, 0, '', short(gitnode))}'}"
+            #--template "{latesttag('re:.*v?[0-9.]+(rc)?[0-9]+$') % '{sub('^.*/.*:', '', tag)}{ifeq(distance, 0, '', '-')}{ifeq(distance, 0, '', count(revset('ancestors(\".\") and descendants(last(tag(r\"re:^v?[0-9]+[.][0-9.]+(rc[0-9]+)?$\"), 1))'))-1)}{ifeq(distance, 0, '', '-g')}{ifeq(distance, 0, '', short(gitnode))}'}"
+            --template "{latesttag('re:.*v?[0-9.]+(rc)?[0-9]+$') % '{ifeq(distance, 0, sub('^.*/.*:', '', tag), '')}'}"
             OUTPUT_VARIABLE GIT_DESCRIBE
             OUTPUT_STRIP_TRAILING_WHITESPACE
             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
@@ -86,7 +86,7 @@ if(REL_INFO_FILE STREQUAL REL_INFO_FILE-NOTFOUND)
             OUTPUT_STRIP_TRAILING_WHITESPACE
             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 
-        execute_process(COMMAND ${HG_CMD} log -r . --template "{short(gitnode)}"
+        execute_process(COMMAND ${HG_CMD} log -r . --template "{if(gitnode, short(gitnode), short(node))}{if(gitnode, '', '+')}"
             OUTPUT_VARIABLE GIT_COMMIT
             OUTPUT_STRIP_TRAILING_WHITESPACE
             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
@@ -96,7 +96,7 @@ if(REL_INFO_FILE STREQUAL REL_INFO_FILE-NOTFOUND)
             OUTPUT_STRIP_TRAILING_WHITESPACE
             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 
-        execute_process(COMMAND #${HG_CMD} log -r . --template "{latesttag('re:.*v?[0-9.]+(rc)?[0-9]+$') % '{distance}'}"
+        execute_process(COMMAND 
             ${HG_CMD} log -r . --template "{count(revset('ancestors(\".\") and descendants(last(tag(r\"re:^v?[0-9]+[.][0-9.]+(rc[0-9]+)?$\"), 1))'))-1}"
             OUTPUT_VARIABLE GIT_COMMITS_SINCE_TAG
             OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -110,19 +110,21 @@ if(REL_INFO_FILE STREQUAL REL_INFO_FILE-NOTFOUND)
         message(WARNING "not inside a repository -- info will be bogus!")
     endif()
 
-    # If user checked-out something which is not a branch, use the description as branch name.
-    if(GIT_BRANCH STREQUAL "")
-        set(GIT_BRANCH "${GIT_DESCRIBE}")
-    endif()
-
     # Create numeric version.
     # This version is nonsense, either don't use it at all or use it only where you have no other choice, e.g. Inno Setup's VersionInfoVersion.
     # Strip everything after hyphen, e.g. "5.0-gtk2" -> "5.0", "5.1-rc1" -> "5.1" (ergo BS).
-    if(GIT_COMMITS_SINCE_TAG STREQUAL "")
+    if(GIT_DESCRIBE STREQUAL "")
         set(GIT_NUMERIC_VERSION_BS "0.0.0")
     else()
         string(REGEX REPLACE "-.*" "" GIT_NUMERIC_VERSION_BS "${GIT_DESCRIBE}")
-        set(GIT_NUMERIC_VERSION_BS "${GIT_NUMERIC_VERSION_BS}.${GIT_COMMITS_SINCE_TAG}")
+    endif()
+
+    # If user checked-out something which is not a branch, use the description as branch name.
+    if(GIT_DESCRIBE STREQUAL "")
+        set(GIT_DESCRIBE "${GIT_COMMIT}")
+    endif()
+    if(GIT_BRANCH STREQUAL "")
+        set(GIT_BRANCH "${GIT_DESCRIBE}")
     endif()
 
     string(TIMESTAMP BUILDINFO_DATE UTC)

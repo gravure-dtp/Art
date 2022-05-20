@@ -1,4 +1,5 @@
-/*
+/* -*- C++ -*-
+ *  
  *  This file is part of RawTherapee.
  *
  *  RawTherapee is free software: you can redistribute it and/or modify
@@ -19,19 +20,18 @@
  *  2014 Ingo Weyrich <heckflosse@i-weyrich.de>
  */
 
-#ifndef CPLX_WAVELET_LEVEL_H_INCLUDED
-#define CPLX_WAVELET_LEVEL_H_INCLUDED
+#pragma once
 
 #include <cstddef>
 #include "rt_math.h"
 #include "opthelper.h"
 #include "stdio.h"
-namespace rtengine
-{
+#include <memory>
+
+namespace rtengine {
 
 template<typename T>
-class wavelet_level
-{
+class wavelet_level {
 
     // level of decomposition
     int lvl;
@@ -44,7 +44,7 @@ class wavelet_level
     // spacing of filter taps
     int skip;
 
-    bool bigBlockOfMemory;
+    // bool bigBlockOfMemory;
     // allocation and destruction of data storage
     T ** create(int n);
     void destroy(T ** subbands);
@@ -73,7 +73,7 @@ class wavelet_level
     void SynthesisFilterSubsampVertical (T * srcLo, T * srcHi, T * dst, float *filterLo, float *filterHi, const int taps, const int offset, const int width, const int srcheight, const int dstheight, const float blend);
 #endif
 public:
-    bool memoryAllocationFailed;
+//    bool memoryAllocationFailed;
 
     T ** wavcoeffs;
     // full size
@@ -84,7 +84,9 @@ public:
 
     template<typename E>
     wavelet_level(E * src, E * dst, int level, int subsamp, int w, int h, float *filterV, float *filterH, int len, int offset, int skipcrop, int numThreads)
-        : lvl(level), subsamp_out((subsamp >> level) & 1), numThreads(numThreads), skip(1 << level), bigBlockOfMemory(true), memoryAllocationFailed(false), wavcoeffs(nullptr), m_w(w), m_h(h), m_w2(w), m_h2(h)
+        : lvl(level), subsamp_out((subsamp >> level) & 1), numThreads(numThreads), skip(1 << level),
+          //bigBlockOfMemory(true), memoryAllocationFailed(false),
+          wavcoeffs(nullptr), m_w(w), m_h(h), m_w2(w), m_h2(h)
     {
         if (subsamp) {
             skip = 1;
@@ -106,9 +108,9 @@ public:
 
         wavcoeffs = create((m_w2) * (m_h2));
 
-        if(!memoryAllocationFailed) {
+        // if(!memoryAllocationFailed) {
             decompose_level(src, dst, filterV, filterH, len, offset);
-        }
+        // }
 
     }
 
@@ -142,10 +144,10 @@ public:
         return skip;
     }
 
-    bool bigBlockOfMemoryUsed() const
-    {
-        return bigBlockOfMemory;
-    }
+    // bool bigBlockOfMemoryUsed() const
+    // {
+    //     return bigBlockOfMemory;
+    // }
 
     template<typename E>
     void decompose_level(E *src, E *dst, float *filterV, float *filterH, int len, int offset);
@@ -157,25 +159,26 @@ public:
 template<typename T>
 T ** wavelet_level<T>::create(int n)
 {
-    T * data = new (std::nothrow) T[3 * n];
+    T * data = new /*(std::nothrow)*/ T[3 * n];
 
-    if(data == nullptr) {
-        bigBlockOfMemory = false;
-    }
+    // if(data == nullptr) {
+    //     bigBlockOfMemory = false;
+    // }
 
     T ** subbands = new T*[4];
+    subbands[0] = nullptr;
 
     for(int j = 1; j < 4; j++) {
-        if(bigBlockOfMemory) {
+        // if(bigBlockOfMemory) {
             subbands[j] = data + n * (j - 1);
-        } else {
-            subbands[j] = new (std::nothrow) T[n];
+        // } else {
+        //     subbands[j] = new (std::nothrow) T[n];
 
-            if(subbands[j] == nullptr) {
-                printf("Couldn't allocate memory in level %d of wavelet\n", lvl);
-                memoryAllocationFailed = true;
-            }
-        }
+        //     if(subbands[j] == nullptr) {
+        //         printf("Couldn't allocate memory in level %d of wavelet\n", lvl);
+        //         memoryAllocationFailed = true;
+        //     }
+        // }
     }
 
     return subbands;
@@ -185,15 +188,15 @@ template<typename T>
 void wavelet_level<T>::destroy(T ** subbands)
 {
     if(subbands) {
-        if(bigBlockOfMemory) {
+        // if(bigBlockOfMemory) {
             delete[] subbands[1];
-        } else {
-            for(int j = 1; j < 4; j++) {
-                if(subbands[j] != nullptr) {
-                    delete[] subbands[j];
-                }
-            }
-        }
+        // } else {
+        //     for(int j = 1; j < 4; j++) {
+        //         if(subbands[j] != nullptr) {
+        //             delete[] subbands[j];
+        //         }
+        //     }
+        // }
 
         delete[] subbands;
     }
@@ -462,7 +465,7 @@ template<typename T> void wavelet_level<T>::SynthesisFilterSubsampHorizontal (T 
     for (int k = 0; k < height; k++) {
         int i;
 
-        for(i = 0; i <= min(skip * taps, dstwidth); i++) {
+        for(i = 0; i < min(skip * taps + 1, dstwidth); i++) {
             float tot = 0.f;
             //TODO: this is correct only if skip=1; otherwise, want to work with cosets of length 'skip'
             int i_src = (i + shift) / 2;
@@ -716,9 +719,9 @@ template<typename T> template<typename E> void wavelet_level<T>::decompose_level
 
 template<typename T> template<typename E> void wavelet_level<T>::reconstruct_level(E* tmpLo, E* tmpHi, E * src, E *dst, float *filterV, float *filterH, int taps, int offset, const float blend)
 {
-    if(memoryAllocationFailed) {
-        return;
-    }
+    // if(memoryAllocationFailed) {
+    //     return;
+    // }
 
     /* filter along rows and columns */
     if (subsamp_out) {
@@ -742,9 +745,9 @@ template<typename T> template<typename E> void wavelet_level<T>::reconstruct_lev
 #else
 template<typename T> template<typename E> void wavelet_level<T>::reconstruct_level(E* tmpLo, E* tmpHi, E * src, E *dst, float *filterV, float *filterH, int taps, int offset, const float blend)
 {
-    if(memoryAllocationFailed) {
-        return;
-    }
+    // if(memoryAllocationFailed) {
+    //     return;
+    // }
 
     /* filter along rows and columns */
     if (subsamp_out) {
@@ -758,6 +761,5 @@ template<typename T> template<typename E> void wavelet_level<T>::reconstruct_lev
     }
 }
 #endif
-}
+} // namespace rtengine
 
-#endif

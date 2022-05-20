@@ -375,7 +375,7 @@ void Options::setDefaults()
     languageAutoDetect = langMgr.isOSLanguageDetectSupported();
     lastSaveAsPath = "";
     overwriteOutputFile = false;        // if TRUE, existing output JPGs/PNGs are overwritten, instead of adding ..-1.jpg, -2.jpg etc.
-    theme = "RawTherapee";
+    theme = "Default";
     maxThumbnailHeight = 250;
     maxThumbnailWidth = 800;
     maxCacheEntries = 20000;
@@ -444,7 +444,6 @@ void Options::setDefaults()
 #else
     clutCacheSize = 1;
 #endif
-    thumb_update_thread_limit = 0;
     thumb_delay_update = false;
     thumb_lazy_caching = true;
     filledProfile = false;
@@ -480,34 +479,8 @@ void Options::setDefaults()
     ICCPC_copyright = Options::getICCProfileCopyright();
     ICCPC_appendParamsToDesc = false;
 
-    fastexport_bypass_sharpening         = true;
-    fastexport_bypass_defringe           = true;
-    fastexport_bypass_dirpyrDenoise      = true;
-    fastexport_bypass_localContrast    = true;
-    fastexport_raw_bayer_method                  = "fast";
-    //fastexport_bypass_raw_bayer_all_enhance    = true;
-    fastexport_bypass_raw_bayer_dcb_iterations   = true;
-    fastexport_bypass_raw_bayer_dcb_enhance      = true;
-    fastexport_bypass_raw_bayer_lmmse_iterations = true;
-    fastexport_bypass_raw_bayer_linenoise        = true;
-    fastexport_bypass_raw_bayer_greenthresh      = true;
-    fastexport_raw_xtrans_method                 = "fast";
-    fastexport_bypass_raw_ccSteps        = true;
-    fastexport_bypass_raw_ca             = true;
-    fastexport_bypass_raw_df             = true;
-    fastexport_bypass_raw_ff             = true;
-    fastexport_icm_input_profile         = "(camera)";
-    fastexport_icm_working_profile       = "ProPhoto";
-    fastexport_icm_output_profile        = options.rtSettings.srgb;
-    fastexport_icm_outputIntent          = rtengine::RI_RELATIVE;
-    fastexport_icm_outputBPC             = true;
-    fastexport_resize_enabled            = true;
-    fastexport_resize_scale              = 1;
-    fastexport_resize_appliesTo          = "Cropped area";
-    fastexport_resize_dataspec           = 3;
-    fastexport_resize_width              = 900;
-    fastexport_resize_height             = 900;
-    fastexport_use_fast_pipeline         = true;
+    fastexport_resize_width              = 1920;
+    fastexport_resize_height             = 1920;
 
     clutsDir = "./cluts";
 
@@ -564,7 +537,7 @@ void Options::setDefaults()
     rtSettings.rec2020 = "RTv2_Rec2020";
     rtSettings.ACESp0 = "RTv2_ACES-AP0";
     rtSettings.ACESp1 = "RTv2_ACES-AP1";
-    rtSettings.verbose = false;
+    rtSettings.verbose = 0;
 
     rtSettings.HistogramWorking = false;
 
@@ -619,6 +592,7 @@ void Options::setDefaults()
 #ifdef WIN32
     rtSettings.exiftool_path += ".exe";
 #endif
+    rtSettings.thread_pool_size = 0;
 
     browser_width_for_inspector = 0;
 
@@ -645,10 +619,23 @@ void Options::setDefaults()
         {100, "#FF7F00"},
         {108, "#FF0000"}
     };
+    clipped_highlights_color = "";
+    clipped_shadows_color = "";
 
     renaming = RenameOptions();
     sidecar_autosave_interval = 0;
+
+    editor_keyboard_scroll_step = 50;
+    adjuster_shortcut_scrollwheel_factor = 4;
+
+    remember_exif_filter_settings = false;
+    last_exif_filter_settings = ExifFilterSettings();
+
+    theme_bg_color.assign({72, 72, 72});
+    theme_fg_color.assign({170, 170, 170});
+    theme_hl_color.assign({227, 146, 67});
 }
+
 
 Options* Options::copyFrom(Options* other)
 {
@@ -746,7 +733,11 @@ void Options::readFromFile(Glib::ustring fname)
                 }
 
                 if (keyFile.has_key("General", "Verbose")) {
-                    rtSettings.verbose = keyFile.get_boolean("General", "Verbose");
+                    try {
+                        rtSettings.verbose = keyFile.get_integer("General", "Verbose");
+                    } catch (Glib::Error &e) {
+                        rtSettings.verbose = keyFile.get_boolean("General", "Verbose");
+                    }
                 }
 
                 if (keyFile.has_key("General", "ErrorMessageDuration")) {
@@ -755,6 +746,14 @@ void Options::readFromFile(Glib::ustring fname)
 
                 if (keyFile.has_key("General", "MaxErrorMessages")) {
                     max_error_messages = keyFile.get_integer("General", "MaxErrorMessages");
+                }
+
+                if (keyFile.has_key("General", "EditorKeyboardScrollStep")) {
+                    editor_keyboard_scroll_step = keyFile.get_integer("General", "EditorKeyboardScrollStep");
+                }
+
+                if (keyFile.has_key("General", "AdjusterShortcutScrollWheelFactor")) {
+                    adjuster_shortcut_scrollwheel_factor = keyFile.get_integer("General", "AdjusterShortcutScrollWheelFactor");
                 }
             }
 
@@ -1067,25 +1066,25 @@ void Options::readFromFile(Glib::ustring fname)
                     internalThumbIfUntouched = keyFile.get_boolean("File Browser", "InternalThumbIfUntouched");
                 }
 
-                if (keyFile.has_key("File Browser", "menuGroupRank")) {
-                    menuGroupRank = keyFile.get_boolean("File Browser", "menuGroupRank");
-                }
+                // if (keyFile.has_key("File Browser", "menuGroupRank")) {
+                //     menuGroupRank = keyFile.get_boolean("File Browser", "menuGroupRank");
+                // }
 
-                if (keyFile.has_key("File Browser", "menuGroupLabel")) {
-                    menuGroupLabel = keyFile.get_boolean("File Browser", "menuGroupLabel");
-                }
+                // if (keyFile.has_key("File Browser", "menuGroupLabel")) {
+                //     menuGroupLabel = keyFile.get_boolean("File Browser", "menuGroupLabel");
+                // }
 
-                if (keyFile.has_key("File Browser", "menuGroupFileOperations")) {
-                    menuGroupFileOperations = keyFile.get_boolean("File Browser", "menuGroupFileOperations");
-                }
+                // if (keyFile.has_key("File Browser", "menuGroupFileOperations")) {
+                //     menuGroupFileOperations = keyFile.get_boolean("File Browser", "menuGroupFileOperations");
+                // }
 
-                if (keyFile.has_key("File Browser", "menuGroupProfileOperations")) {
-                    menuGroupProfileOperations = keyFile.get_boolean("File Browser", "menuGroupProfileOperations");
-                }
+                // if (keyFile.has_key("File Browser", "menuGroupProfileOperations")) {
+                //     menuGroupProfileOperations = keyFile.get_boolean("File Browser", "menuGroupProfileOperations");
+                // }
 
-                if (keyFile.has_key("File Browser", "menuGroupExtProg")) {
-                    menuGroupExtProg = keyFile.get_boolean("File Browser", "menuGroupExtProg");
-                }
+                // if (keyFile.has_key("File Browser", "menuGroupExtProg")) {
+                //     menuGroupExtProg = keyFile.get_boolean("File Browser", "menuGroupExtProg");
+                // }
 
                 if (keyFile.has_key("File Browser", "MaxRecentFolders")) {
                     maxRecentFolders = keyFile.get_integer("File Browser", "MaxRecentFolders");
@@ -1154,7 +1153,7 @@ void Options::readFromFile(Glib::ustring fname)
                 }
 
                 if (keyFile.has_key("Performance", "ThumbUpdateThreadLimit")) {
-                    thumb_update_thread_limit = keyFile.get_integer("Performance", "ThumbUpdateThreadLimit");
+                    rtSettings.thread_pool_size = keyFile.get_integer("Performance", "ThumbUpdateThreadLimit");
                 }
 
                 if (keyFile.has_key("Performance", "ThumbDelayUpdate")) {
@@ -1201,9 +1200,9 @@ void Options::readFromFile(Glib::ustring fname)
             }
 
             if (keyFile.has_group("GUI")) {
-                if (keyFile.has_key("GUI", "Favorites")) {
-                    favorites = keyFile.get_string_list("GUI", "Favorites");
-                }
+                // if (keyFile.has_key("GUI", "Favorites")) {
+                //     favorites = keyFile.get_string_list("GUI", "Favorites");
+                // }
 
                 if (keyFile.has_key("GUI", "WindowWidth")) {
                     windowWidth = keyFile.get_integer("GUI", "WindowWidth");
@@ -1398,13 +1397,13 @@ void Options::readFromFile(Glib::ustring fname)
                 }
 
                 //if (keyFile.has_key ("GUI", "CurvePanelsExpanded")) crvOpen = keyFile.get_integer_list ("GUI", "CurvePanelsExpanded");
-                if (keyFile.has_key("GUI", "CutOverlayBrush")) {
-                    cutOverlayBrush = keyFile.get_double_list("GUI", "CutOverlayBrush");
-                }
+                // if (keyFile.has_key("GUI", "CutOverlayBrush")) {
+                //     cutOverlayBrush = keyFile.get_double_list("GUI", "CutOverlayBrush");
+                // }
 
-                if (keyFile.has_key("GUI", "NavGuideBrush")) {
-                    navGuideBrush = keyFile.get_double_list("GUI", "NavGuideBrush");
-                }
+                // if (keyFile.has_key("GUI", "NavGuideBrush")) {
+                //     navGuideBrush = keyFile.get_double_list("GUI", "NavGuideBrush");
+                // }
 
                 if (keyFile.has_key("GUI", "HistogramPosition")) {
                     histogramPosition = keyFile.get_integer("GUI", "HistogramPosition");
@@ -1622,138 +1621,17 @@ void Options::readFromFile(Glib::ustring fname)
             }
 
             if (keyFile.has_group("Fast Export")) {
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_sharpening")) {
-                    fastexport_bypass_sharpening = keyFile.get_boolean("Fast Export", "fastexport_bypass_sharpening");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_defringe")) {
-                    fastexport_bypass_defringe = keyFile.get_boolean("Fast Export", "fastexport_bypass_defringe");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_dirpyrDenoise")) {
-                    fastexport_bypass_dirpyrDenoise = keyFile.get_boolean("Fast Export", "fastexport_bypass_dirpyrDenoise");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_localContrast")) {
-                    fastexport_bypass_localContrast = keyFile.get_boolean("Fast Export", "fastexport_bypass_localContrast");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_raw_dmethod")) {
-                    fastexport_raw_bayer_method = keyFile.get_string("Fast Export", "fastexport_raw_dmethod");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_raw_bayer_method")) {
-                    fastexport_raw_bayer_method = keyFile.get_string("Fast Export", "fastexport_raw_bayer_method");
-                }
-
-//if (keyFile.has_key ("Fast Export", "fastexport_bypass_raw_bayer_all_enhance" )) fastexport_bypass_raw_bayer_all_enhance = keyFile.get_boolean ("Fast Export", "fastexport_bypass_raw_all_enhance" );
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_raw_dcb_iterations")) {
-                    fastexport_bypass_raw_bayer_dcb_iterations = keyFile.get_boolean("Fast Export", "fastexport_bypass_raw_dcb_iterations");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_raw_bayer_dcb_iterations")) {
-                    fastexport_bypass_raw_bayer_dcb_iterations = keyFile.get_boolean("Fast Export", "fastexport_bypass_raw_bayer_dcb_iterations");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_raw_dcb_enhance")) {
-                    fastexport_bypass_raw_bayer_dcb_enhance = keyFile.get_boolean("Fast Export", "fastexport_bypass_raw_dcb_enhance");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_raw_bayer_dcb_enhance")) {
-                    fastexport_bypass_raw_bayer_dcb_enhance = keyFile.get_boolean("Fast Export", "fastexport_bypass_raw_bayer_dcb_enhance");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_raw_lmmse_iterations")) {
-                    fastexport_bypass_raw_bayer_lmmse_iterations = keyFile.get_boolean("Fast Export", "fastexport_bypass_raw_lmmse_iterations");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_raw_bayer_lmmse_iterations")) {
-                    fastexport_bypass_raw_bayer_lmmse_iterations = keyFile.get_boolean("Fast Export", "fastexport_bypass_raw_bayer_lmmse_iterations");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_raw_linenoise")) {
-                    fastexport_bypass_raw_bayer_linenoise = keyFile.get_boolean("Fast Export", "fastexport_bypass_raw_linenoise");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_raw_bayer_linenoise")) {
-                    fastexport_bypass_raw_bayer_linenoise = keyFile.get_boolean("Fast Export", "fastexport_bypass_raw_bayer_linenoise");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_raw_greenthresh")) {
-                    fastexport_bypass_raw_bayer_greenthresh = keyFile.get_boolean("Fast Export", "fastexport_bypass_raw_greenthresh");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_raw_bayer_greenthresh")) {
-                    fastexport_bypass_raw_bayer_greenthresh = keyFile.get_boolean("Fast Export", "fastexport_bypass_raw_bayer_greenthresh");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_raw_xtrans_method")) {
-                    fastexport_raw_xtrans_method = keyFile.get_string("Fast Export", "fastexport_raw_xtrans_method");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_raw_ccSteps")) {
-                    fastexport_bypass_raw_ccSteps = keyFile.get_boolean("Fast Export", "fastexport_bypass_raw_ccSteps");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_raw_ca")) {
-                    fastexport_bypass_raw_ca = keyFile.get_boolean("Fast Export", "fastexport_bypass_raw_ca");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_raw_df")) {
-                    fastexport_bypass_raw_df = keyFile.get_boolean("Fast Export", "fastexport_bypass_raw_df");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_bypass_raw_ff")) {
-                    fastexport_bypass_raw_ff = keyFile.get_boolean("Fast Export", "fastexport_bypass_raw_ff");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_icm_input")) {
-                    fastexport_icm_input_profile = keyFile.get_string("Fast Export", "fastexport_icm_input");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_icm_working")) {
-                    fastexport_icm_working_profile = keyFile.get_string("Fast Export", "fastexport_icm_working");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_icm_output")) {
-                    fastexport_icm_output_profile = keyFile.get_string("Fast Export", "fastexport_icm_output");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_icm_output_intent")) {
-                    fastexport_icm_outputIntent = static_cast<rtengine::RenderingIntent>(keyFile.get_integer("Fast Export", "fastexport_icm_output_intent"));
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_icm_output_bpc")) {
-                    fastexport_icm_outputBPC = keyFile.get_boolean("Fast Export", "fastexport_icm_output_bpc");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_resize_enabled")) {
-                    fastexport_resize_enabled = keyFile.get_boolean("Fast Export", "fastexport_resize_enabled");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_resize_scale")) {
-                    fastexport_resize_scale = keyFile.get_double("Fast Export", "fastexport_resize_scale");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_resize_appliesTo")) {
-                    fastexport_resize_appliesTo = keyFile.get_string("Fast Export", "fastexport_resize_appliesTo");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_resize_dataspec")) {
-                    fastexport_resize_dataspec = keyFile.get_integer("Fast Export", "fastexport_resize_dataspec");
-                }
-
                 if (keyFile.has_key("Fast Export", "fastexport_resize_width")) {
                     fastexport_resize_width = keyFile.get_integer("Fast Export", "fastexport_resize_width");
+                } else if (keyFile.has_key("Fast Export", "MaxWidth")) {
+                    fastexport_resize_width = keyFile.get_integer("Fast Export", "MaxWidth");
                 }
 
                 if (keyFile.has_key("Fast Export", "fastexport_resize_height")) {
                     fastexport_resize_height = keyFile.get_integer("Fast Export", "fastexport_resize_height");
-                }
-
-                if (keyFile.has_key("Fast Export", "fastexport_use_fast_pipeline")) {
-                    fastexport_use_fast_pipeline = keyFile.get_integer("Fast Export", "fastexport_use_fast_pipeline");
-                }
+                } else if (keyFile.has_key("Fast Export", "MaxHeight")) {
+                    fastexport_resize_height = keyFile.get_integer("Fast Export", "MaxHeight");
+                } 
             }
 
             if (keyFile.has_group("Dialogs")) {
@@ -1823,6 +1701,12 @@ void Options::readFromFile(Glib::ustring fname)
                     falseColorsMap.rbegin()->first < 108) {
                     falseColorsMap[108] = "#000000";
                 }
+                if (keyFile.has_key(g, "ClippedHighlights")) {
+                    clipped_highlights_color = keyFile.get_string(g, "ClippedHighlights");
+                }
+                if (keyFile.has_key(g, "ClippedShadows")) {
+                    clipped_shadows_color = keyFile.get_string(g, "ClippedShadows");
+                }
             }
 
             if (keyFile.has_group("Renaming")) {
@@ -1848,6 +1732,24 @@ void Options::readFromFile(Glib::ustring fname)
                 if (keyFile.has_key(g, "ProgressiveNumber")) {
                     renaming.progressive_number = keyFile.get_integer(g, "ProgressiveNumber");
                 }
+            }
+
+            if (keyFile.has_group("ExifFilterSettings")) {
+                const char *g = "ExifFilterSettings";
+                if (keyFile.has_key(g, "Remember")) {
+                    remember_exif_filter_settings = keyFile.get_boolean(g, "Remember");
+                }
+                last_exif_filter_settings.load(keyFile, g);
+            }
+
+            if (keyFile.has_group("Theme Colors")) {
+                auto group = "Theme Colors";
+                theme_bg_color = keyFile.get_integer_list(group, "Background");
+                theme_bg_color.resize(3);
+                theme_fg_color = keyFile.get_integer_list(group, "Foreground");
+                theme_fg_color.resize(3);
+                theme_hl_color = keyFile.get_integer_list(group, "Highlight");
+                theme_hl_color.resize(3);
             }
 
 // --------------------------------------------------------------------------------------------------------
@@ -1923,9 +1825,11 @@ void Options::saveToFile(Glib::ustring fname)
         keyFile.set_string("General", "Version", RTVERSION);
         keyFile.set_string("General", "DarkFramesPath", rtSettings.darkFramesPath);
         keyFile.set_string("General", "FlatFieldsPath", rtSettings.flatFieldsPath);
-        keyFile.set_boolean("General", "Verbose", rtSettings.verbose);
+        keyFile.set_integer("General", "Verbose", rtSettings.verbose);
         keyFile.set_integer("General", "ErrorMessageDuration", error_message_duration);
         keyFile.set_integer("General", "MaxErrorMessages", max_error_messages);
+        keyFile.set_integer("General", "EditorKeyboardScrollStep", editor_keyboard_scroll_step);
+        keyFile.set_integer("General", "AdjusterShortcutScrollWheelFactor", adjuster_shortcut_scrollwheel_factor);
         keyFile.set_integer("External Editor", "EditorKind", editorToSendTo);
         keyFile.set_string("External Editor", "GimpDir", gimpDir);
         keyFile.set_string("External Editor", "PhotoshopDir", psDir);
@@ -1963,11 +1867,11 @@ void Options::saveToFile(Glib::ustring fname)
         keyFile.set_boolean("File Browser", "ShowFileNames", showFileNames);
         keyFile.set_boolean("File Browser", "FilmStripShowFileNames", filmStripShowFileNames);
         keyFile.set_boolean("File Browser", "InternalThumbIfUntouched", internalThumbIfUntouched);
-        keyFile.set_boolean("File Browser", "menuGroupRank", menuGroupRank);
-        keyFile.set_boolean("File Browser", "menuGroupLabel", menuGroupLabel);
-        keyFile.set_boolean("File Browser", "menuGroupFileOperations", menuGroupFileOperations);
-        keyFile.set_boolean("File Browser", "menuGroupProfileOperations", menuGroupProfileOperations);
-        keyFile.set_boolean("File Browser", "menuGroupExtProg", menuGroupExtProg);
+        // keyFile.set_boolean("File Browser", "menuGroupRank", menuGroupRank);
+        // keyFile.set_boolean("File Browser", "menuGroupLabel", menuGroupLabel);
+        // keyFile.set_boolean("File Browser", "menuGroupFileOperations", menuGroupFileOperations);
+        // keyFile.set_boolean("File Browser", "menuGroupProfileOperations", menuGroupProfileOperations);
+        // keyFile.set_boolean("File Browser", "menuGroupExtProg", menuGroupExtProg);
         keyFile.set_integer("File Browser", "MaxRecentFolders", maxRecentFolders);
         {
             std::vector<Glib::ustring> temp;
@@ -1997,7 +1901,7 @@ void Options::saveToFile(Glib::ustring fname)
         keyFile.set_integer("Performance", "PreviewDemosaicFromSidecar", prevdemo);
         keyFile.set_boolean("Performance", "SerializeTiffRead", serializeTiffRead);
         keyFile.set_boolean("Performance", "DenoiseZoomedOut", denoiseZoomedOut);
-        keyFile.set_integer("Performance", "ThumbUpdateThreadLimit", thumb_update_thread_limit);
+        keyFile.set_integer("Performance", "ThumbUpdateThreadLimit", rtSettings.thread_pool_size);
         keyFile.set_boolean("Performance", "ThumbDelayUpdate", thumb_delay_update);
         keyFile.set_boolean("Performance", "ThumbLazyCaching", thumb_lazy_caching);
         
@@ -2055,8 +1959,8 @@ void Options::saveToFile(Glib::ustring fname)
         keyFile.set_string("Profiles", "CustomProfileBuilderPath", CPBPath);
         keyFile.set_integer("Profiles", "CustomProfileBuilderKeys", CPBKeys);
 
-        Glib::ArrayHandle<Glib::ustring> ahfavorites = favorites;
-        keyFile.set_string_list("GUI", "Favorites", ahfavorites);
+        // Glib::ArrayHandle<Glib::ustring> ahfavorites = favorites;
+        // keyFile.set_string_list("GUI", "Favorites", ahfavorites);
         keyFile.set_integer("GUI", "WindowWidth", windowWidth);
         keyFile.set_integer("GUI", "WindowHeight", windowHeight);
         keyFile.set_integer("GUI", "WindowX", windowX);
@@ -2106,8 +2010,8 @@ void Options::saveToFile(Glib::ustring fname)
         keyFile.set_integer_list ("GUI", "ToolPanelsExpanded", tpopen);
         keyFile.set_boolean ("GUI", "ToolPanelsExpandedAutoSave", autoSaveTpOpen);
         keyFile.set_integer ("GUI", "MultiDisplayMode", multiDisplayMode);
-        keyFile.set_double_list ("GUI", "CutOverlayBrush", cutOverlayBrush);
-        keyFile.set_double_list ("GUI", "NavGuideBrush", navGuideBrush);
+        // keyFile.set_double_list ("GUI", "CutOverlayBrush", cutOverlayBrush);
+        // keyFile.set_double_list ("GUI", "NavGuideBrush", navGuideBrush);
         keyFile.set_integer ("GUI", "HistogramPosition", histogramPosition);
         keyFile.set_boolean ("GUI", "HistogramRed", histogramRed);
         keyFile.set_boolean ("GUI", "HistogramGreen", histogramGreen);
@@ -2172,34 +2076,8 @@ void Options::saveToFile(Glib::ustring fname)
         keyFile.set_string("Sounds", "LngEditProcDone", sndLngEditProcDone);
         keyFile.set_double("Sounds", "LngEditProcDoneSecs", sndLngEditProcDoneSecs);
 
-        keyFile.set_boolean("Fast Export", "fastexport_bypass_sharpening", fastexport_bypass_sharpening);
-        keyFile.set_boolean("Fast Export", "fastexport_bypass_defringe", fastexport_bypass_defringe);
-        keyFile.set_boolean("Fast Export", "fastexport_bypass_dirpyrDenoise", fastexport_bypass_dirpyrDenoise);
-        keyFile.set_boolean("Fast Export", "fastexport_bypass_localContrast", fastexport_bypass_localContrast);
-        keyFile.set_string("Fast Export", "fastexport_raw_bayer_method", fastexport_raw_bayer_method);
-        //keyFile.set_boolean ("Fast Export", "fastexport_bypass_bayer_raw_all_enhance" , fastexport_bypass_raw_bayer_all_enhance);
-        keyFile.set_boolean("Fast Export", "fastexport_bypass_raw_bayer_dcb_iterations", fastexport_bypass_raw_bayer_dcb_iterations);
-        keyFile.set_boolean("Fast Export", "fastexport_bypass_raw_bayer_dcb_enhance", fastexport_bypass_raw_bayer_dcb_enhance);
-        keyFile.set_boolean("Fast Export", "fastexport_bypass_raw_bayer_lmmse_iterations", fastexport_bypass_raw_bayer_lmmse_iterations);
-        keyFile.set_boolean("Fast Export", "fastexport_bypass_raw_bayer_linenoise", fastexport_bypass_raw_bayer_linenoise);
-        keyFile.set_boolean("Fast Export", "fastexport_bypass_raw_bayer_greenthresh", fastexport_bypass_raw_bayer_greenthresh);
-        keyFile.set_string("Fast Export", "fastexport_raw_xtrans_method", fastexport_raw_xtrans_method);
-        keyFile.set_boolean("Fast Export", "fastexport_bypass_raw_ccSteps", fastexport_bypass_raw_ccSteps);
-        keyFile.set_boolean("Fast Export", "fastexport_bypass_raw_ca", fastexport_bypass_raw_ca);
-        keyFile.set_boolean("Fast Export", "fastexport_bypass_raw_df", fastexport_bypass_raw_df);
-        keyFile.set_boolean("Fast Export", "fastexport_bypass_raw_ff", fastexport_bypass_raw_ff);
-        keyFile.set_string("Fast Export", "fastexport_icm_input", fastexport_icm_input_profile);
-        keyFile.set_string("Fast Export", "fastexport_icm_working", fastexport_icm_working_profile);
-        keyFile.set_string("Fast Export", "fastexport_icm_output", fastexport_icm_output_profile);
-        keyFile.set_integer("Fast Export", "fastexport_icm_output_intent", fastexport_icm_outputIntent);
-        keyFile.set_boolean("Fast Export", "fastexport_icm_output_bpc", fastexport_icm_outputBPC);
-        keyFile.set_boolean("Fast Export", "fastexport_resize_enabled", fastexport_resize_enabled);
-        keyFile.set_double("Fast Export", "fastexport_resize_scale", fastexport_resize_scale);
-        keyFile.set_string("Fast Export", "fastexport_resize_appliesTo", fastexport_resize_appliesTo);
-        keyFile.set_integer("Fast Export", "fastexport_resize_dataspec", fastexport_resize_dataspec);
-        keyFile.set_integer("Fast Export", "fastexport_resize_width", fastexport_resize_width);
-        keyFile.set_integer("Fast Export", "fastexport_resize_height", fastexport_resize_height);
-        keyFile.set_integer("Fast Export", "fastexport_use_fast_pipeline", fastexport_use_fast_pipeline);
+        keyFile.set_integer("Fast Export", "MaxWidth", fastexport_resize_width);
+        keyFile.set_integer("Fast Export", "MaxHeight", fastexport_resize_height);
 
         keyFile.set_string("Dialogs", "LastIccDir", lastIccDir);
         keyFile.set_string("Dialogs", "LastDarkframeDir", lastDarkframeDir);
@@ -2241,6 +2119,8 @@ void Options::saveToFile(Glib::ustring fname)
         for (auto &p : falseColorsMap) {
             keyFile.set_string("False Colors Map", "IRE_" + std::to_string(p.first), p.second);
         }
+        keyFile.set_string("False Colors Map", "ClippedHighlights", clipped_highlights_color);
+        keyFile.set_string("False Colors Map", "ClippedShadows", clipped_shadows_color);
 
         keyFile.set_string("Renaming", "Pattern", renaming.pattern);
         keyFile.set_string("Renaming", "Sidecars", renaming.sidecars);
@@ -2249,6 +2129,13 @@ void Options::saveToFile(Glib::ustring fname)
         keyFile.set_boolean("Renaming", "AllowWhitespace", renaming.allow_whitespace);
         keyFile.set_integer("Renaming", "OnExisting", renaming.on_existing);
         keyFile.set_integer("Renaming", "ProgressiveNumber", renaming.progressive_number);
+
+        keyFile.set_boolean("ExifFilterSettings", "Remember", remember_exif_filter_settings);
+        last_exif_filter_settings.save(keyFile, "ExifFilterSettings");
+
+        keyFile.set_integer_list("Theme Colors", "Background", theme_bg_color);
+        keyFile.set_integer_list("Theme Colors", "Foreground", theme_fg_color);
+        keyFile.set_integer_list("Theme Colors", "Highlight", theme_hl_color);
 
         keyData = keyFile.to_data();
 
@@ -2496,7 +2383,12 @@ bool Options::has_retained_extention(const Glib::ustring& fname)
 }
 
 // Pattern matches "5.1" from "5.1-23-g12345678", when comparing option.version to RTVERSION
-bool Options::is_new_version() {
+bool Options::is_new_version()
+{
+    if (versionString.find('.') == Glib::ustring::npos) {
+        return false;
+    }
+    
     const std::string vs[] = {versionString, version};
     std::vector<std::string> vMajor;
 

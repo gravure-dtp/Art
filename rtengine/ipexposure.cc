@@ -26,17 +26,21 @@
 
 namespace rtengine {
 
-void ImProcFunctions::exposure(Imagefloat *img)
+void ImProcFunctions::expcomp(Imagefloat *img, const procparams::ExposureParams *expparams)
 {
-    if (!params->exposure.enabled) {
+    if (!expparams) {
+        expparams = &params->exposure;
+    }
+    
+    if (!expparams->enabled) {
         return;
     }
     
     img->setMode(Imagefloat::Mode::RGB, multiThread);
 
     LUTf expcomp(65536);
-    const float exp_scale = pow(2.f, params->exposure.expcomp);
-    const float black = params->exposure.black * 2000.f;
+    const float exp_scale = pow(2.f, expparams->expcomp);
+    const float black = expparams->black * 2000.f;
     for (int i = 0; i < 65536; ++i) {
         expcomp[i] = std::max(i * exp_scale - black, 0.f);
     }
@@ -78,6 +82,12 @@ void ImProcFunctions::exposure(Imagefloat *img)
             }
         }
     }
+}
+
+
+void ImProcFunctions::exposure(Imagefloat *img)
+{
+    expcomp(img, nullptr);
 }
 
 } // namespace rtengine

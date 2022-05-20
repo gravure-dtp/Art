@@ -707,6 +707,8 @@ void ImProcFunctions::denoiseComputeParams(ImageSource *imgsrc, const ColorTemp 
         MyTime t1aue, t2aue;
         t1aue.set();
 
+        store = DenoiseInfoStore();
+
         int crW = 100; // settings->leveldnv == 0
         int crH = 100; // settings->leveldnv == 0
 
@@ -779,7 +781,7 @@ void ImProcFunctions::denoiseComputeParams(ImageSource *imgsrc, const ColorTemp 
                     float pondcorrec = 1.0f;
                     float chaut = 0.f, redaut = 0.f, blueaut = 0.f, maxredaut = 0.f, maxblueaut = 0.f, minredaut = 0.f, minblueaut = 0.f, chromina = 0.f, sigma = 0.f, lumema = 0.f, sigma_L = 0.f, redyel = 0.f, skinc = 0.f, nsknc = 0.f;
                     int nb = 0;
-                    ImProcData im(params, scale, multiThread);
+                    ImProcData im(params, 1.f/*scale*/, multiThread);
                     RGB_denoise_info(im, origCropPart, provicalc, imgsrc->isRAW(), gamcurve, gam, gamthresh, gamslope, dnparams, std::log(5.f)/std::log(2.f)/*imgsrc->getDirPyrDenoiseExpComp()*/, chaut, nb, redaut, blueaut, maxredaut, maxblueaut, minredaut, minblueaut, chromina, sigma, lumema, sigma_L, redyel, skinc, nsknc);
 
                     //printf("DCROP skip=%d cha=%f red=%f bl=%f redM=%f bluM=%f chrom=%f sigm=%f lum=%f\n",skip, chaut,redaut,blueaut, maxredaut, maxblueaut, chromina, sigma, lumema);
@@ -801,6 +803,7 @@ void ImProcFunctions::denoiseComputeParams(ImageSource *imgsrc, const ColorTemp 
             delete provicalc;
             delete origCropPart;
         }
+
         float chM = 0.f;
         float MaxR = 0.f;
         float MaxB = 0.f;
@@ -916,6 +919,17 @@ void ImProcFunctions::denoiseComputeParams(ImageSource *imgsrc, const ColorTemp 
         
         store.valid = true;
 
+        // printf("DENOISE STORE FINAL:\n  chM = %.6f", store.chM);
+        // printf("  max_r = {");
+        // for (int i = 0; i < 9; ++i) printf(" %.6f", store.max_r[i]);
+        // printf(" }\n  max_b = {");
+        // for (int i = 0; i < 9; ++i) printf(" %.6f", store.max_b[i]);
+        // printf(" }\n  ch_M = {");
+        // for (int i = 0; i < 9; ++i) printf(" %.6f", store.ch_M[i]);
+        // printf("}\n");
+        // printf("*****************\n\n");
+        // fflush(stdout);
+
         if (settings->verbose) {
             t2aue.set();
             printf("Info denoise auto performed in %d usec:\n", t2aue.etime(t1aue));
@@ -985,6 +999,15 @@ void ImProcFunctions::denoise(ImageSource *imgsrc, const ColorTemp &currWB, Imag
     }
 
     ImProcData im(params, scale, multiThread);
+    double ecomp = params->exposure.enabled ? params->exposure.expcomp : 0.0;
+    ExposureParams expparams;
+    expparams.enabled = true;
+    expparams.expcomp = ecomp;
+
+    if (ecomp > 0) {
+        expcomp(img, &expparams);
+    }
+    
     denoise::RGB_denoise(im, 0, img, img, calclum, dnstore.ch_M, dnstore.max_r, dnstore.max_b, imgsrc->isRAW(), denoiseParams, 0, noiseLCurve, noiseCCurve, nresi, highresi);
 
     if (plistener) {
@@ -999,6 +1022,11 @@ void ImProcFunctions::denoise(ImageSource *imgsrc, const ColorTemp &currWB, Imag
             denoise::NLMeans(tmp, 65535.f, denoiseParams.nlStrength, denoiseParams.nlDetail, scale, multiThread);
             img->setMode(Imagefloat::Mode::RGB, multiThread);
         }
+    }
+
+    if (ecomp > 0) {
+        expparams.expcomp = -ecomp;
+        expcomp(img, &expparams);
     }
 
     if (plistener) {

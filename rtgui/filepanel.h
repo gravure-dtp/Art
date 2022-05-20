@@ -46,7 +46,6 @@ public:
 
     DirBrowser* dirBrowser;
     FilterPanel* filterPanel;
-    // ExportPanel* exportPanel;
     FileCatalog* fileCatalog;
     Gtk::Paned *ribbonPane;
 
@@ -68,7 +67,7 @@ public:
     void saveOptions ();
 
     // interface fileselectionlistener
-    bool fileSelected(Thumbnail* thm) override;
+    Result fileSelected(Thumbnail* thm) override;
     bool addBatchQueueJobs(const std::vector<BatchQueueEntry*>& entries) override;
 
     void optionsChanged();

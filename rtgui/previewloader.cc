@@ -24,7 +24,9 @@
 #include <thread>
 #include <chrono>
 #include <deque>
+#include <atomic>
 #include "options.h"
+#include "../rtengine/threadpool.h"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -75,37 +77,18 @@ public:
 
     typedef std::set<Job, JobCompare> JobSet;
 
-    Impl(): nConcurrentThreads(0), job_count_(0)
+    Impl(): num_concurrent_threads_(0), job_count_(0)
     {
-#ifdef _OPENMP
-        if (options.thumb_update_thread_limit > 0) {
-            initial_thread_count_ = options.thumb_update_thread_limit;
-        } else {
-            initial_thread_count_ = omp_get_num_procs();
-        }
-#else
-        initial_thread_count_ = 1;
-#endif
-        //threadCount = 1;
-
-        threadPool_ = new Glib::ThreadPool(initial_thread_count_, 0);
-        slowing_down_ = false;
     }
 
-    int initial_thread_count_;
-    Glib::ThreadPool* threadPool_;
     MyMutex mutex_;
-    //JobSet jobs_;
     std::deque<Job> jobs_;
-    gint nConcurrentThreads;
-    bool slowing_down_;
+    std::atomic<int> num_concurrent_threads_;
     size_t job_count_;
-// Issue 2406   std::vector<OutputJob *> output_;
 
     void processNextJob()
     {
         Job j;
-// Issue 2406       OutputJob *oj;
         {
             MyMutex::MyLock lock(mutex_);
 
@@ -116,135 +99,80 @@ public:
             }
 
             // copy and remove front job
-            // j = *jobs_.begin();
-            // jobs_.erase(jobs_.begin());
             j = jobs_.front();
             jobs_.pop_front();
             DEBUG("processing %s", j.dir_entry_.c_str());
             DEBUG("%d job(s) remaining", jobs_.size());
-            /* Issue 2406
-                        oj = new OutputJob();
-                        oj->complete = false;
-                        oj->dir_id = j.dir_id_;
-                        oj->listener = j.listener_;
-                        oj->fdn = 0;
-                        output_.push_back(oj);
-            */
         }
 
-        g_atomic_int_inc (&nConcurrentThreads);  // to detect when last thread in pool has run out
-
-        // unlock and do processing; will relock on block exit, then call listener
-        // if something got
-// Issue 2406       FileBrowserEntry* fdn = 0;
+        ++num_concurrent_threads_; // to detect when last thread in pool has run out
         try {
             Thumbnail* tmb = nullptr;
-            {
-                if (Glib::file_test(j.dir_entry_, Glib::FILE_TEST_EXISTS)) {
-                    tmb = cacheMgr->getEntry(j.dir_entry_);
-                }
+            if (Glib::file_test(j.dir_entry_, Glib::FILE_TEST_EXISTS)) {
+                tmb = cacheMgr->getEntry(j.dir_entry_);
             }
 
-            if ( tmb ) {
+            if (tmb) {
                 DEBUG("Preview Ready\n");
                 j.listener_->previewReady(j.dir_id_, new FileBrowserEntry(tmb, j.dir_entry_));
-// Issue 2406               fdn = new FileBrowserEntry(tmb,j.dir_entry_);
             }
 
-            if (slowing_down_ || (++job_count_ % 20 == 0)) {
+            if (++job_count_ % 20 == 0) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }                
 
         } catch (Glib::Error &e) {} catch(...) {}
 
-        /* Issue 2406
-                {
-                    // the purpose of the output_ vector is to deliver the previewReady() calls in the same
-                    // order as we got the jobs from the jobs_ queue.
-                    MyMutex::MyLock lock(mutex_);
-                    oj->fdn = fdn;
-                    oj->complete = true;
-                    while (output_.size() > 0 && output_.front()->complete) {
-                        oj = output_.front();
-                        if (oj->fdn) {
-                            oj->listener->previewReady(oj->dir_id,oj->fdn);
-                        }
-                        output_.erase(output_.begin());
-                        delete oj;
-                    }
-                }
-        */
-        bool last = g_atomic_int_dec_and_test (&nConcurrentThreads);
+        bool last = num_concurrent_threads_--;
 
         // signal at end
         if (last && jobs_.empty()) {
             j.listener_->previewsFinished(j.dir_id_);
         }
     }
-
-    void slowDown()
-    {
-        slowing_down_ = true;
-        threadPool_->set_max_threads(std::max(initial_thread_count_/2, 1));
-        //threadPool_->set_max_threads(1);
-    }
-
-    void speedUp()
-    {
-        slowing_down_ = false;
-        threadPool_->set_max_threads(initial_thread_count_);
-    }
 };
+
 
 PreviewLoader::PreviewLoader():
     impl_(new Impl())
 {
 }
 
-PreviewLoader::~PreviewLoader() {
+
+PreviewLoader::~PreviewLoader()
+{
     delete impl_;
 }
 
-PreviewLoader* PreviewLoader::getInstance()
+
+PreviewLoader *PreviewLoader::getInstance()
 {
     static PreviewLoader instance_;
     return &instance_;
 }
 
+
 void PreviewLoader::add(int dir_id, const Glib::ustring& dir_entry, PreviewLoaderListener* l)
 {
     // somebody listening?
-    if ( l != nullptr ) {
+    if (l != nullptr) {
         {
             MyMutex::MyLock lock(impl_->mutex_);
 
             // create a new job and append to queue
             DEBUG("saving job %s", dir_entry.c_str());
-            //impl_->jobs_.insert(Impl::Job(dir_id, dir_entry, l));
             impl_->jobs_.push_back(Impl::Job(dir_id, dir_entry, l));
         }
 
         // queue a run request
         DEBUG("adding run request %s", dir_entry.c_str());
-        impl_->threadPool_->push(sigc::mem_fun(*impl_, &PreviewLoader::Impl::processNextJob));
+        rtengine::ThreadPool::add_task(rtengine::ThreadPool::Priority::LOWEST, sigc::mem_fun(*impl_, &PreviewLoader::Impl::processNextJob));
     }
 }
 
+
 void PreviewLoader::removeAllJobs()
 {
-    DEBUG("stop %d", impl_->nConcurrentThreads);
     MyMutex::MyLock lock(impl_->mutex_);
     impl_->jobs_.clear();
-}
-
-
-void PreviewLoader::slowDown()
-{
-    impl_->slowDown();
-}
-
-
-void PreviewLoader::speedUp()
-{
-    impl_->speedUp();
 }

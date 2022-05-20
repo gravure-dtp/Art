@@ -28,6 +28,8 @@
 #include "threadutils.h"
 #include "options.h"
 
+#include "../rtengine/threadpool.h"
+
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -72,41 +74,24 @@ public:
         active_(0),
         inactive_waiting_(false)
     {
-#ifdef _OPENMP
-        if (options.thumb_update_thread_limit > 0) {
-            initial_thread_count_ = options.thumb_update_thread_limit;
-        } else {
-            initial_thread_count_ = std::max(omp_get_num_procs()-1, 1);
-        }
-#else
-        initial_thread_count_ = 1;
-#endif
-
-        threadPool_ = new Glib::ThreadPool(initial_thread_count_, 0);
     }
 
-    int initial_thread_count_;
-    Glib::ThreadPool* threadPool_;
-
-    // Need to be a Glib::Threads::Mutex because used in a Glib::Threads::Cond object...
-    // This is the only exceptions along with GThreadMutex (guiutils.cc), MyMutex is used everywhere else
-    Glib::Threads::Mutex mutex_;
+    bool slow_down_;
+    std::mutex mutex_;
 
     JobList jobs_;
 
     std::atomic<unsigned int> active_;
 
     bool inactive_waiting_;
+    std::condition_variable inactive_;
 
-    Glib::Threads::Cond inactive_;
-
-    void
-    processNextJob()
+    void processNextJob()
     {
         Job j;
 
         {
-            Glib::Threads::Mutex::Lock lock(mutex_);
+            std::unique_lock<std::mutex> lock(mutex_);
 
             // nothing to do; could be jobs have been removed
             if ( jobs_.empty() ) {
@@ -173,23 +158,12 @@ public:
         }
 
         if ( --active_ == 0 ) {
-            Glib::Threads::Mutex::Lock lock(mutex_);
+            std::unique_lock<std::mutex> lock(mutex_);
             if (inactive_waiting_) {
                 inactive_waiting_ = false;
-                inactive_.broadcast();
+                inactive_.notify_all();
             }
         }
-    }
-
-    void slowDown()
-    {
-        //threadPool_->set_max_threads(1);
-        threadPool_->set_max_threads(std::max(initial_thread_count_/2, 1));
-    }
-
-    void speedUp()
-    {
-        threadPool_->set_max_threads(initial_thread_count_);
     }
 };
 
@@ -216,7 +190,7 @@ void ThumbImageUpdater::add(ThumbBrowserEntryBase* tbe, bool* priority, bool upg
         return;
     }
 
-    Glib::Threads::Mutex::Lock lock(impl_->mutex_);
+    std::unique_lock<std::mutex> lock(impl_->mutex_);
 
     // look up if an older version is in the queue
     Impl::JobList::iterator i(impl_->jobs_.begin());
@@ -239,7 +213,8 @@ void ThumbImageUpdater::add(ThumbBrowserEntryBase* tbe, bool* priority, bool upg
     impl_->jobs_.push_back(Impl::Job(tbe, priority, upgrade, l));
 
     DEBUG("adding run request %s", tbe->shortname.c_str());
-    impl_->threadPool_->push(sigc::mem_fun(*impl_, &ThumbImageUpdater::Impl::processNextJob));
+    //impl_->threadPool_->push(sigc::mem_fun(*impl_, &ThumbImageUpdater::Impl::processNextJob));
+    rtengine::ThreadPool::add_task(/*impl_->slow_down_ ? rtengine::ThreadPool::Priority::LOWEST :*/ rtengine::ThreadPool::Priority::LOW, sigc::mem_fun(*impl_, &ThumbImageUpdater::Impl::processNextJob));
 }
 
 
@@ -248,7 +223,7 @@ void ThumbImageUpdater::removeJobs(ThumbImageUpdateListener* listener)
     DEBUG("removeJobs(%p)", listener);
 
     {
-        Glib::Threads::Mutex::Lock lock(impl_->mutex_);
+        std::unique_lock<std::mutex> lock(impl_->mutex_);
 
         for( Impl::JobList::iterator i(impl_->jobs_.begin()); i != impl_->jobs_.end(); ) {
             if (i->listener_ == listener) {
@@ -264,9 +239,9 @@ void ThumbImageUpdater::removeJobs(ThumbImageUpdateListener* listener)
     while ( impl_->active_ != 0 ) {
         DEBUG("waiting for running jobs1");
         {
-            Glib::Threads::Mutex::Lock lock(impl_->mutex_);
+            std::unique_lock<std::mutex> lock(impl_->mutex_);
             impl_->inactive_waiting_ = true;
-            impl_->inactive_.wait(impl_->mutex_);
+            impl_->inactive_.wait(lock);
         }
     }
 }
@@ -276,29 +251,16 @@ void ThumbImageUpdater::removeAllJobs()
     DEBUG("stop");
 
     {
-        Glib::Threads::Mutex::Lock lock(impl_->mutex_);
-
+        std::unique_lock<std::mutex> lock(impl_->mutex_);
         impl_->jobs_.clear();
     }
 
     while ( impl_->active_ != 0 ) {
         DEBUG("waiting for running jobs2");
         {
-            Glib::Threads::Mutex::Lock lock(impl_->mutex_);
+            std::unique_lock<std::mutex> lock(impl_->mutex_);
             impl_->inactive_waiting_ = true;
-            impl_->inactive_.wait(impl_->mutex_);
+            impl_->inactive_.wait(lock);
         }
     }
-}
-
-
-void ThumbImageUpdater::slowDown()
-{
-    impl_->slowDown();
-}
-
-
-void ThumbImageUpdater::speedUp()
-{
-    impl_->speedUp();
 }

@@ -23,15 +23,16 @@
 using namespace rtengine;
 using namespace rtengine::procparams;
 
-Sharpening::Sharpening() : FoldableToolPanel(this, "sharpening", M("TP_SHARPENING_LABEL"), false, true, true)
+Sharpening::Sharpening() : FoldableToolPanel(this, "sharpening", M("TP_SHARPENING_LABEL"), true, true, true)
 {
     auto m = ProcEventMapper::getInstance();
     EvSharpenContrast = m->newEvent(SHARPENING, "HISTORY_MSG_SHARPENING_CONTRAST");
-    // EvSharpenBlur = m->newEvent(SHARPENING, "HISTORY_MSG_SHARPENING_BLUR");
     EvAutoRadiusOn = m->newEvent(SHARPENING | M_AUTOEXP, "HISTORY_MSG_SHARPENING_AUTORADIUS");
     EvAutoRadiusOff = m->newEvent(M_VOID, "HISTORY_MSG_SHARPENING_AUTORADIUS");
     EvDeconvCornerBoost = m->newEvent(SHARPENING, "HISTORY_MSG_SHARPENING_RLD_CORNERRADIUS");
     EvDeconvCornerLatitude = m->newEvent(SHARPENING, "HISTORY_MSG_SHARPENING_RLD_CORNERLATITUDE");
+    EvPSFKernel = m->newEvent(SHARPENING, "HISTORY_MSG_SHARPENING_PSF_KERNEL");
+    EvPSFIterations = m->newEvent(SHARPENING, "HISTORY_MSG_SHARPENING_PSF_ITERATIONS");
     EvToolReset.set_action(SHARPENING);
 
     Gtk::HBox* hb = Gtk::manage (new Gtk::HBox ());
@@ -40,16 +41,13 @@ Sharpening::Sharpening() : FoldableToolPanel(this, "sharpening", M("TP_SHARPENIN
     contrast->setAdjusterListener (this);
     pack_start(*contrast);
     contrast->show();
-    // blur = Gtk::manage(new Adjuster (M("TP_SHARPENING_BLUR"), 0.2, 2.0, 0.05, 0.2));
-    // blur->setAdjusterListener (this);
-    // pack_start(*blur);
-    // blur->show();
 
     Gtk::Label* ml = Gtk::manage (new Gtk::Label (M("TP_SHARPENING_METHOD") + ":"));
     ml->show ();
     method = Gtk::manage (new MyComboBoxText ());
     method->append (M("TP_SHARPENING_USM"));
     method->append (M("TP_SHARPENING_RLD"));
+    method->append (M("TP_SHARPENING_PSF"));
     method->show ();
     hb->pack_start(*ml, Gtk::PACK_SHRINK, 4);
     hb->pack_start(*method);
@@ -129,6 +127,17 @@ Sharpening::Sharpening() : FoldableToolPanel(this, "sharpening", M("TP_SHARPENIN
     halocontrol->show ();
     hcamount->show ();
 
+    psf = new Gtk::VBox ();
+    psf_kernel = Gtk::manage(new MyFileChooserButton(M("TP_SHARPENING_PSF_KERNEL")));
+    psf_iterations = Gtk::manage(new Adjuster(M("TP_SHARPENING_PSF_ITERATIONS"), 1, 100, 1, 10));
+    hb = Gtk::manage(new Gtk::HBox());
+    hb->pack_start(*Gtk::manage(new Gtk::Label(M("TP_SHARPENING_PSF_KERNEL") + ": ")), Gtk::PACK_SHRINK);
+    hb->pack_start(*psf_kernel, Gtk::PACK_EXPAND_WIDGET);
+    psf->pack_start(*hb);
+    psf->pack_start(*psf_iterations);
+    psf->show_all_children();
+    psf->show();
+
     dradius->setAdjusterListener (this);
     damount->setAdjusterListener (this);
     radius->setAdjusterListener (this);
@@ -139,10 +148,21 @@ Sharpening::Sharpening() : FoldableToolPanel(this, "sharpening", M("TP_SHARPENIN
     deconvCornerBoost->setAdjusterListener(this);
     deconvCornerLatitude->setAdjusterListener(this);
 
+    const auto on_kernel =
+        [this]() -> void
+        {
+            if (listener && getEnabled()) {
+                listener->panelChanged(EvPSFKernel, psf_kernel->get_filename());
+            }
+        };
+    psf_kernel->signal_file_set().connect(sigc::slot<void>(on_kernel));
+    psf_iterations->setAdjusterListener(this);
+
     edgebox->reference ();
     hcbox->reference ();
     usm->reference ();
     rld->reference ();
+    psf->reference();
 
     eonlyConn = edgesonly->signal_toggled().connect( sigc::mem_fun(*this, &Sharpening::edgesonly_toggled) );
     hcConn    = halocontrol->signal_toggled().connect( sigc::mem_fun(*this, &Sharpening::halocontrol_toggled) );
@@ -153,6 +173,7 @@ Sharpening::~Sharpening ()
 {
     idle_register.destroy();
 
+    delete psf;
     delete usm;
     delete rld;
     delete edgebox;
@@ -207,7 +228,12 @@ void Sharpening::read(const ProcParams* pp)
         method->set_active(0);
     } else if (pp->sharpening.method == "rld") {
         method->set_active(1);
+    } else if (pp->sharpening.method == "psf") {
+        method->set_active(2);
     }
+
+    psf_kernel->set_filename(pp->sharpening.psf_kernel);
+    psf_iterations->setValue(pp->sharpening.psf_iterations);
 
     enabledChanged();
 
@@ -238,7 +264,11 @@ void Sharpening::write(ProcParams* pp)
         pp->sharpening.method = "usm";
     } else if (method->get_active_row_number() == 1) {
         pp->sharpening.method = "rld";
+    } else if (method->get_active_row_number() == 2) {
+        pp->sharpening.method = "psf";
     }
+    pp->sharpening.psf_kernel = psf_kernel->get_filename();
+    pp->sharpening.psf_iterations = psf_iterations->getValue();
 }
 
 void Sharpening::setDefaults(const ProcParams* defParams)
@@ -255,6 +285,7 @@ void Sharpening::setDefaults(const ProcParams* defParams)
     dradius->setDefault (defParams->sharpening.deconvradius);
     deconvCornerBoost->setDefault(defParams->sharpening.deconvCornerBoost);
     deconvCornerLatitude->setDefault(defParams->sharpening.deconvCornerLatitude);
+    psf_iterations->setDefault(defParams->sharpening.psf_iterations);
 
     initial_params = defParams->sharpening;
 }
@@ -295,6 +326,8 @@ void Sharpening::adjusterChanged(Adjuster* a, double newval)
             listener->panelChanged(EvDeconvCornerBoost, a->getTextValue());
         } else if (a == deconvCornerLatitude) {
             listener->panelChanged(EvDeconvCornerLatitude, a->getTextValue());
+        } else if (a == psf_iterations) {
+            listener->panelChanged(EvPSFIterations, a->getTextValue());
         }
     }
 }
@@ -391,17 +424,20 @@ void Sharpening::halocontrol_toggled ()
 
 void Sharpening::method_changed ()
 {
-    removeIfThere (this, usm, false);
-    removeIfThere (this, rld, false);
+    removeIfThere(this, usm, false);
+    removeIfThere(this, rld, false);
+    removeIfThere(this, psf, false);
 
     if (method->get_active_row_number() == 0) {
-        pack_start (*usm);
+        pack_start(*usm);
     } else if (method->get_active_row_number() == 1) {
-        pack_start (*rld);
+        pack_start(*rld);
+    } else if (method->get_active_row_number() == 2) {
+        pack_start(*psf);
     }
 
-    if (listener && getEnabled() ) {
-        listener->panelChanged (EvShrMethod, method->get_active_text ());
+    if (listener && getEnabled()) {
+        listener->panelChanged(EvShrMethod, method->get_active_text ());
     }
 
 }
@@ -419,6 +455,7 @@ void Sharpening::trimValues (rtengine::procparams::ProcParams* pp)
     hcamount->trimValue(pp->sharpening.halocontrol_amount);
     deconvCornerBoost->trimValue(pp->sharpening.deconvCornerBoost);
     deconvCornerLatitude->trimValue(pp->sharpening.deconvCornerLatitude);
+    psf_iterations->trimValue(pp->sharpening.psf_iterations);
 }
 
 

@@ -110,9 +110,9 @@ Spot::Spot() :
 
     auto m = ProcEventMapper::getInstance();
     EvSpotEnabled = m->newEvent(ALLNORAW, "TP_SPOT_LABEL");
-    EvSpotEnabledOPA = m->newEvent(SPOTADJUST, "");
-    EvSpotEntry = m->newEvent(SPOTADJUST, "HISTORY_MSG_SPOT_ENTRY");
-    EvSpotEntryOPA = m->newEvent(SPOTADJUST, "HISTORY_MSG_SPOT_ENTRY");
+    EvSpotEnabledOPA = m->newEvent(ALLNORAW/*SPOTADJUST*/, "");
+    EvSpotEntry = m->newEvent(ALLNORAW/*SPOTADJUST*/, "HISTORY_MSG_SPOT_ENTRY");
+    EvSpotEntryOPA = m->newEvent(ALLNORAW/*SPOTADJUST*/, "HISTORY_MSG_SPOT_ENTRY");
     EvToolReset.set_action(ALLNORAW);
 
     spot_frame = Gtk::manage(new Gtk::Frame(M("TP_SPOT_CUR_SPOT_LABEL")));

@@ -46,27 +46,10 @@ std::vector<WBPreset> ToolPanelCoordinator::getWBPresets() const
             std::string model = upcase(md->getModel());
             std::string key = make + " " + model;
 
-            auto imatrices = src->getImageMatrices();
-
             const auto &presets = wb_presets::getPresets();
             auto it = presets.find(key);
             if (it != presets.end()) {
-                for (auto &p : it->second) {
-                    double r = src->get_pre_mul(0) / p.mult[0];
-                    double g = src->get_pre_mul(1) / p.mult[1];
-                    double b = src->get_pre_mul(2) / p.mult[2];
-
-                    if (imatrices) {
-                        double rr = imatrices->rgb_cam[0][0] * r + imatrices->rgb_cam[0][1] * g + imatrices->rgb_cam[0][2] * b;
-                        double gg = imatrices->rgb_cam[1][0] * r + imatrices->rgb_cam[1][1] * g + imatrices->rgb_cam[1][2] * b;
-                        double bb = imatrices->rgb_cam[2][0] * r + imatrices->rgb_cam[2][1] * g + imatrices->rgb_cam[2][2] * b;
-                        r = rr;
-                        g = gg;
-                        b = bb;
-                    }
-                    
-                    ret.push_back(WBPreset(p.label, {1.0/r, 1.0/g, 1.0/b}));
-                }
+                ret = it->second;
             }
         }
     }
@@ -74,3 +57,23 @@ std::vector<WBPreset> ToolPanelCoordinator::getWBPresets() const
 }
 
 
+void ToolPanelCoordinator::convertWBCam2Mul(double &rm, double &gm, double &bm)
+{ 
+    if (ipc) {
+        auto src = dynamic_cast<rtengine::ImageSource *>(ipc->getInitialImage());
+        if (src) {
+            src->wbCamera2Mul(rm, gm, bm);
+        }
+    }
+}
+
+
+void ToolPanelCoordinator::convertWBMul2Cam(double &rm, double &gm, double &bm)
+{ 
+    if (ipc) {
+        auto src = dynamic_cast<rtengine::ImageSource *>(ipc->getInitialImage());
+        if (src) {
+            src->wbMul2Camera(rm, gm, bm);
+        }
+    }
+}

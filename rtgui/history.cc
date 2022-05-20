@@ -149,6 +149,8 @@ History::History (bool bookmarkSupport) :
     addBookmark->signal_clicked().connect( sigc::mem_fun(*this, &History::addBookmarkPressed) );
     delBookmark->signal_clicked().connect( sigc::mem_fun(*this, &History::delBookmarkPressed) );
     static_cast<Gtk::CellRendererText *>(bTreeView->get_column_cell_renderer(0))->signal_edited().connect(sigc::mem_fun(*this, &History::snapshotNameEdited));
+    static_cast<Gtk::CellRendererText *>(bTreeView->get_column_cell_renderer(0))->property_ellipsize() = Pango::ELLIPSIZE_MIDDLE;
+
 
     //hTreeView->set_grid_lines (Gtk::TREE_VIEW_GRID_LINES_HORIZONTAL);
     hTreeView->set_grid_lines (Gtk::TREE_VIEW_GRID_LINES_BOTH);

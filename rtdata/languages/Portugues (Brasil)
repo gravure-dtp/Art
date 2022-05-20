@@ -233,7 +233,8 @@ GENERAL_SAVE_AS;Salvar como...
 GENERAL_SLIDER;Controle deslizante
 GENERAL_UNCHANGED;(Inalterado)
 GENERAL_WARNING;Atenção
-GENERAL_DEPRECATED_TOOLTIP;<b>Depreciado!</b> Será removido em uma versão futura.
+GENERAL_DEPRECATED;Depreciado
+GENERAL_DEPRECATED_TOOLTIP;Depreciado! Será removido em uma versão futura.
 GIMP_PLUGIN_INFO;Bem-vindo ao plugin ART do GIMP!\nDepois de terminar de editar, feche a janela principal do ART e a imagem será importada automaticamente no GIMP.
 HISTOGRAM_RAW_STATS_TOOLTIP;min: %1 (%2), max: %3 (%4), pico: %5 (%6)\n    intervalo: %7 EV, valores: %8, pixels: %9
 HISTOGRAM_TOOLTIP_B;Mostrar/Ocultar histograma azul.

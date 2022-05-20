@@ -24,6 +24,7 @@
 #include "addsetids.h"
 #include "../rtengine/color.h"
 #include "rtimage.h"
+#include "../rtengine/linalgebra.h"
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -1142,12 +1143,9 @@ void ICCProfileCreator::savePressed()
             double Yb = 1.0;
             double Zb = (1.0 - p[4] - p[5]) / p[5];
 
-            using Triple = std::array<double, 3>;
-
-            using Matrix = std::array<Triple, 3>;
-
+            typedef rtengine::Mat33<double> Matrix;
             Matrix input_prim;
-            Matrix inv_input_prim = {};
+            Matrix inv_input_prim;
 
             input_prim[0][0] = Xr;
             input_prim[0][1] = Yr;
@@ -1160,7 +1158,7 @@ void ICCProfileCreator::savePressed()
             input_prim[2][2] = Zb;
 
             //printf("in=%f in01=%f in22=%f\n", input_prim[0][0], input_prim[0][1], input_prim[2][2]);
-            if (!rtengine::invertMatrix(input_prim, inv_input_prim)) {
+            if (!rtengine::inverse(input_prim, inv_input_prim)) {
                 std::cout << "Matrix is not invertible, skipping" << std::endl;
             }
 
@@ -1177,7 +1175,7 @@ void ICCProfileCreator::savePressed()
             //printf("sr=%f sg=%f sb=%f\n", Sr, Sg, Sb);
 
             //XYZ matrix for primaries and temp
-            Matrix mat_xyz = {};
+            Matrix mat_xyz;
             mat_xyz[0][0] = Sr * Xr;
             mat_xyz[0][1] = Sr * Yr;
             mat_xyz[0][2] = Sr * Zr;
@@ -1190,7 +1188,7 @@ void ICCProfileCreator::savePressed()
             //printf("mat0=%f mat22=%f\n", mat_xyz[0][0], mat_xyz[2][2]);
 
             //chromatic adaptation Bradford
-            Matrix MaBradford = {};
+            Matrix MaBradford;
             MaBradford[0][0] = 0.8951;
             MaBradford[0][1] = -0.7502;
             MaBradford[0][2] = 0.0389;
@@ -1201,7 +1199,7 @@ void ICCProfileCreator::savePressed()
             MaBradford[2][1] = 0.0367;
             MaBradford[2][2] = 1.0296;
 
-            Matrix Ma_oneBradford = {};
+            Matrix Ma_oneBradford;
             Ma_oneBradford[0][0] = 0.9869929;
             Ma_oneBradford[0][1] = 0.4323053;
             Ma_oneBradford[0][2] = -0.0085287;
@@ -1223,7 +1221,7 @@ void ICCProfileCreator::savePressed()
             double Bd = Wdx * MaBradford[0][2] + Wdy * MaBradford[1][2] + Wdz * MaBradford[2][2];
 
             //cone destination
-            Matrix cone_dest_sourc = {};
+            Matrix cone_dest_sourc;
             cone_dest_sourc [0][0] = Rd / Rs;
             cone_dest_sourc [0][1] = 0.;
             cone_dest_sourc [0][2] = 0.;
@@ -1234,7 +1232,7 @@ void ICCProfileCreator::savePressed()
             cone_dest_sourc [2][1] = 0.;
             cone_dest_sourc [2][2] = Bd / Bs;
 
-            Matrix cone_ma_one = {};
+            Matrix cone_ma_one;
 
             for (int i = 0; i < 3; ++i) {
                 for (int j = 0; j < 3; ++j) {
@@ -1247,7 +1245,7 @@ void ICCProfileCreator::savePressed()
             }
 
             //generate adaptation bradford matrix
-            Matrix adapt_chroma = {};
+            Matrix adapt_chroma;
 
             for (int i = 0; i < 3; ++i) {
                 for (int j = 0; j < 3; ++j) {
@@ -1260,7 +1258,7 @@ void ICCProfileCreator::savePressed()
             }
 
             //real matrix XYZ for primaries, temp, Bradford
-            Matrix mat_xyz_brad = {};
+            Matrix mat_xyz_brad;
 
             for (int i = 0; i < 3; ++i) {
                 for (int j = 0; j < 3; ++j) {

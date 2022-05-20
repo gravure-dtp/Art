@@ -128,7 +128,7 @@ std::unique_ptr<Exiv2::Image> exiftool_import(const Glib::ustring &fname, const 
     }
     close(fd);
     g_remove(templ.c_str());
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         if (!out.empty()) {
             std::cout << "  exiftool stdout: " << out << std::flush;
         }
@@ -244,6 +244,20 @@ bool exiftool_embed_procparams(const Glib::ustring &fname, const std::string &da
     return ok;
 }
 
+
+template <class Data, class Key>
+void clear_metadata_key(Data &data, const Key &key)
+{
+    while (true) {
+        auto it = data.findKey(key);
+        if (it == data.end()) {
+            break;
+        } else {
+            data.erase(it);
+        }
+    }
+}
+
 } // namespace
 
 
@@ -276,11 +290,19 @@ void Exiv2Metadata::load() const
     if (!src_.empty() && !image_.get() && Glib::file_test(src_.c_str(), Glib::FILE_TEST_EXISTS)) {
         CacheVal val;
         auto finfo = Gio::File::create_for_path(src_)->query_info(G_FILE_ATTRIBUTE_TIME_MODIFIED);
-        if (cache_ && cache_->get(src_, val) && val.second >= finfo->modification_time()) {
-            if (settings->verbose) {
-                std::cout << "Metadata for " << src_ << " found in cache" << std::endl;
+        Glib::TimeVal xmp_mtime(0, 0);
+        if (merge_xmp_) {
+            auto xmpname = xmpSidecarPath(src_);
+            if (Glib::file_test(xmpname.c_str(), Glib::FILE_TEST_EXISTS)) {
+                xmp_mtime = Gio::File::create_for_path(xmpname)->query_info(G_FILE_ATTRIBUTE_TIME_MODIFIED)->modification_time();
             }
-            image_ = val.first;
+        }
+        
+        if (cache_ && cache_->get(src_, val) && val.image_mtime >= finfo->modification_time() && val.use_xmp == merge_xmp_ && val.xmp_mtime >= xmp_mtime) {
+            // if (settings->verbose) {
+            //     std::cout << "Metadata for " << src_ << " found in cache" << std::endl;
+            // }
+            image_ = val.image;
         } else {
             try {
                 auto img = open_exiv2(src_, true);
@@ -289,13 +311,16 @@ void Exiv2Metadata::load() const
                 auto img = exiftool_import(src_, exc);
                 image_.reset(img.release());
             }
-            if (cache_) {
-                cache_->set(src_, CacheVal(image_, finfo->modification_time()));
+            if (merge_xmp_) {
+                do_merge_xmp(image_.get(), false);
             }
-        }
-
-        if (merge_xmp_) {
-            do_merge_xmp(image_.get(), false);
+            if (cache_) {
+                val.image = image_;
+                val.image_mtime = finfo->modification_time();
+                val.xmp_mtime = xmp_mtime;
+                val.use_xmp = merge_xmp_;
+                cache_->set(src_, val);
+            }
         }
     }
 }
@@ -309,6 +334,7 @@ void Exiv2Metadata::do_merge_xmp(Exiv2::Image *dst, bool keep_all) const
         Exiv2::IptcData iptc;
         Exiv2::copyXmpToIptc(xmp, iptc);
         Exiv2::moveXmpToExif(xmp, exif);
+        std::unordered_map<std::string, std::unordered_set<std::string>> seen;
 
         if (!keep_all) {
             remove_unwanted(exif);
@@ -318,10 +344,25 @@ void Exiv2Metadata::do_merge_xmp(Exiv2::Image *dst, bool keep_all) const
             dst->exifData()[datum.key()] = datum;
         }
         for (auto &datum : iptc) {
-            dst->iptcData()[datum.key()] = datum;
+            auto &s = seen[datum.key()];
+            if (s.empty()) {
+                clear_metadata_key(dst->iptcData(), Exiv2::IptcKey(datum.key()));
+                dst->iptcData()[datum.key()] = datum;
+                s.insert(datum.toString());
+            } else if (s.insert(datum.toString()).second) {
+                dst->iptcData().add(datum);
+            }
         }
+        seen.clear();
         for (auto &datum : xmp) {
-            dst->xmpData()[datum.key()] = datum;
+            auto &s = seen[datum.key()];
+            if (s.empty()) {
+                clear_metadata_key(dst->xmpData(), Exiv2::XmpKey(datum.key()));
+                dst->xmpData()[datum.key()] = datum;
+                s.insert(datum.toString());
+            } else if (s.insert(datum.toString()).second) {
+                dst->xmpData().add(datum);
+            }
         }
     } catch (std::exception &exc) {
         if (settings->verbose) {
@@ -520,9 +561,11 @@ void Exiv2Metadata::import_iptc_pairs(Exiv2::IptcData &out) const
         try {
             auto &v = p.second;
             if (v.size() >= 1) {
-                out[p.first] = v[0];
+                clear_metadata_key(out, Exiv2::IptcKey(p.first));
+                Exiv2::Iptcdatum d(Exiv2::IptcKey(p.first));
+                d.setValue(v[0]);
+                out[p.first] = d;
                 for (size_t j = 1; j < v.size(); ++j) {
-                    Exiv2::Iptcdatum d(Exiv2::IptcKey(p.first));
                     d.setValue(v[j]);
                     out.add(d);
                 }
@@ -619,7 +662,7 @@ Exiv2::XmpData Exiv2Metadata::getXmpSidecar(const Glib::ustring &path)
 {
     Exiv2::XmpData ret;
     auto fname = xmpSidecarPath(path);
-    if (Glib::file_test(fname, Glib::FILE_TEST_EXISTS)) {
+    if (Glib::file_test(fname, Glib::FILE_TEST_EXISTS)) { 
         auto image = open_exiv2(fname, false);
         ret = image->xmpData();
     }
@@ -668,6 +711,10 @@ void Exiv2Metadata::embedProcParamsData(const Glib::ustring &fname, const std::s
 
 std::unordered_map<std::string, std::string> Exiv2Metadata::getExiftoolMakernotes(const Glib::ustring &fname)
 {
+    if (fname.empty()) {
+        return {};
+    }
+    
     JSONCacheVal val;
     Glib::RefPtr<Gio::FileInfo> finfo;
     try {
@@ -711,6 +758,9 @@ std::unordered_map<std::string, std::string> Exiv2Metadata::getExiftoolMakernote
     try {
         subprocess::exec_sync("", argv, true, nullptr, nullptr);
     } catch (subprocess::error &exc) {
+        if (Glib::file_test(outname, Glib::FILE_TEST_EXISTS)) {
+            g_remove(outname.c_str());
+        }
         return ret;
     }
 

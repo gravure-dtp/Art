@@ -396,7 +396,7 @@ DiagonalCurveEditor* DiagonalCurveEditorSubGroup::addCurve(Glib::ustring curveLa
     storeCurveValues(newCE, getCurveFromGUI(DCT_Spline));
     storeCurveValues(newCE, getCurveFromGUI(DCT_Parametric));
     storeCurveValues(newCE, getCurveFromGUI(DCT_NURBS));
-    storeCurveValues(newCE, getCurveFromGUI(DCT_CatumullRom));
+    storeCurveValues(newCE, getCurveFromGUI(DCT_CatmullRom));
     return newCE;
 }
 
@@ -441,7 +441,7 @@ void DiagonalCurveEditorSubGroup::pipetteMouseOver(EditDataProvider *provider, i
 
     switch((DiagonalCurveType)(curveEditor->curveType->getSelected())) {
     case (DCT_Spline):
-    case (DCT_CatumullRom):
+    case (DCT_CatmullRom):
         customCurve->pipetteMouseOver(curveEditor, provider, modifierKey);
         customCurve->setDirty(true);
         break;
@@ -516,7 +516,7 @@ bool DiagonalCurveEditorSubGroup::pipetteButton1Pressed(EditDataProvider *provid
 
     switch((DiagonalCurveType)(curveEditor->curveType->getSelected())) {
     case (DCT_Spline):
-    case (DCT_CatumullRom):
+    case (DCT_CatmullRom):
         isDragging = customCurve->pipetteButton1Pressed(provider, modifierKey);
         break;
 
@@ -545,7 +545,7 @@ void DiagonalCurveEditorSubGroup::pipetteButton1Released(EditDataProvider *provi
 
     switch((DiagonalCurveType)(curveEditor->curveType->getSelected())) {
     case (DCT_Spline):
-    case (DCT_CatumullRom):
+    case (DCT_CatmullRom):
         customCurve->pipetteButton1Released(provider);
         break;
 
@@ -569,7 +569,7 @@ void DiagonalCurveEditorSubGroup::pipetteDrag(EditDataProvider *provider, int mo
 
     switch((DiagonalCurveType)(curveEditor->curveType->getSelected())) {
     case (DCT_Spline):
-    case (DCT_CatumullRom):
+    case (DCT_CatmullRom):
         customCurve->pipetteDrag(provider, modifierKey);
         break;
 
@@ -623,7 +623,7 @@ void DiagonalCurveEditorSubGroup::refresh(CurveEditor *curveToRefresh)
     if (curveToRefresh != nullptr && curveToRefresh == static_cast<DiagonalCurveEditor*>(parent->displayedCurve)) {
         switch((DiagonalCurveType)(curveToRefresh->curveType->getSelected())) {
         case (DCT_Spline):
-        case (DCT_CatumullRom):
+        case (DCT_CatmullRom):
             customCurve->refresh();
             break;
 
@@ -712,7 +712,7 @@ void DiagonalCurveEditorSubGroup::switchGUI()
 
         switch(auto tp = (DiagonalCurveType)(dCurve->curveType->getSelected())) {
         case (DCT_Spline):
-        case (DCT_CatumullRom):
+        case (DCT_CatmullRom):
             customCurve->setPoints(tp == DCT_Spline ? dCurve->customCurveEd : dCurve->catmullRomCurveEd);
             customCurve->setColorProvider(dCurve->getCurveColorProvider(), dCurve->getCurveCallerId());
             customCurve->setColoredBar(leftBar, bottomBar);
@@ -788,7 +788,7 @@ void DiagonalCurveEditorSubGroup::savePressed ()
 
         switch (parent->displayedCurve->selected) {
         case DCT_Spline:    // custom
-        case DCT_CatumullRom:
+        case DCT_CatmullRom:
             p = customCurve->getPoints ();
             break;
 
@@ -810,7 +810,7 @@ void DiagonalCurveEditorSubGroup::savePressed ()
             f << "Linear" << std::endl;
         } else if (p[ix] == (double)(DCT_Spline)) {
             f << "Spline" << std::endl;
-        } else if (p[ix] == (double)(DCT_CatumullRom)) {
+        } else if (p[ix] == (double)(DCT_CatmullRom)) {
             f << "CatmullRom" << std::endl;
         } else if (p[ix] == (double)(DCT_NURBS)) {
             f << "NURBS" << std::endl;
@@ -854,7 +854,7 @@ void DiagonalCurveEditorSubGroup::loadPressed ()
             } else if (s == "Spline") {
                 p.push_back ((double)(DCT_Spline));
             } else if (s == "CatmullRom") {
-                p.push_back ((double)(DCT_CatumullRom));
+                p.push_back ((double)(DCT_CatmullRom));
             } else if (s == "NURBS") {
                 p.push_back ((double)(DCT_NURBS));
             } else if (s == "Parametric") {
@@ -875,7 +875,7 @@ void DiagonalCurveEditorSubGroup::loadPressed ()
 
             rtengine::sanitizeCurve(p);
 
-            if (p[0] == (double)(DCT_Spline) || p[0] == (double)(DCT_CatumullRom)) {
+            if (p[0] == (double)(DCT_Spline) || p[0] == (double)(DCT_CatmullRom)) {
                 customCurve->setPoints (p);
                 customCurve->queue_draw ();
                 customCurve->notifyListener ();
@@ -920,10 +920,10 @@ void DiagonalCurveEditorSubGroup::copyPressed ()
         clipboard.setDiagonalCurveData (curve, DCT_NURBS);
         break;
 
-    case DCT_CatumullRom:
+    case DCT_CatmullRom:
         curve = customCurve->getPoints ();
-        curve[0] = DCT_CatumullRom;
-        clipboard.setDiagonalCurveData (curve, DCT_CatumullRom);
+        curve[0] = DCT_CatmullRom;
+        clipboard.setDiagonalCurveData (curve, DCT_CatmullRom);
         break;
 
     default:                       // (DCT_Linear, DCT_Unchanged)
@@ -946,7 +946,7 @@ void DiagonalCurveEditorSubGroup::pastePressed ()
 
         switch (type) {
         case DCT_Spline:           // custom
-        case DCT_CatumullRom:
+        case DCT_CatmullRom:
             customCurve->setPoints (curve);
             customCurve->queue_draw ();
             customCurve->notifyListener ();
@@ -1084,8 +1084,8 @@ void DiagonalCurveEditorSubGroup::storeDisplayedCurve()
             storeCurveValues(parent->displayedCurve, getCurveFromGUI(DCT_NURBS));
             break;
 
-        case (DCT_CatumullRom):
-            storeCurveValues(parent->displayedCurve, getCurveFromGUI(DCT_CatumullRom));
+        case (DCT_CatmullRom):
+            storeCurveValues(parent->displayedCurve, getCurveFromGUI(DCT_CatmullRom));
             break;
 
         default:
@@ -1110,23 +1110,28 @@ void DiagonalCurveEditorSubGroup::restoreDisplayedHistogram()
 void DiagonalCurveEditorSubGroup::storeCurveValues (CurveEditor* ce, const std::vector<double>& p)
 {
     if (!p.empty()) {
+        auto e = static_cast<DiagonalCurveEditor *>(ce);
         DiagonalCurveType t = (DiagonalCurveType)p[0];
 
         switch (t) {
         case (DCT_Spline):
-            (static_cast<DiagonalCurveEditor*>(ce))->customCurveEd = p;
+            e->customCurveEd = p;
+            e->catmullRomCurveEd = p;
+            e->catmullRomCurveEd[0] = DCT_CatmullRom;
             break;
 
         case (DCT_Parametric):
-            (static_cast<DiagonalCurveEditor*>(ce))->paramCurveEd = p;
+            e->paramCurveEd = p;
             break;
 
         case (DCT_NURBS):
-            (static_cast<DiagonalCurveEditor*>(ce))->NURBSCurveEd = p;
+            e->NURBSCurveEd = p;
             break;
 
-        case (DCT_CatumullRom):
-            (static_cast<DiagonalCurveEditor*>(ce))->catmullRomCurveEd = p;
+        case (DCT_CatmullRom):
+            e->catmullRomCurveEd = p;
+            e->customCurveEd = p;
+            e->customCurveEd[0] = DCT_Spline;
             break;
 
         default:
@@ -1158,10 +1163,10 @@ const std::vector<double> DiagonalCurveEditorSubGroup::getCurveFromGUI (int type
     case (DCT_NURBS):
         return NURBSCurve->getPoints ();
 
-    case (DCT_CatumullRom): {
+    case (DCT_CatmullRom): {
         auto ret = customCurve->getPoints();
         if (!ret.empty()) {
-            ret[0] = DCT_CatumullRom;
+            ret[0] = DCT_CatmullRom;
         }
         return ret;
     }
@@ -1202,7 +1207,7 @@ bool DiagonalCurveEditorSubGroup::curveReset(CurveEditor *ce)
         customCurve->reset (dce->customResetCurve, dce->getIdentityValue());
         return true;
 
-    case (DCT_CatumullRom) :
+    case (DCT_CatmullRom) :
         customCurve->reset (dce->catmullRomResetCurve, dce->getIdentityValue());
         return true;
 

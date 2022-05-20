@@ -396,13 +396,16 @@ void WhiteBalance::read(const ProcParams* pp)
     ConnectionBlocker blocker(methconn);
 
     fillMethods();
-    method->set_active(int(pp->wb.method));
+    method->set_active(std::min(int(pp->wb.method), 3));
 
     temp->setValue(pp->wb.temperature);
     green->setValue(pp->wb.green);
     equal->setValue(pp->wb.equal);
+
+    double m[3];
     for (int i = 0; i < 3; ++i) {
-        mult[i]->setValue(1.0 / pp->wb.mult[i]);
+        m[i] = pp->wb.mult[i] / pp->wb.mult[1];
+        mult[i]->setValue(m[i]);
     }
 
     if (pp->wb.method == WBParams::CAMERA) {
@@ -423,15 +426,32 @@ void WhiteBalance::read(const ProcParams* pp)
     case WBParams::AUTO:
         break;
     case WBParams::CUSTOM_MULT: {
-        rtengine::ColorTemp ct(mult[0]->getValue(), mult[1]->getValue(), mult[2]->getValue(), 1.0);
+        if (wbp) {
+            wbp->convertWBCam2Mul(m[0], m[1], m[2]);
+        }
+        rtengine::ColorTemp ct(m[0], m[1], m[2], 1.0);
         equal->setValue(1.0);
         temp->setValue(ct.getTemp());
         green->setValue(ct.getGreen());
     } break;
+    case WBParams::CUSTOM_MULT_LEGACY: {
+        rtengine::ColorTemp ct(m[0], m[1], m[2], 1.0);
+        equal->setValue(1.0);
+        temp->setValue(ct.getTemp());
+        green->setValue(ct.getGreen());
+        if (wbp) {
+            wbp->convertWBMul2Cam(m[0], m[1], m[2]);
+            for (int i = 0; i < 3; ++i) {
+                mult[i]->setValue(m[i]);
+            }
+        }
+    } break;
     default: {
         rtengine::ColorTemp ct(temp->getValue(), green->getValue(), equal->getValue(), "Custom");
-        double m[3];
         ct.getMultipliers(m[0], m[1], m[2]);
+        if (wbp) {
+            wbp->convertWBMul2Cam(m[0], m[1], m[2]);
+        }
         for (int i = 0; i < 3; ++i) {
             mult[i]->setValue(m[i]);
         }
@@ -454,7 +474,7 @@ void WhiteBalance::write(ProcParams* pp)
     pp->wb.green = green->getValue ();
     pp->wb.equal = equal->getValue ();
     for (int i = 0; i < 3; ++i) {
-        pp->wb.mult[i] = 1.0 / mult[i]->getValue();
+        pp->wb.mult[i] = mult[i]->getValue();
     }
 }
 
@@ -511,6 +531,9 @@ void WhiteBalance::setWB(int vtemp, double vgreen)
     rtengine::ColorTemp ctemp(vtemp, vgreen, e, "Custom");
     double mm[3];
     ctemp.getMultipliers(mm[0], mm[1], mm[2]);
+    if (wbp) {
+        wbp->convertWBMul2Cam(mm[0], mm[1], mm[2]);
+    }
     for (int i = 0; i < 3; ++i) {
         mult[i]->setValue(mm[i]);
     }
@@ -549,8 +572,11 @@ void WhiteBalance::WBChanged(double temperature, double greenVal)
             rtengine::ColorTemp ctemp(temperature, greenVal, equal->getValue(), "Custom");
             double m[3];
             ctemp.getMultipliers(m[0], m[1], m[2]);
+            if (wbp) {
+                wbp->convertWBMul2Cam(m[0], m[1], m[2]);
+            }
             for (int i = 0; i < 3; ++i) {
-                mult[i]->setValue(1.0 / (m[i] / m[1]));
+                mult[i]->setValue(m[i] / m[1]);
             }
             enableListener();
             green->setLogScale(100, greenVal, true);
@@ -568,7 +594,11 @@ void WhiteBalance::updateMethodGui()
         multBox->show();
 
         disableListener();
-        rtengine::ColorTemp ct(1.0 / mult[0]->getValue(), 1.0 / mult[1]->getValue(), 1.0 / mult[2]->getValue(), 1.0);
+        double m[3] = { mult[0]->getValue(), mult[1]->getValue(), mult[2]->getValue() };
+        if (wbp) {
+            wbp->convertWBCam2Mul(m[0], m[1], m[2]);
+        }
+        rtengine::ColorTemp ct(m[0], m[1], m[2], 1.0);
         temp->setValue(ct.getTemp());
         green->setValue(ct.getGreen());
         equal->setValue(1.0);
@@ -581,8 +611,11 @@ void WhiteBalance::updateMethodGui()
         rtengine::ColorTemp ct(temp->getValue(), green->getValue(), equal->getValue(), "Custom");
         double m[3];
         ct.getMultipliers(m[0], m[1], m[2]);
+        if (wbp) {
+            wbp->convertWBMul2Cam(m[0], m[1], m[2]);
+        }
         for (int i = 0; i < 3; ++i) {
-            mult[i]->setValue(1.0 / (m[i] / m[1]));
+            mult[i]->setValue(m[i] / m[1]);
         }
         enableListener();
     }
@@ -636,4 +669,11 @@ void WhiteBalance::fillMethods()
             ++i;
         }
     }
+}
+
+
+void WhiteBalance::registerShortcuts(ToolShortcutManager *mgr)
+{
+    mgr->addShortcut(GDK_KEY_t, this, temp);
+    mgr->addShortcut(GDK_KEY_i, this, green);
 }

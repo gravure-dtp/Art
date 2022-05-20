@@ -272,6 +272,10 @@ void ColorTemp::temp2mul (double temp, double green, double equal, double& rmul,
     assert(rmul >= 0);
     assert(gmul >= 0);
     assert(bmul >= 0);
+
+    rmul /= gmul;
+    bmul /= gmul;
+    gmul = 1.0;
 }
 
 } // namespace rtengine

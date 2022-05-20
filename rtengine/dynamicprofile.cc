@@ -25,8 +25,7 @@
 using namespace rtengine;
 using namespace rtengine::procparams;
 
-namespace
-{
+namespace {
 
 const int ISO_MAX = 512000;
 const double FNUMBER_MAX = 100.0;
@@ -81,11 +80,12 @@ bool DynamicProfileRule::matches(const rtengine::FramesMetaData *im) const
             && expcomp(im->getExpComp())
             && camera(im->getCamera())
             && lens(im->getLens())
-            && imagetype(im->getImageType()));
+            && imagetype(im->getImageType())
+            && filetype(getFileExtension(im->getFileName()))
+            && software(im->getSoftware()));
 }
 
-namespace
-{
+namespace {
 
 void get_int_range(DynamicProfileRule::Range<int> &dest,
                     const Glib::KeyFile &kf, const Glib::ustring &group,
@@ -137,31 +137,35 @@ void get_optional(DynamicProfileRule::Optional &dest,
     }
 }
 
+
 void set_int_range(Glib::KeyFile &kf, const Glib::ustring &group,
-                    const Glib::ustring &key,
-                    const DynamicProfileRule::Range<int> &val)
+                   const Glib::ustring &key,
+                   const DynamicProfileRule::Range<int> &val)
 {
     kf.set_integer(group, key + "_min", val.min);
     kf.set_integer(group, key + "_max", val.max);
 }
 
+
 void set_double_range(Glib::KeyFile &kf, const Glib::ustring &group,
-                       const Glib::ustring &key,
-                       const DynamicProfileRule::Range<double> &val)
+                      const Glib::ustring &key,
+                      const DynamicProfileRule::Range<double> &val)
 {
     kf.set_double(group, key + "_min", val.min);
     kf.set_double(group, key + "_max", val.max);
 }
 
+
 void set_optional(Glib::KeyFile &kf, const Glib::ustring &group,
-                   const Glib::ustring &key,
-                   const DynamicProfileRule::Optional &val)
+                  const Glib::ustring &key,
+                  const DynamicProfileRule::Optional &val)
 {
     kf.set_boolean(group, key + "_enabled", val.enabled);
     kf.set_string(group, key + "_value", val.value);
 }
 
 } // namespace
+
 
 bool DynamicProfileRules::loadRules()
 {
@@ -181,7 +185,7 @@ bool DynamicProfileRules::loadRules()
         return false;
     }
 
-    if (options.rtSettings.verbose) {
+    if (options.rtSettings.verbose > 1) {
         printf("loading dynamic profiles...\n");
     }
 
@@ -200,7 +204,7 @@ bool DynamicProfileRules::loadRules()
             return false;
         }
 
-        if (options.rtSettings.verbose) {
+        if (options.rtSettings.verbose > 1) {
             printf(" loading rule %d\n", serial);
         }
 
@@ -215,6 +219,8 @@ bool DynamicProfileRules::loadRules()
         get_optional(rule.camera, kf, group, "camera");
         get_optional(rule.lens, kf, group, "lens");
         get_optional(rule.imagetype, kf, group, "imagetype");
+        get_optional(rule.filetype, kf, group, "filetype");
+        get_optional(rule.software, kf, group, "software");
 
         try {
             rule.profilepath = kf.get_string(group, "profilepath");
@@ -228,9 +234,10 @@ bool DynamicProfileRules::loadRules()
     return true;
 }
 
+
 bool DynamicProfileRules::storeRules()
 {
-    if (options.rtSettings.verbose) {
+    if (options.rtSettings.verbose > 1) {
         printf("saving dynamic profiles...\n");
     }
 
@@ -248,11 +255,14 @@ bool DynamicProfileRules::storeRules()
         set_optional(kf, group, "camera", rule.camera);
         set_optional(kf, group, "lens", rule.lens);
         set_optional(kf, group, "imagetype", rule.imagetype);
+        set_optional(kf, group, "filetype", rule.filetype);
+        set_optional(kf, group, "software", rule.software);
         kf.set_string(group, "profilepath", rule.profilepath);
     }
 
     return kf.save_to_file(Glib::build_filename(Options::rtdir, "dynamicprofile.cfg"));
 }
+
 
 const std::vector<DynamicProfileRule> &DynamicProfileRules::getRules()
 {
@@ -262,6 +272,7 @@ const std::vector<DynamicProfileRule> &DynamicProfileRules::getRules()
 
     return dynamicRules;
 }
+
 
 void DynamicProfileRules::setRules(const std::vector<DynamicProfileRule> &r)
 {

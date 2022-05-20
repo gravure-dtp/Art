@@ -29,6 +29,9 @@
 #include "LUT.h"
 #include "../rtgui/threadutils.h"
 
+#include <mutex>
+#include <condition_variable>
+
 namespace rtengine {
 
 using namespace procparams;
@@ -75,7 +78,7 @@ protected:
     Glib::ustring monitorProfile;
     RenderingIntent monitorIntent;
     bool softProof;
-    bool gamutCheck;
+    GamutCheck gamutCheck;
     bool sharpMask;
 
     int scale;
@@ -166,8 +169,10 @@ protected:
     bool lastOutputBPC;
 
     // members of the updater:
-    Glib::Thread* thread;
-    MyMutex updaterThreadStart;
+    std::mutex updater_mutex_;
+    std::condition_variable updater_cond_;
+    
+    // MyMutex updaterThreadStart;
     MyMutex paramsUpdateMutex;
     int  changeSinceLast;
     bool updaterRunning;
@@ -178,6 +183,10 @@ protected:
     bool highQualityComputed;
     cmsHTRANSFORM customTransformIn;
     cmsHTRANSFORM customTransformOut;
+
+    void wait_not_running();
+    void set_updater_running(bool val);
+    
 public:
 
     ImProcCoordinator ();
@@ -239,17 +248,21 @@ public:
     void setHighQualComputed() override;
     void setMonitorProfile (const Glib::ustring& profile, RenderingIntent intent) override;
     void getMonitorProfile (Glib::ustring& profile, RenderingIntent& intent) const override;
-    void setSoftProofing   (bool softProof, bool gamutCheck) override;
-    void getSoftProofing   (bool &softProof, bool &gamutCheck) override;
+    void setSoftProofing   (bool softProof, GamutCheck gamutCheck) override;
     void setSharpMask      (bool sharpMask) override;
     bool updateTryLock () override
     {
-        return updaterThreadStart.trylock();
+        //return updaterThreadStart.trylock();
+        set_updater_running(true);
+        return true;
     }
     void updateUnLock () override
     {
-        updaterThreadStart.unlock();
+        //updaterThreadStart.unlock();
+        set_updater_running(false);
     }
+
+    bool is_running() const;
 
     void setProgressListener (ProgressListener* pl) override
     {

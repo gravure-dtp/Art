@@ -30,17 +30,23 @@
 #include "foveon.h"
 
 
+#ifdef ART_USE_LIBRAW
+class LibRaw;
+#endif // ART_USE_LIBRAW
+
+
 namespace rtengine {
 
-class RawImage: protected DCraw
-{
-public:
+class Image8;
 
-    explicit RawImage( const Glib::ustring &name );
+
+class RawImage: protected DCraw {
+public:
+    explicit RawImage(const Glib::ustring &name);
     ~RawImage();
 
-    int loadRaw (bool loadData, unsigned int imageNum = 0, bool closeFile = true, ProgressListener *plistener = nullptr, double progressRange = 1.0, bool apply_corrections=true);
-    void get_colorsCoeff( float* pre_mul_, float* scale_mul_, float* cblack_, bool forceAutoWB );
+    int loadRaw(bool loadData, unsigned int imageNum=0, bool closeFile=true, ProgressListener *plistener=nullptr, double progressRange=1.0, bool apply_corrections=true);
+    void get_colorsCoeff(float *pre_mul_, float *scale_mul_, float *cblack_, bool forceAutoWB);
     void set_prefilters()
     {
         if (isBayer() && get_colors() == 3) {
@@ -49,25 +55,29 @@ public:
         }
     }
     typedef dcrawImage_t ImageType;
-    ImageType get_image()
-    {
-        return image;
-    }
-    float** compress_image(unsigned int frameNum, bool freeImage = true); // revert to compressed pixels format and release image data
+    ImageType get_image() { return image; }
+    float** compress_image(unsigned int frameNum, bool freeImage=true); // revert to compressed pixels format and release image data
     float** data;             // holds pixel values, data[i][j] corresponds to the ith row and jth column
     unsigned prefilters;               // original filters saved ( used for 4 color processing )
     unsigned int getFrameCount() const { return is_raw; }
 
     double getBaselineExposure() const { return RT_baseline_exposure; }
+
 protected:
     Glib::ustring filename; // complete filename
     int rotate_deg; // 0,90,180,270 degree of rotation: info taken by dcraw from exif
-    char* profile_data; // Embedded ICC color profile
-    float* allocation; // pointer to allocated memory
+    char *profile_data; // Embedded ICC color profile
+    float *allocation; // pointer to allocated memory
     int maximum_c4[4];
+	char *thumb_data;
 
-    std::vector<std::array<int, 4>> raw_optical_black_med_;
-    bool has_raw_border_;
+	std::vector<std::array<int, 4>> raw_optical_black_med_;
+
+	bool use_internal_decoder_;
+#ifdef ART_USE_LIBRAW
+    std::unique_ptr<LibRaw> libraw_;
+#endif // ART_USE_LIBRAW
+
     FoveonHelper* foveon_helper;
 
 public:
@@ -83,66 +93,24 @@ public:
     bool has_gain_map(std::vector<uint8_t> *out_buf) const;
 
     static void initCameraConstants(Glib::ustring baseDir);
-    std::string get_filename() const
-    {
-        return filename;
-    }
-    int get_width()  const
-    {
-        return width;
-    }
-    int get_height() const
-    {
-        return height;
-    }
-    int get_iwidth()  const
-    {
-        return iwidth;
-    }
-    int get_iheight()  const
-    {
-        return iheight;
-    }
-    int get_leftmargin()  const
-    {
-        return left_margin;
-    }
-    int get_topmargin() const
-    {
-        return top_margin;
-    }
+    std::string get_filename() const { return filename; }
+    int get_width() const { return width; }
+    int get_height() const { return height; }
+    int get_iwidth() const { return iwidth; }
+    int get_iheight() const { return iheight; }
+    int get_leftmargin() const { return left_margin; }
+    int get_topmargin() const { return top_margin; }
+    int get_rawwidth() const { return raw_width; }
+    int get_FujiWidth() const { return fuji_width; }
 
-    int get_rawwidth() const
-    {
-        return raw_width;
-    }
-
-    int get_FujiWidth() const
-    {
-        return fuji_width;
-    }
-
-    float const * get_FloatRawImage() const
-    {
-        return float_raw_image;
-    }
-
+    float const *get_FloatRawImage() const { return float_raw_image; }
     eSensorType getSensorType() const;
 
-    void getRgbCam (float rgbcam[3][4]);
-    void getXtransMatrix ( int xtransMatrix[6][6]);
-    unsigned get_filters() const
-    {
-        return filters;
-    }
-    int get_colors() const
-    {
-        return colors;
-    }
-    int get_cblack(int i) const
-    {
-        return cblack[i];
-    }
+    void getRgbCam(float rgbcam[3][4]);
+    void getXtransMatrix( int xtransMatrix[6][6]);
+    unsigned get_filters() const { return filters; }
+    int get_colors() const { return colors; }
+    int get_cblack(int i) const { return cblack[i]; }
     int get_white(int i) const
     {
         if (maximum_c4[0] > 0) {
@@ -151,47 +119,20 @@ public:
             return maximum;
         }
     }
-    unsigned short get_whiteSample( int r, int c ) const
-    {
-        return white[r][c];
-    }
+    unsigned short get_whiteSample(int r, int c) const { return white[r][c]; }
 
-    double get_ISOspeed() const
-    {
-        return iso_speed;
-    }
-    double get_shutter()  const
-    {
-        return shutter;
-    }
-    double get_aperture()  const
-    {
-        return aperture;
-    }
-    time_t get_timestamp() const
-    {
-        return timestamp;
-    }
-    int get_rotateDegree() const
-    {
-        return rotate_deg;
-    }
-    const std::string get_maker() const
-    {
-        return std::string(make);
-    }
-    const std::string get_model() const
-    {
-        return std::string(model);
-    }
+    double get_ISOspeed() const { return iso_speed; }
+    double get_shutter() const { return shutter; }
+    double get_aperture() const { return aperture; }
+    time_t get_timestamp() const { return timestamp; }
+    int get_rotateDegree() const { return rotate_deg; }
+    const std::string get_maker() const { return std::string(make); }
+    const std::string get_model() const { return std::string(model); }
 
-    float get_cam_mul(int c )const
+    float get_cam_mul(int c) const { return cam_mul[c]; }
+    float get_pre_mul(int c) const
     {
-        return cam_mul[c];
-    }
-    float get_pre_mul(int c )const
-    {
-        if(std::isfinite(pre_mul[c])) {
+        if (std::isfinite(pre_mul[c])) {
             return pre_mul[c];
         } else {
             std::cout << "Failure decoding '" << filename << "', please file a bug report including the raw file and the line below:" << std::endl;
@@ -199,138 +140,85 @@ public:
             return 1.f;
         }
     }
-    float get_rgb_cam( int r, int c) const
-    {
-        return rgb_cam[r][c];
-    }
 
-    int get_exifBase()  const
-    {
-        return exif_base;
-    }
-    int get_ciffBase() const
-    {
-        return ciff_base;
-    }
-    int get_ciffLen()  const
-    {
-        return ciff_len;
-    }
+    float get_rgb_cam(int r, int c) const { return rgb_cam[r][c]; }
 
-    int get_profileLen() const
-    {
-        return profile_length;
-    }
-    char* get_profile() const
-    {
-        return profile_data;
-    }
-    IMFILE *get_file() const
-    {
-        return ifp;
-    }
-    bool is_supportedThumb() const ;
-    bool is_jpegThumb() const ;
-    bool is_ppmThumb() const ;
-    int get_thumbOffset() const
-    {
-        return int(thumb_offset);
-    }
-    int get_thumbWidth() const
-    {
-        return int(thumb_width);
-    }
-    int get_thumbHeight() const
-    {
-        return int(thumb_height);
-    }
-    int get_thumbBPS() const
-    {
-        return thumb_load_raw ? 16 : 8;
-    }
+    int get_profileLen() const { return profile_length; }
+    char *get_profile() const { return profile_data; }
+
+    IMFILE *get_file() const { return ifp; }
+
+protected:
+    bool is_supportedThumb() const;
+    bool is_ppmThumb() const;
+    int get_thumbOffset() const { return int(thumb_offset); }
+    int get_thumbWidth() const { return int(thumb_width); }
+    int get_thumbHeight() const { return int(thumb_height); }
+    int get_thumbBPS() const { return thumb_load_raw ? 16 : 8; }
     bool get_thumbSwap() const;
-    unsigned get_thumbLength() const
-    {
-        return thumb_length;
-    }
-    bool zeroIsBad() const
-    {
-        return zero_is_bad == 1;
-    }
+    unsigned get_thumbLength() const { return thumb_length; }
+    bool checkThumbOk() const;
 
-    bool isBayer() const
-    {
-        return (filters != 0 && filters != 9);
-    }
+public:
+    bool zeroIsBad() const { return zero_is_bad == 1; }
+    bool isBayer() const { return (filters != 0 && filters != 9); }
+    bool isXtrans() const { return filters == 9; }
+    bool isFloat() const { return float_raw_image; }
 
-    bool isXtrans() const
-    {
-        return filters == 9;
-    }
-
-    bool isFloat() const
-    {
-        return float_raw_image;
-    }
-
-    void set_filters(unsigned f)
-    {
-        filters = f;
-    }
+    void set_filters(unsigned f) { filters = f; }
 
 public:
     // dcraw functions
-    void pre_interpolate()
-    {
-        DCraw::pre_interpolate();
-    }
+    void pre_interpolate();
 
 public:
-    bool ISRED  (unsigned row, unsigned col) const
+    bool ISRED(unsigned row, unsigned col) const
     {
         return ((filters >> ((((row) << 1 & 14) + ((col) & 1)) << 1) & 3) == 0);
     }
+
     bool ISGREEN(unsigned row, unsigned col) const
     {
         return ((filters >> ((((row) << 1 & 14) + ((col) & 1)) << 1) & 3) == 1);
     }
-    bool ISBLUE (unsigned row, unsigned col) const
+
+    bool ISBLUE(unsigned row, unsigned col) const
     {
         return ((filters >> ((((row) << 1 & 14) + ((col) & 1)) << 1) & 3) == 2);
     }
-    unsigned FC (unsigned row, unsigned col) const
+
+    unsigned FC(unsigned row, unsigned col) const
     {
         return (filters >> ((((row) << 1 & 14) + ((col) & 1)) << 1) & 3);
     }
-    bool ISXTRANSRED  (unsigned row, unsigned col) const
+
+    bool ISXTRANSRED(unsigned row, unsigned col) const
     {
         return ((xtrans[(row) % 6][(col) % 6]) == 0);
     }
+
     bool ISXTRANSGREEN(unsigned row, unsigned col) const
     {
         return ((xtrans[(row) % 6][(col) % 6]) == 1);
     }
-    bool ISXTRANSBLUE (unsigned row, unsigned col) const
+
+    bool ISXTRANSBLUE(unsigned row, unsigned col) const
     {
         return ((xtrans[(row) % 6][(col) % 6]) == 2);
     }
-    unsigned XTRANSFC (unsigned row, unsigned col) const
+
+    unsigned XTRANSFC(unsigned row, unsigned col) const
     {
         return (xtrans[(row) % 6][(col) % 6]);
     }
 
-    unsigned DNGVERSION ( ) const
-    {
-        return dng_version;
-    }
+    unsigned DNGVERSION() const { return dng_version; }
 
 public:
-    bool checkThumbOk() const;
     bool thumbNeedsRotation() const;
+    Image8 *getThumbnail();
 
     float get_optical_black(int row, int col) const;
-    bool has_raw_border() const { return has_raw_border_; }
 };
 
 } // namespace rtengine
-

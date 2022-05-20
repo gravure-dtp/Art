@@ -31,10 +31,11 @@
 #endif
 
 
-namespace rtengine
-{
+namespace rtengine {
 
-static inline float Lanc (float x, float a)
+namespace {
+
+inline float Lanc(float x, float a)
 {
     if (x * x < 1e-6f) {
         return 1.0f;
@@ -45,6 +46,8 @@ static inline float Lanc (float x, float a)
         return a * xsinf (x) * xsinf (x / a) / (x * x);
     }
 }
+
+} // namespace
 
 
 void ImProcFunctions::Lanczos(Imagefloat *src, Imagefloat *dst, float scale)
@@ -220,7 +223,7 @@ void ImProcFunctions::Lanczos(Imagefloat *src, Imagefloat *dst, float scale)
 }
 
 
-float ImProcFunctions::resizeScale (const ProcParams* params, int fw, int fh, int &imw, int &imh)
+float ImProcFunctions::resizeScale(const ProcParams* params, int fw, int fh, int &imw, int &imh)
 {
     imw = fw;
     imh = fh;
@@ -293,13 +296,14 @@ float ImProcFunctions::resizeScale (const ProcParams* params, int fw, int fh, in
     return (float)dScale;
 }
 
-void ImProcFunctions::resize (Imagefloat* src, Imagefloat* dst, float dScale)
+
+void ImProcFunctions::resize(Imagefloat* src, Imagefloat* dst, float dScale)
 {
 #ifdef PROFILE
     time_t t1 = clock();
 #endif
 
-    Lanczos (src, dst, dScale);
+    Lanczos(src, dst, dScale);
 
 #ifdef PROFILE
     time_t t2 = clock();
@@ -308,4 +312,4 @@ void ImProcFunctions::resize (Imagefloat* src, Imagefloat* dst, float dScale)
 #endif
 }
 
-}
+} // namespace rtengine

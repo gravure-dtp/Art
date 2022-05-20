@@ -1,4 +1,5 @@
-/*
+/* -*- C++ -*-
+ *  
  *  This file is part of RawTherapee.
  *
  *  Copyright (c) 2004-2010 Gabor Horvath <hgabor@rawtherapee.com>
@@ -19,10 +20,15 @@
  *  Author: reine
  */
 
-#ifndef STOPWATCH_H
-#define STOPWATCH_H
+#pragma once
+
 #include <iostream>
 #include "mytime.h"
+#include "settings.h"
+
+namespace rtengine {
+
+extern const Settings *settings;
 
 #ifdef BENCHMARK
     #define BENCHFUN StopWatch StopFun(__func__);
@@ -55,12 +61,14 @@ public:
     void stop()
     {
         stopTime.set();
-        if(!microseconds) {
-            long elapsedTime = stopTime.etime(startTime) / 1000;
-            std::cout << message << " took " << elapsedTime << " ms" << std::endl;
-        } else {
-            long elapsedTime = stopTime.etime(startTime);
-            std::cout << message << " took " << elapsedTime << " us" << std::endl;
+        if (settings->verbose > 1) {
+            if(!microseconds) {
+                long elapsedTime = stopTime.etime(startTime) / 1000;
+                std::cout << message << " took " << elapsedTime << " ms" << std::endl;
+            } else {
+                long elapsedTime = stopTime.etime(startTime);
+                std::cout << message << " took " << elapsedTime << " us" << std::endl;
+            }
         }
         stopped = true;
     }
@@ -77,4 +85,4 @@ private:
     bool stopped;
 };
 
-#endif  /* STOPWATCH_H */
+} // namespace rtengine

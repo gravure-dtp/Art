@@ -20,12 +20,18 @@
 
 #include "rawimage.h"
 #include "gainmap.h"
+#include "metadata.h"
 
 namespace rtengine {
 
 bool RawImage::has_gain_map(std::vector<uint8_t> *out_buf) const
 {
-    if (!(isBayer() && DNGVERSION() && RT_OpcodeList2_len > 0)) {
+    if (!(isBayer() && DNGVERSION())) {
+        return false;
+    }
+
+#ifndef ART_USE_LIBRAW
+    if (RT_OpcodeList2_len <= 0) {
         return false;
     }
     
@@ -39,6 +45,31 @@ bool RawImage::has_gain_map(std::vector<uint8_t> *out_buf) const
         out_buf->swap(buf);
     }
     return true;
+    
+#else // ART_USE_LIBRAW
+
+    auto md = Exiv2Metadata(filename);
+    md.load();
+    auto &exif = md.exifData();
+    auto it = exif.findKey(Exiv2::ExifKey("Exif.SubImage1.OpcodeList2"));
+    if (it == exif.end()) {
+        it = exif.findKey(Exiv2::ExifKey("Exif.Image.OpcodeList2"));
+    }
+    if (it != exif.end()) {
+        if (out_buf) {
+            std::vector<Exiv2::byte> buf;
+            buf.resize(it->value().size());
+            it->value().copy(&buf[0], Exiv2::invalidByteOrder);
+            out_buf->resize(buf.size());
+            for (size_t i = 0; i < buf.size(); ++i) {
+                (*out_buf)[i] = uint8_t(buf[i]);
+            }
+        }
+        return true;
+    }
+    return false;
+    
+#endif // ART_USE_LIBRAW
 }
 
 } // namespace rtengine

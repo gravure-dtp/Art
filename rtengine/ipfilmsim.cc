@@ -53,7 +53,7 @@ void ImProcFunctions::filmSimulation(Imagefloat *img)
             }
         }
     } else if (plistener) {
-        plistener->error(Glib::ustring::compose(M("ERROR_MSG_FILE_READ"), params->filmSimulation.clutFilename));
+        plistener->error(Glib::ustring::compose(M("TP_FILMSIMULATION_LABEL") + " - " + M("ERROR_MSG_FILE_READ"), params->filmSimulation.clutFilename.empty() ? "(" + M("GENERAL_NONE") + ")" : params->filmSimulation.clutFilename));
     }
 }
 

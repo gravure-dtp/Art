@@ -1,4 +1,5 @@
-/*
+/* -*- C++ -*-
+ *  
  *  This file is part of RawTherapee.
  *
  *  Copyright (c) 2004-2010 Gabor Horvath <hgabor@rawtherapee.com>
@@ -16,8 +17,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef __CROPHANDLER__
-#define __CROPHANDLER__
+#pragma once
 
 #include <atomic>
 #include <vector>
@@ -59,7 +59,7 @@ public:
     }
     void    setEditSubscriber      (EditSubscriber* newSubscriber);
 
-    void    newImage      (rtengine::StagedImageProcessor* ipc_, bool isDetailWindow);
+    void    newImage(std::shared_ptr<rtengine::StagedImageProcessor> ipc_, bool isDetailWindow);
     void    setZoom       (int z, int centerx = -1, int centery = -1);
     float   getZoomFactor ();
     double  getFitZoom    ();
@@ -75,8 +75,8 @@ public:
     void    getSize       (int& w, int& h);
     void    getFullImageSize (int& w, int& h);
 
-    void    setEnabled (bool e);
-    bool    getEnabled ();
+    void setEnabled(bool e, bool do_update=true);
+    bool getEnabled();
 
     void    colorPick (const rtengine::Coord &pickerPos, float &r, float &g, float &b, float &rpreview, float &gpreview, float &bpreview, LockableColorPicker::Size size);
 
@@ -125,7 +125,7 @@ private:
     std::vector<unsigned char> cropimgtrue;
     int cropimg_width, cropimg_height, cix, ciy, ciw, cih, cis;
 
-    rtengine::StagedImageProcessor* ipc;
+    std::shared_ptr<rtengine::StagedImageProcessor> ipc;
     rtengine::DetailedCrop* crop;
 
     CropDisplayHandler* displayHandler;
@@ -134,9 +134,5 @@ private:
     std::atomic<bool> initial;
 
     IdleRegister idle_register;
-
-    std::unique_ptr<Glib::ThreadPool> thread_pool_;
     sigc::connection zoom_conn_;
 };
-
-#endif

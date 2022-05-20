@@ -147,6 +147,8 @@ ExifPanel::ExifPanel():
     exifTree->signal_row_expanded().connect(sigc::mem_fun(*this, &ExifPanel::onExifRowExpanded));
     exifTree->signal_row_collapsed().connect(sigc::mem_fun(*this, &ExifPanel::onExifRowCollapsed));
 
+    setTreeViewCssProvider(exifTree);
+
     show_all ();
 }
 

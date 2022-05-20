@@ -1,4 +1,5 @@
-/*
+/* -*- C++ -*-
+ *  
  *  This file is part of RawTherapee.
  *
  *  Copyright (c) 2004-2010 Gabor Horvath <hgabor@rawtherapee.com>
@@ -16,19 +17,20 @@
  *  You should have received a copy of the GNU General Public License
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _FILESELECTIONLISTENER_
-#define _FILESELECTIONLISTENER_
+#pragma once
 
 class Thumbnail;
 class BatchQueueEntry;
 
-class FileSelectionListener
-{
+class FileSelectionListener {
 public:
     virtual ~FileSelectionListener() = default;
-    virtual bool fileSelected(Thumbnail* thm) = 0;
+    enum Result {
+        FAIL,
+        OK,
+        BUSY
+    };
+    virtual Result fileSelected(Thumbnail* thm) = 0;
     virtual bool addBatchQueueJobs(const std::vector<BatchQueueEntry*>& entries) = 0;
 };
-
-#endif
 

@@ -111,7 +111,8 @@ FileCatalog::FileCatalog(FilePanel* filepanel) :
     filterPanel(nullptr),
     previewsToLoad(0),
     previewsLoaded(0),
-    modifierKey(0)
+    modifierKey(0),
+    bqueue_(nullptr)
 {
     inTabMode = false;
 
@@ -475,29 +476,6 @@ FileCatalog::FileCatalog(FilePanel* filepanel) :
     buttonBar->pack_start (*zoomBox, Gtk::PACK_SHRINK);
     buttonBar->pack_start (*Gtk::manage(new Gtk::VSeparator), Gtk::PACK_SHRINK);
 
-    // thumbOrder = Gtk::manage(new PopUpButton());
-    // thumbOrder->addEntry("az-sort.png", M("THUMBNAIL_ORDER_FILENAME"));
-    // thumbOrder->addEntry("az-sort.png", M("THUMBNAIL_ORDER_DATE"));
-    // thumbOrder->addEntry("az-sort.png", M("THUMBNAIL_ORDER_DATE_REV"));
-    // thumbOrder->addEntry("az-sort.png", M("THUMBNAIL_ORDER_MODTIME"));
-    // thumbOrder->addEntry("az-sort.png", M("THUMBNAIL_ORDER_MODTIME_REV"));
-    // thumbOrder->addEntry("az-sort.png", M("THUMBNAIL_ORDER_PROCTIME"));
-    // thumbOrder->addEntry("az-sort.png", M("THUMBNAIL_ORDER_PROCTIME_REV"));
-    // thumbOrder->setSelected(int(options.thumbnailOrder));
-    // thumbOrder->signal_changed().connect(
-    //     static_cast<sigc::slot<void, int>>(
-    //         [&](int sel) -> void
-    //         {
-    //             options.thumbnailOrder = Options::ThumbnailOrder(sel);
-    //             //reparseDirectory();
-    //             fileBrowser->sortThumbnails();
-    //         })
-    //     );
-    // setExpandAlignProperties(thumbOrder->buttonGroup, false, false, Gtk::ALIGN_CENTER, Gtk::ALIGN_FILL);
-    // thumbOrder->setRelief(Gtk::RELIEF_NONE);
-    // thumbOrder->show();
-    // buttonBar->pack_start(*thumbOrder->buttonGroup, Gtk::PACK_SHRINK);
-
     {
         thumbOrder = Gtk::manage(new Gtk::MenuButton());
         thumbOrder->set_image(*Gtk::manage(new RTImage("az-sort.png")));
@@ -507,10 +485,16 @@ FileCatalog::FileCatalog(FilePanel* filepanel) :
         const auto on_activate =
             [&]() -> void
             {
+                for (size_t i = 0; i < thumbOrderItems.size(); ++i) {
+                    auto l = static_cast<Gtk::Label *>(thumbOrderItems[i]->get_children()[0]);
+                    l->set_markup(thumbOrderLabels[i]);
+                }
                 int sel = thumbOrder->get_menu()->property_active();
                 auto mi = thumbOrder->get_menu()->get_active();
                 if (mi) {
-                    thumbOrder->set_tooltip_text(M("FILEBROWSER_SORT_LABEL") + ": " + mi->get_label());
+                    thumbOrder->set_tooltip_text(M("FILEBROWSER_SORT_LABEL") + ": " + thumbOrderLabels[sel]);
+                    auto l = static_cast<Gtk::Label *>(mi->get_children()[0]);
+                    l->set_markup("<b>" + thumbOrderLabels[sel] + "</b>");
                 }
                 options.thumbnailOrder = Options::ThumbnailOrder(sel);
                 fileBrowser->sortThumbnails();
@@ -521,6 +505,8 @@ FileCatalog::FileCatalog(FilePanel* filepanel) :
             {
                 Gtk::MenuItem *mi = Gtk::manage(new Gtk::MenuItem(lbl));
                 menu->append(*mi);
+                thumbOrderItems.push_back(mi);
+                thumbOrderLabels.push_back(lbl);
                 mi->signal_activate().connect(sigc::slot<void>(on_activate));
             };
         addItem(M("FILEBROWSER_SORT_FILENAME"));
@@ -576,6 +562,13 @@ FileCatalog::FileCatalog(FilePanel* filepanel) :
     }
 
     selectedDirectory = "";
+
+    {
+        MyMutex::MyLock lock(dirEFSMutex);
+        if (options.remember_exif_filter_settings) {
+            dirEFS = options.last_exif_filter_settings;
+        }
+    }    
 }
 
 FileCatalog::~FileCatalog()
@@ -650,10 +643,6 @@ void FileCatalog::closeDir ()
         filterPanel->set_sensitive (false);
     }
 
-    // if (exportPanel) {
-    //     exportPanel->set_sensitive (false);
-    // }
-
     if (dirMonitor) {
         dirMonitor->cancel ();
     }
@@ -676,6 +665,9 @@ void FileCatalog::closeDir ()
     {
         MyMutex::MyLock lock(dirEFSMutex);
         dirEFS.clear ();
+        if (hasValidCurrentEFS && options.remember_exif_filter_settings && filterPanel) {
+            dirEFS = options.last_exif_filter_settings = filterPanel->getFilter(false);
+        }
     }
     hasValidCurrentEFS = false;
     redrawAll ();
@@ -713,10 +705,12 @@ private:
     bool lt_date(const Glib::ustring &a, const Glib::ustring &b, bool reverse) const
     {
         try {
-            rtengine::FramesData ma(a);
-            rtengine::FramesData mb(b);
-            auto ta = ma.getDateTimeAsTS();
-            auto tb = mb.getDateTimeAsTS();
+            // rtengine::FramesData ma(a);
+            // rtengine::FramesData mb(b);
+            // auto ta = ma.getDateTimeAsTS();
+            // auto tb = mb.getDateTimeAsTS();
+            auto ta = get_date(a);
+            auto tb = get_date(b);
             if (ta == tb) {
                 return a < b;
             }
@@ -759,6 +753,20 @@ private:
             return (ta < tb) == !reverse;
         } else {
             return a < b;
+        }
+    }
+
+    time_t get_date(const Glib::ustring &us) const
+    {
+        CacheImageData d;
+        if (cacheMgr->getImageData(us, d)) {
+            if (!d.supported) {
+                return time_t(-1);
+            } else {
+                return d.getDateTimeAsTS();
+            }
+        } else {
+            return time_t(-1);
         }
     }
 
@@ -1043,15 +1051,16 @@ void FileCatalog::previewsFinishedUI ()
             if ( !hasValidCurrentEFS ) {
                 MyMutex::MyLock lock(dirEFSMutex);
                 currentEFS = dirEFS;
-                filterPanel->setFilter ( dirEFS, true );
+                filterPanel->setFilter(dirEFS, false);
+                if (options.remember_exif_filter_settings) {
+                    hasValidCurrentEFS = true;
+                    currentEFS = options.last_exif_filter_settings;
+                    filterPanel->setFilter(currentEFS, true);
+                }
             } else {
-                filterPanel->setFilter ( currentEFS, false );
+                filterPanel->setFilter(currentEFS, true);
             }
         }
-
-        // if (exportPanel) {
-        //     exportPanel->set_sensitive (true);
-        // }
 
         // restart anything that might have been loaded low quality
         fileBrowser->refreshQuickThumbImages();
@@ -1132,20 +1141,30 @@ void FileCatalog::refreshHeight ()
     set_size_request(0, newHeight + 2); // HOMBRE: yeah, +2, there's always 2 pixels missing... sorry for this dirty hack O:)
 }
 
-void FileCatalog::_openImage(const std::vector<Thumbnail*>& tmb)
+void FileCatalog::_openImage() //const std::vector<Thumbnail*>& tmb)
 {
     if (enabled && listener) {
+        auto &tmb = to_open_;
         bool continueToLoad = true;
 
+        size_t j = 0;
         for (size_t i = 0; i < tmb.size() && continueToLoad; i++) {
             // Open the image here, and stop if in Single Editor mode, or if an image couldn't
             // be opened, would it be because the file doesn't exist or because of lack of RAM
-            if( !(listener->fileSelected (tmb[i])) && !options.tabbedUI ) {
+            auto res = listener->fileSelected(tmb[i]);
+            if (res == FileSelectionListener::Result::BUSY) {
+                tmb[j++] = tmb[i];
+                continue;
+            }
+            
+            if (res == FileSelectionListener::Result::FAIL && !options.tabbedUI) {
                 continueToLoad = false;
             }
 
             tmb[i]->decreaseRef ();
         }
+
+        tmb.resize(j);
     }
 }
 
@@ -1162,15 +1181,16 @@ void FileCatalog::filterApplied()
 
 void FileCatalog::openRequested(const std::vector<Thumbnail*>& tmb)
 {
+    to_open_ = tmb;
     for (const auto thumb : tmb) {
         thumb->increaseRef();
     }
 
     idle_register.add(
-        [this, tmb]() -> bool
+        [this]() -> bool
         {
-            _openImage(tmb);
-            return false;
+            _openImage();
+            return !to_open_.empty();
         }
     );
 }
@@ -1189,6 +1209,8 @@ void FileCatalog::deleteRequested(const std::vector<FileBrowserEntry*>& tbe, boo
     }
 
     if (msd.run() == Gtk::RESPONSE_YES) {
+        removeFromBatchQueue(tbe);
+        
         for (unsigned int i = 0; i < tbe.size(); i++) {
             const auto fname = tbe[i]->filename;
             // remove from browser
@@ -1251,6 +1273,10 @@ void FileCatalog::copyMoveRequested(const std::vector<FileBrowserEntry*>& tbe, b
     //!!! TODO prevent dialog closing on "enter" key press
 
     if( fc.run() == Gtk::RESPONSE_OK ) {
+        if (moveRequested) {
+            removeFromBatchQueue(tbe);
+        }
+        
         options.lastCopyMovePath = fc.get_current_folder();
 
         // iterate through selected files
@@ -1873,11 +1899,12 @@ void FileCatalog::addAndOpenFile (const Glib::ustring& fname)
         previewReady(selectedDirectoryId, entry);
         // open the file
         tmb->increaseRef();
+        to_open_ = {tmb};
         idle_register.add(
             [this, tmb]() -> bool
             {
-                _openImage({tmb});
-                return false;
+                _openImage();
+                return !to_open_.empty();
             }
         );
 
@@ -1957,13 +1984,6 @@ void FileCatalog::setFilterPanel (FilterPanel* fpanel)
     filterPanel->setFilterPanelListener (this);
 }
 
-// void FileCatalog::setExportPanel(ExportPanel* expanel)
-// {
-//     exportPanel = expanel;
-//     exportPanel->set_sensitive (false);
-//     exportPanel->setExportPanelListener (this);
-//     fileBrowser->setExportPanel(expanel);
-// }
 
 void FileCatalog::trashChanged ()
 {
@@ -2487,7 +2507,7 @@ bool FileCatalog::handleShortcutKey (GdkEventKey* event)
     if (!ctrl || (alt && !options.tabbedUI)) {
         switch(event->keyval) {
         case GDK_KEY_i:
-        case GDK_KEY_I:
+        //case GDK_KEY_I:
             exifInfo->set_active (!exifInfo->get_active());
             return true;
 
@@ -2663,4 +2683,28 @@ void FileCatalog::setupSidePanels()
     filepanel->placespaned->set_visible(options.browserDirPanelOpened);
     enableInspector();
     disableInspector();
+}
+
+
+void FileCatalog::removeFromBatchQueue(const std::vector<FileBrowserEntry*> &tbe)
+{
+    if (!bqueue_) {
+        return;
+    }
+
+    std::set<Glib::ustring> tbset;
+    for (auto entry : tbe) {
+        if (entry->thumbnail && entry->thumbnail->isEnqueued()) {
+            tbset.insert(entry->thumbnail->getFileName());
+        }
+    }
+
+    std::vector<ThumbBrowserEntryBase *> tocancel;
+    for (auto entry : bqueue_->getEntries()) {
+        if (entry->thumbnail && tbset.find(entry->thumbnail->getFileName()) != tbset.end()) {
+            tocancel.push_back(entry);
+        }
+    }
+
+    bqueue_->cancelItems(tocancel, true);
 }

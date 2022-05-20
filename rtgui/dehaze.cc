@@ -55,7 +55,7 @@ Dehaze::Dehaze(): FoldableToolPanel(this, "dehaze", M("TP_DEHAZE_LABEL"), false,
     // strength->setAdjusterListener(this);
     // strength->show();
 
-    depth = Gtk::manage(new Adjuster(M("TP_DEHAZE_DEPTH"), 0., 100., 1., 25.));
+    depth = Gtk::manage(new Adjuster(M("TP_DEHAZE_DEPTH"), 0., 100., 1., 25., nullptr, nullptr, nullptr, nullptr, true));
     depth->setAdjusterListener(this);
     depth->show();
 
@@ -97,6 +97,10 @@ void Dehaze::read(const ProcParams *pp)
     showDepthMap->set_active(pp->dehaze.showDepthMap);
     luminance->set_active(pp->dehaze.luminance ? 1 : 0);
     blackpoint->setValue(pp->dehaze.blackpoint);
+
+    ProcParams dp;
+    depth->set_visible(pp->dehaze.depth != dp.dehaze.depth);
+    showDepthMap->set_visible(pp->dehaze.showDepthMap != dp.dehaze.showDepthMap);
 
     enableListener();
 }
@@ -190,5 +194,9 @@ void Dehaze::toolReset(bool to_initial)
         pp.dehaze = initial_params;
     }
     pp.dehaze.enabled = getEnabled();
+    bool depth_visible = depth->is_visible();
+    bool dmap_visible = showDepthMap->is_visible();
     read(&pp);
+    depth->set_visible(depth->is_visible() || depth_visible);
+    showDepthMap->set_visible(showDepthMap->is_visible() || dmap_visible);
 }

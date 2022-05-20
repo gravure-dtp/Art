@@ -109,6 +109,8 @@ public:
     /** @return the sample format based on MetaData */
     virtual IIOSampleFormat getSampleFormat() const = 0;
 
+    virtual std::string getSoftware() const = 0;
+
     /** Functions to convert between floating point and string representation of shutter and aperture */
     static std::string apertureToString (double aperture);
     /** Functions to convert between floating point and string representation of shutter and aperture */
@@ -429,6 +431,13 @@ public:
     virtual void destroy () {}
 };
 
+
+enum GamutCheck {
+    GAMUT_CHECK_OFF,
+    GAMUT_CHECK_OUTPUT,
+    GAMUT_CHECK_MONITOR
+};
+
 /** This is a staged, cached image processing manager with partial image update support.  */
 class StagedImageProcessor {
 
@@ -524,8 +533,7 @@ public:
 
     virtual void        setMonitorProfile       (const Glib::ustring& monitorProfile, RenderingIntent intent) = 0;
     virtual void        getMonitorProfile       (Glib::ustring& monitorProfile, RenderingIntent& intent) const = 0;
-    virtual void        setSoftProofing         (bool softProof, bool gamutCheck) = 0;
-    virtual void        getSoftProofing         (bool &softProof, bool &gamutCheck) = 0;
+    virtual void setSoftProofing(bool softProof, GamutCheck gamutCheck) = 0;
     virtual void        setSharpMask            (bool sharpMask) = 0;
 
     virtual ~StagedImageProcessor () {}

@@ -252,7 +252,7 @@ bool InspectorArea::on_draw(const ::Cairo::RefPtr< Cairo::Context> &cr)
 }
 
 
-void InspectorArea::mouseMove (rtengine::Coord2D pos, int transform)
+void InspectorArea::mouseMove(rtengine::Coord2D pos, int transform)
 {
     if (!active) {
         return;
@@ -268,7 +268,7 @@ void InspectorArea::mouseMove (rtengine::Coord2D pos, int transform)
 }
 
 
-void InspectorArea::switchImage(const Glib::ustring &fullPath, bool recenter)
+void InspectorArea::switchImage(const Glib::ustring &fullPath, bool recenter, rtengine::Coord2D newcenter)
 {
     if (!active) {
         return;
@@ -280,14 +280,14 @@ void InspectorArea::switchImage(const Glib::ustring &fullPath, bool recenter)
 
     next_image_path = fullPath;
     if (!options.inspectorDelay) {
-        doSwitchImage(recenter);
+        doSwitchImage(recenter, newcenter);
     } else {
-        delayconn = Glib::signal_timeout().connect(sigc::bind(sigc::mem_fun(*this, &InspectorArea::doSwitchImage), recenter), options.inspectorDelay);
+        delayconn = Glib::signal_timeout().connect(sigc::bind(sigc::mem_fun(*this, &InspectorArea::doSwitchImage), recenter, newcenter), options.inspectorDelay);
     }
 }
 
 
-bool InspectorArea::doSwitchImage(bool recenter)
+bool InspectorArea::doSwitchImage(bool recenter, rtengine::Coord2D newcenter)
 {
     Glib::ustring fullPath = next_image_path;
     
@@ -352,7 +352,11 @@ bool InspectorArea::doSwitchImage(bool recenter)
     }
 
     if (currImage && recenter) {
-        center.set(currImage->imgBuffer.getWidth()/2, currImage->imgBuffer.getHeight()/2);
+        if (newcenter.x >= 0 && newcenter.y >= 0) {
+            center.set(rtengine::LIM01(newcenter.x) * currImage->imgBuffer.getWidth(), rtengine::LIM01(newcenter.y) * currImage->imgBuffer.getHeight());
+        } else {
+            center.set(currImage->imgBuffer.getWidth()/2, currImage->imgBuffer.getHeight()/2);
+        }
     }
 
     if (currImage && options.thumbnail_inspector_show_histogram) {
@@ -536,6 +540,20 @@ bool InspectorArea::onMousePress(GdkEventButton *evt)
     if (active && evt->button == 1) {
         prev_point_.set(evt->x, evt->y);
         CursorManager::setWidgetCursor(get_window(), CSHandClosed);
+        if (currImage) {
+            double w = currImage->imgBuffer.getWidth();
+            double h = currImage->imgBuffer.getHeight();
+            auto win = get_window();
+            if (w > 0 && h > 0) {
+                int ww = win->get_width();
+                int hh = win->get_height();
+                int ox = w/2 - ww/2;
+                int oy = h/2 - hh/2;
+                double x = (evt->x + ox) / w;
+                double y = (evt->y + oy) / h;
+                sig_pressed_.emit(rtengine::Coord2D(x, y));
+            }
+        }
     } else {
         prev_point_.set(-1, -1);
         CursorManager::setWidgetCursor(get_window(), CSArrow);
@@ -547,6 +565,7 @@ bool InspectorArea::onMouseRelease(GdkEventButton *evt)
 {
     prev_point_.set(-1, -1);
     CursorManager::setWidgetCursor(get_window(), CSArrow);
+    sig_released_.emit();
     return false;
 }
 
@@ -571,13 +590,16 @@ Inspector::Inspector(FileCatalog *filecatalog):
 
     active_ = 0;
     num_active_ = 1;
+    temp_zoom_11_ = false;
     for (size_t i = 0; i < 2; ++i) {
         ins_[i].set_can_focus(true);
         ins_[i].add_events(Gdk::BUTTON_PRESS_MASK);
         ins_[i].signal_button_press_event().connect_notify(sigc::bind(sigc::mem_fun(*this, &Inspector::onGrabFocus), i));
 //        ins_[i].signal_size_allocate().connect(sigc::mem_fun(*this, &Inspector::onInspectorResized));
         ins_[i].signal_active().connect(sigc::bind(sigc::mem_fun(*this, &Inspector::setActive), true));
-        ins_[i].signal_moved().connect(sigc::mem_fun(*this, &Inspector::onMoved));
+        ins_[i].signal_moved().connect(sigc::mem_fun(*this, &Inspector::on_moved));
+        ins_[i].signal_pressed().connect(sigc::mem_fun(*this, &Inspector::on_pressed));
+        ins_[i].signal_released().connect(sigc::mem_fun(*this, &Inspector::on_released));
     }
     signal_size_allocate().connect(sigc::mem_fun(*this, &Inspector::onInspectorResized));    
 }
@@ -591,11 +613,33 @@ void Inspector::mouseMove(rtengine::Coord2D pos, int transform)
 }
 
 
-void Inspector::onMoved(rtengine::Coord2D pos)
+void Inspector::on_moved(rtengine::Coord2D pos)
 {
     mouseMove(pos, 0);
 }
-   
+
+
+void Inspector::on_pressed(rtengine::Coord2D pos)
+{
+    if (options.thumbnail_inspector_zoom_fit) {
+        temp_zoom_11_ = true;
+        ConnectionBlocker block1(zoom11conn_);
+        zoom11_->set_active(true);
+        do_toggle_zoom(zoom11_, pos);
+    }
+}
+
+
+void Inspector::on_released()
+{
+    if (temp_zoom_11_) {
+        temp_zoom_11_ = false;
+        ConnectionBlocker block1(zoomfitconn_);
+        zoomfit_->set_active(true);
+        do_toggle_zoom(zoomfit_);
+    }
+}
+
 
 void Inspector::flushBuffers()
 {
@@ -838,6 +882,12 @@ void Inspector::mode_toggled(Gtk::ToggleButton *b)
 
 void Inspector::zoom_toggled(Gtk::ToggleButton *b)
 {
+    do_toggle_zoom(b);
+}
+
+
+void Inspector::do_toggle_zoom(Gtk::ToggleButton *b, rtengine::Coord2D pos)
+{
     ConnectionBlocker blockf(zoomfitconn_);
     ConnectionBlocker block1(zoom11conn_);
 
@@ -852,7 +902,7 @@ void Inspector::zoom_toggled(Gtk::ToggleButton *b)
 
         for (size_t i = 0; i < num_active_; ++i) {
             ins_[i].flushBuffers();
-            ins_[i].switchImage(cur_image_[i], true);
+            ins_[i].switchImage(cur_image_[i], true, pos);
         }
     }
 }
@@ -1000,9 +1050,6 @@ bool Inspector::handleShortcutKey(GdkEventKey *event)
 
     if (!ctrl && !shift && !alt && !altgr) {
         switch (event->keyval) {
-        case GDK_KEY_i:
-            toggleShowInfo(); 
-            return true;
         case GDK_KEY_h:
             toggleShowHistogram();
             return true;
@@ -1044,10 +1091,16 @@ bool Inspector::handleShortcutKey(GdkEventKey *event)
             break;
         }
     }
-    if (!ctrl && shift && !alt && !altgr && event->keyval == GDK_KEY_F) {
-        focusmask_->set_active(!focusmask_->get_active());
-        return true;
-    }    
+    if (!ctrl && shift && !alt && !altgr) {
+        switch (event->keyval) {
+        case GDK_KEY_F:
+            focusmask_->set_active(!focusmask_->get_active());
+            return true;
+        case GDK_KEY_I:
+            toggleShowInfo(); 
+            return true;
+        }
+    }
 
     return false;
 }

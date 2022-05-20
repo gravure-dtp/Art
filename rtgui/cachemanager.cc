@@ -410,3 +410,21 @@ void CacheManager::applyCacheSizeLimitation () const
     }
 }
 
+
+bool CacheManager::getImageData(const Glib::ustring &fname, CacheImageData &out)
+{
+    const auto md5 = getMD5(fname);
+
+    if (!md5.empty()) {
+        const auto cacheName = getCacheFileName("data", fname, ".txt", md5);
+
+        const auto error = out.load(cacheName);
+        if (error != 0) {
+            return false;
+        }
+    } else {
+        return false;
+    }
+
+    return true;
+}

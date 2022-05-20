@@ -86,6 +86,16 @@ HSLEqualizer::HSLEqualizer():
 
     pack_start(*curveEditorG, Gtk::PACK_SHRINK, 4);
     pack_start(*smoothing);
+
+    default_flat_curve_ = { FCT_MinMaxCPoints };
+    // Point for RGBCMY colors
+    for (int i = 0; i < 6; i++) {
+        default_flat_curve_.push_back((1. / 6.) * i);
+        default_flat_curve_.push_back(0.5);
+        default_flat_curve_.push_back(0.35);
+        default_flat_curve_.push_back(0.35);
+    }
+    
 }
 
 
@@ -99,6 +109,10 @@ void HSLEqualizer::read(const ProcParams *pp)
 {
     disableListener();
 
+    hshape->setCurve(default_flat_curve_);
+    sshape->setCurve(default_flat_curve_);
+    lshape->setCurve(default_flat_curve_);
+    
     hshape->setCurve(pp->hsl.hCurve);
     sshape->setCurve(pp->hsl.sCurve);
     lshape->setCurve(pp->hsl.lCurve);

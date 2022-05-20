@@ -17,17 +17,14 @@
  *  You should have received a copy of the GNU General Public License
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _RTSETTINGS_
-#define _RTSETTINGS_
+#pragma once
 
 #include "procparams.h"
 
-namespace rtengine
-{
+namespace rtengine {
 
 /** This structure holds the global parameters used by the RT engine. */
-class Settings
-{
+class Settings {
 public:
     Glib::ustring   iccDirectory;           ///< The directory containing the possible output icc profiles
     Glib::ustring monitorIccDirectory;
@@ -47,7 +44,7 @@ public:
     RenderingIntent monitorIntent;          ///< Colorimetric intent used with the above profile
     bool            monitorBPC;             ///< Black Point Compensation for the Labimage->Monitor transform (directly, i.e. not soft-proofing and no WCS in between)
     bool            autoMonitorProfile;     ///< Try to auto-determine the correct monitor color profile
-    bool            verbose;
+    int verbose;
     Glib::ustring   darkFramesPath;         ///< The default directory for dark frames
     Glib::ustring   flatFieldsPath;         ///< The default directory for flat fields
 
@@ -98,6 +95,8 @@ public:
 
     Glib::ustring exiftool_path;
 
+    int thread_pool_size;
+
     /** Creates a new instance of Settings.
       * @return a pointer to the new Settings instance. */
     static Settings* create();
@@ -105,7 +104,8 @@ public:
       * @param s a pointer to the Settings instance to destroy. */
     static void      destroy(Settings* s);
 };
-}
 
-#endif
+} // namespace rtengine
+
+
 

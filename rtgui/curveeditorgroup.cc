@@ -26,14 +26,23 @@
 #include "multilangmgr.h"
 #include "rtimage.h"
 
-CurveEditorGroup::CurveEditorGroup (Glib::ustring& curveDir, Glib::ustring groupLabel, float curvesRatio) : curveDir(curveDir), line(0), curve_reset(nullptr),
-      displayedCurve(nullptr), flatSubGroup(nullptr), diagonalSubGroup(nullptr), cl(nullptr), numberOfPackedCurve(0), curvesRatio(curvesRatio)
+
+CurveEditorGroup::CurveEditorGroup(Glib::ustring& curveDir, Glib::ustring groupLabel, float curvesRatio):
+    curveDir(curveDir),
+    curve_reset(nullptr),
+    displayedCurve(nullptr),
+    flatSubGroup(nullptr),
+    diagonalSubGroup(nullptr),
+    cl(nullptr),
+    numberOfPackedCurve(0),
+    curvesRatio(curvesRatio)
 {
 
     // We set the label to the one provided as parameter, even if it's an empty string
     curveGroupLabel = Gtk::manage (new Gtk::Label (groupLabel.empty() ? groupLabel : (groupLabel + ": "), Gtk::ALIGN_START));
     setExpandAlignProperties(curveGroupLabel, false, false, Gtk::ALIGN_START, Gtk::ALIGN_CENTER);
-    set_row_spacing(RTScalable::getScale());
+    //set_row_spacing(RTScalable::getScale());
+    set_spacing(RTScalable::getScale());
 }
 
 CurveEditorGroup::~CurveEditorGroup()
@@ -141,6 +150,14 @@ void CurveEditorGroup::newLine()
 
         for (int i = numberOfPackedCurve; i < (int)(curveEditors.size()); ++i) {
             setExpandAlignProperties(curveEditors[i]->curveType->buttonGroup, !rwe, true, Gtk::ALIGN_FILL, Gtk::ALIGN_FILL);
+            // if (curveEditors[i]->relatedWidget != nullptr) {
+            //     Gtk::HBox *hb = Gtk::manage(new Gtk::HBox());
+            //     hb->pack_start(*curveEditors[i]->curveType->buttonGroup, Gtk::PACK_EXPAND_WIDGET, 3);
+            //     hb->pack_start(*curveEditors[i]->relatedWidget, !rwe ? Gtk::PACK_SHRINK : Gtk::PACK_EXPAND_WIDGET, 3);
+            //     currLine->attach(*hb, x++, 0, 1, 1);
+            // } else {
+            //     currLine->attach(*curveEditors[i]->curveType->buttonGroup, x++, 0, 1, 1);
+            // }
             currLine->attach(*curveEditors[i]->curveType->buttonGroup, x++, 0, 1, 1);
 
             if (curveEditors[i]->relatedWidget != nullptr) {
@@ -162,13 +179,18 @@ void CurveEditorGroup::newLine()
             currLine->attach(*curve_reset, x++, 0, 1, 1);
         }
 
-        attach(*currLine, 0, line++, 1, 1);
+        pack_start(*currLine);
     }
 }
 
 void CurveEditorGroup::attachCurve (Gtk::Grid* curve)
 {
-    attach(*curve, 0, line, 1, 1);
+    pack_start(*curve);
+    check_resize();
+    idle_register_.add([this]() -> bool {
+        queue_draw();
+        return false;
+    });
 }
 
 /*

@@ -32,6 +32,19 @@
 // CANON EOS R
 // CANON EOS R5
 // CANON EOS RP
+// updated on Mon Oct 11 14:29:55 2021:
+// FUJIFILM GFX100S
+// FUJIFILM X-E4
+// NIKON D780
+// PANASONIC DC-FZ10002
+// PANASONIC DMC-G8
+// RICOH GR III
+
+// updated on Tue Nov 30 09:54:05 2021:
+// RICOH GR II
+
+// updated on Fri Apr 1 15:05:00 2022:
+// OM DIGITAL SOLUTIONS OM-1
 
 [
   {
@@ -5730,6 +5743,113 @@
       { "name" : "white fluorescent", "multipliers" : [ 1.65393, 1, 1.68457 ] },
       { "name" : "tungsten", "multipliers" : [ 1.01294, 1, 2.34375 ] },
       { "name" : "flash", "multipliers" : [ 1.67371, 1, 1.19019 ] }
+    ]
+  },
+  {
+    "make_model" : "FUJIFILM GFX100S",
+    "presets" : [
+      { "name" : "daylight", "multipliers" : [ 1.69205, 1, 1.87086 ] },
+      { "name" : "cloudy", "multipliers" : [ 1.85099, 1, 1.59272 ] },
+      { "name" : "incandescent", "multipliers" : [ 1.12583, 1, 2.93046 ] },
+      { "name" : "day white fluorescent", "multipliers" : [ 1.85762, 1, 1.92053 ] },
+      { "name" : "daylight fluorescent", "multipliers" : [ 2.19205, 1, 1.58278 ] },
+      { "name" : "white fluorescent", "multipliers" : [ 1.77483, 1, 2.49669 ] },
+      { "name" : "underwater", "multipliers" : [ 1.68874, 1, 1.88079 ] }
+    ]
+  },
+  {
+    "make_model" : "FUJIFILM X-E4",
+    "presets" : [
+      { "name" : "daylight", "multipliers" : [ 1.91722, 1, 1.84768 ] },
+      { "name" : "cloudy", "multipliers" : [ 2.09272, 1, 1.57616 ] },
+      { "name" : "incandescent", "multipliers" : [ 1.30132, 1, 2.81788 ] },
+      { "name" : "day white fluorescent", "multipliers" : [ 2.0894, 1, 1.96026 ] },
+      { "name" : "daylight fluorescent", "multipliers" : [ 2.4702, 1, 1.57285 ] },
+      { "name" : "white fluorescent", "multipliers" : [ 1.98344, 1, 2.49669 ] },
+      { "name" : "underwater", "multipliers" : [ 1.91722, 1, 1.84768 ] }
+    ]
+  },
+  {
+    "make_model" : "NIKON D780",
+    "presets" : [
+      { "name" : "direct sunlight", "multipliers" : [ 1.72656, 1, 1.33594 ] },
+      { "name" : "shade", "multipliers" : [ 2.09766, 1, 1.08984 ] },
+      { "name" : "cloudy", "multipliers" : [ 1.83984, 1, 1.21289 ] },
+      { "name" : "incandescent", "multipliers" : [ 1.13867, 1, 2.08398 ] },
+      { "name" : "warm white fluorescent", "multipliers" : [ 1.13086, 1, 1.875 ] },
+      { "name" : "cool white fluorescent", "multipliers" : [ 1.62305, 1, 1.95312 ] },
+      { "name" : "day white fluorescent", "multipliers" : [ 1.62109, 1, 1.3418 ] },
+      { "name" : "daylight fluorescent", "multipliers" : [ 1.83789, 1, 1.08789 ] },
+      { "name" : "white fluorescent", "multipliers" : [ 1.33398, 1, 2.22266 ] },
+      { "name" : "high temp. mercury-vapor fluorescent", "multipliers" : [ 2.14258, 1, 1.30859 ] },
+      { "name" : "sodium-vapor fluorescent", "multipliers" : [ 1.07617, 1, 2.33984 ] },
+      { "name" : "flash", "multipliers" : [ 1.91602, 1, 1.16406 ] }
+    ]
+  },
+  {
+    "make_model" : "PANASONIC DC-FZ10002",
+    "presets" : [
+      { "name" : "direct sunlight", "multipliers" : [ 2.51953, 1, 1.98047 ] },
+      { "name" : "daylight", "multipliers" : [ 2.51953, 1, 1.98047 ] },
+      { "name" : "D55", "multipliers" : [ 2.31641, 1, 2.12109 ] },
+      { "name" : "shade", "multipliers" : [ 2.92969, 1, 1.67578 ] },
+      { "name" : "cloudy", "multipliers" : [ 2.72266, 1, 1.82422 ] },
+      { "name" : "tungsten", "multipliers" : [ 1.73828, 1, 2.99609 ] },
+      { "name" : "incandescent", "multipliers" : [ 1.73828, 1, 2.99609 ] },
+      { "name" : "flash", "multipliers" : [ 2.58594, 1, 1.91016 ] }
+    ]
+  },
+  {
+    "make_model" : "PANASONIC DMC-G8",
+    "presets" : [
+      { "name" : "Daylight", "multipliers" : [ 2.32812, 1, 1.59766 ] },
+      { "name" : "Cloudy", "multipliers" : [ 2.5, 1, 1.49219 ] },
+      { "name" : "Shade", "multipliers" : [ 2.67188, 1, 1.42578 ] },
+      { "name" : "Incandescent", "multipliers" : [ 1.60938, 1, 2.26562 ] },
+      { "name" : "Flash", "multipliers" : [ 2.94531, 1, 1.46484 ] },
+      { "name" : "5000K", "multipliers" : [ 2.19531, 1, 1.67969 ] },
+      { "name" : "5500K", "multipliers" : [ 2.32812, 1, 1.59766 ] }
+    ]
+  },
+  {
+    "make_model" : "RICOH GR III",
+    "presets" : [
+      { "name" : "daylight", "multipliers" : [ 2.64188, 1, 1.73777 ] },
+      { "name" : "shade", "multipliers" : [ 3.17025, 1, 1.30333 ] },
+      { "name" : "cloudy", "multipliers" : [ 2.88845, 1, 1.50685 ] },
+      { "name" : "tungsten", "multipliers" : [ 1.65949, 1, 3.02153 ] },
+      { "name" : "warm white fluorescent", "multipliers" : [ 1.93738, 1, 2.97456 ] },
+      { "name" : "day white fluorescent", "multipliers" : [ 2.54795, 1, 1.96086 ] },
+      { "name" : "daylight fluorescent", "multipliers" : [ 2.99413, 1, 1.72994 ] },
+      { "name" : "white fluorescent", "multipliers" : [ 2.28963, 1, 2.3953 ] }
+    ]
+  },
+  {
+    "make_model" : "RICOH GR II",
+    "presets" : [
+      { "name" : "daylight", "multipliers" : [ 3.062, 1, 1.545 ] },
+      { "name" : "shade", "multipliers" : [ 3.319, 1, 1.385 ] },
+      { "name" : "cloudy", "multipliers" : [ 3.058, 1, 1.538 ] },
+      { "name" : "incandescent", "multipliers" : [ 1.944, 1, 2.384 ] },
+      { "name" : "incandescent warm", "multipliers" : [ 2.276, 1, 2.052 ] },
+      { "name" : "daylight fluorescent", "multipliers" : [ 3.062, 1, 1.545 ] },
+      { "name" : "white fluorescent", "multipliers" : [ 2.837, 1, 1.698 ] },
+      { "name" : "cool white fluorescent", "multipliers" : [ 2.642, 1, 2.125 ] },
+      { "name" : "warm white fluorescent", "multipliers" : [ 2.354, 1, 2.027 ] },
+      { "name" : "5000K", "multipliers" : [ 2.867, 1, 1.662 ] }
+    ]
+  },
+  {
+    "make_model" : "OM DIGITAL SOLUTIONS OM-1",
+    "presets" : [
+      { "name" : "incandescent", "multipliers" : [ 1.352, 1, 3.219 ] },
+      { "name" : "flash", "multipliers" : [ 2.609, 1, 1.477 ] },
+      { "name" : "fine weather", "multipliers" : [ 2.258, 1, 1.766 ] },
+      { "name" : "cloudy", "multipliers" : [ 2.422, 1, 1.586 ] },
+      { "name" : "shade", "multipliers" : [ 2.648, 1, 1.406 ] },
+      { "name" : "daylight fluorescent", "multipliers" : [ 2.445, 1, 2.031 ] },
+      { "name" : "day white fluorescent", "multipliers" : [ 2.547, 1, 1.719 ] },
+      { "name" : "cool white fluorescent", "multipliers" : [ 2.141, 1, 2.570 ] }
     ]
   }
 ]

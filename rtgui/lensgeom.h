@@ -17,16 +17,13 @@
  *  You should have received a copy of the GNU General Public License
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _LENSGEOM_H_
-#define _LENSGEOM_H_
+#pragma once
 
 #include <gtkmm.h>
 #include "toolpanel.h"
 #include "lensgeomlistener.h"
 
-class LensGeometry : public ToolParamBlock, public FoldableToolPanel
-{
-
+class GeometryPanel: public ToolParamBlock, public FoldableToolPanel {
 protected:
     Gtk::Button*        autoCrop;
     LensGeomListener*   rlistener;
@@ -37,8 +34,8 @@ protected:
 
 public:
 
-    LensGeometry ();
-    ~LensGeometry () override;
+    GeometryPanel ();
+    ~GeometryPanel () override;
 
     Gtk::Box* getPackBox ()
     {
@@ -59,4 +56,17 @@ private:
     IdleRegister idle_register;
 };
 
-#endif
+
+class LensPanel: public ToolParamBlock, public FoldableToolPanel {
+protected:
+    ToolParamBlock*     packBox;
+
+public:
+
+    LensPanel();
+
+    Gtk::Box* getPackBox ()
+    {
+        return packBox;
+    }
+};

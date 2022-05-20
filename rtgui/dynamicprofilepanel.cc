@@ -30,8 +30,8 @@
 // DynamicProfilePanel::EditDialog
 //-----------------------------------------------------------------------------
 
-DynamicProfilePanel::EditDialog::EditDialog (const Glib::ustring &title, Gtk::Window &parent):
-    Gtk::Dialog (title, parent)
+DynamicProfilePanel::EditDialog::EditDialog(const Glib::ustring &title, Gtk::Window &parent):
+    Gtk::Dialog(title, parent)
 {
     profilepath_ = Gtk::manage (new ProfileStoreComboBox());
     Gtk::HBox *hb = Gtk::manage (new Gtk::HBox());
@@ -41,6 +41,8 @@ DynamicProfilePanel::EditDialog::EditDialog (const Glib::ustring &title, Gtk::Wi
 
     add_optional (M ("EXIFFILTER_CAMERA"), has_camera_, camera_);
     add_optional (M ("EXIFFILTER_LENS"), has_lens_, lens_);
+    add_optional(M("EXIFFILTER_FILETYPE"), has_filetype_, filetype_);
+    add_optional(M("EXIFFILTER_SOFTWARE"), has_software_, software_);    
     
     imagetype_ = Gtk::manage (new MyComboBoxText());
     imagetype_->append(Glib::ustring("(") + M("DYNPROFILEEDITOR_IMGTYPE_ANY") + ")");
@@ -52,6 +54,7 @@ DynamicProfilePanel::EditDialog::EditDialog (const Glib::ustring &title, Gtk::Wi
     hb->pack_start (*Gtk::manage (new Gtk::Label (M ("EXIFFILTER_IMAGETYPE"))), false, false, 4);
     hb->pack_start (*imagetype_, true, true, 2);
     get_content_area()->pack_start (*hb, Gtk::PACK_SHRINK, 4);
+
 
     add_range (M ("EXIFFILTER_ISO"), iso_min_, iso_max_);
     add_range (M ("EXIFFILTER_APERTURE"), fnumber_min_, fnumber_max_);
@@ -92,6 +95,12 @@ void DynamicProfilePanel::EditDialog::set_rule (
     has_lens_->set_active (rule.lens.enabled);
     lens_->set_text (rule.lens.value);
 
+    has_software_->set_active(rule.software.enabled);
+    software_->set_text(rule.software.value);
+
+    has_filetype_->set_active(rule.filetype.enabled);
+    filetype_->set_text(rule.filetype.value);
+    
     if (!rule.imagetype.enabled) {
         imagetype_->set_active(0);
     } else if (rule.imagetype.value == "STD") {
@@ -135,6 +144,12 @@ DynamicProfileRule DynamicProfilePanel::EditDialog::get_rule()
     ret.lens.enabled = has_lens_->get_active();
     ret.lens.value = lens_->get_text();
 
+    ret.software.enabled = has_software_->get_active();
+    ret.software.value = software_->get_text();
+
+    ret.filetype.enabled = has_filetype_->get_active();
+    ret.filetype.value = filetype_->get_text();
+    
     ret.imagetype.enabled = imagetype_->get_active_row_number() > 0;
     switch (imagetype_->get_active_row_number()) {
     case 1:
@@ -261,98 +276,31 @@ DynamicProfilePanel::DynamicProfilePanel():
     treemodel_ = Gtk::ListStore::create (columns_);
     treeview_.set_model (treemodel_);
 
-    auto cell = Gtk::manage (new Gtk::CellRendererText());
-    int cols_count = treeview_.append_column ( M ("DYNPROFILEEDITOR_PROFILE"), *cell);
-    auto col = treeview_.get_column (cols_count - 1);
+#define ADD_COL(which, lbl) \
+    do {                       \
+        auto cell = Gtk::manage(new Gtk::CellRendererText());           \
+        int cols_count = treeview_.append_column( M(lbl), *cell); \
+        auto col = treeview_.get_column(cols_count - 1);                \
+                                                                        \
+        if (col) {                                                      \
+            col->set_cell_data_func (                                   \
+                *cell, sigc::mem_fun (                                  \
+                    *this, &DynamicProfilePanel::render_ ## which));  \
+        } \
+    } while (false)
 
-    if (col) {
-        col->set_cell_data_func (
-            *cell, sigc::mem_fun (
-                *this, &DynamicProfilePanel::render_profilepath));
-    }
-
-    cell = Gtk::manage (new Gtk::CellRendererText());
-    cols_count = treeview_.append_column (
-                     M ("EXIFFILTER_CAMERA"), *cell);
-    col = treeview_.get_column (cols_count - 1);
-
-    if (col) {
-        col->set_cell_data_func (
-            *cell, sigc::mem_fun (
-                *this, &DynamicProfilePanel::render_camera));
-    }
-
-    cell = Gtk::manage (new Gtk::CellRendererText());
-    cols_count = treeview_.append_column (M ("EXIFFILTER_LENS"), *cell);
-    col = treeview_.get_column (cols_count - 1);
-
-    if (col) {
-        col->set_cell_data_func (
-            *cell, sigc::mem_fun (
-                *this, &DynamicProfilePanel::render_lens));
-    }
-
-    cell = Gtk::manage (new Gtk::CellRendererText());
-    cols_count = treeview_.append_column (M ("EXIFFILTER_IMAGETYPE"), *cell);
-    col = treeview_.get_column (cols_count - 1);
-
-    if (col) {
-        col->set_cell_data_func (
-            *cell, sigc::mem_fun (
-                *this, &DynamicProfilePanel::render_imagetype));
-    }
-
-    cell = Gtk::manage (new Gtk::CellRendererText());
-    cols_count = treeview_.append_column (M ("EXIFFILTER_ISO"), *cell);
-    col = treeview_.get_column (cols_count - 1);
-
-    if (col) {
-        col->set_cell_data_func (
-            *cell, sigc::mem_fun (
-                *this, &DynamicProfilePanel::render_iso));
-    }
-
-    cell = Gtk::manage (new Gtk::CellRendererText());
-    cols_count = treeview_.append_column (M ("EXIFFILTER_APERTURE"), *cell);
-    col = treeview_.get_column (cols_count - 1);
-
-    if (col) {
-        col->set_cell_data_func (
-            *cell, sigc::mem_fun (
-                *this, &DynamicProfilePanel::render_fnumber));
-    }
-
-    cell = Gtk::manage (new Gtk::CellRendererText());
-    cols_count = treeview_.append_column (M ("EXIFFILTER_FOCALLEN"), *cell);
-    col = treeview_.get_column (cols_count - 1);
-
-    if (col) {
-        col->set_cell_data_func (
-            *cell, sigc::mem_fun (
-                *this, &DynamicProfilePanel::render_focallen));
-    }
-
-    cell = Gtk::manage (new Gtk::CellRendererText());
-    cols_count = treeview_.append_column (M ("EXIFFILTER_SHUTTER"), *cell);
-    col = treeview_.get_column (cols_count - 1);
-
-    if (col) {
-        col->set_cell_data_func (
-            *cell, sigc::mem_fun (
-                *this, &DynamicProfilePanel::render_shutterspeed));
-    }
-
-    cell = Gtk::manage (new Gtk::CellRendererText());
-    cols_count = treeview_.append_column (
-                     M ("EXIFFILTER_EXPOSURECOMPENSATION"), *cell);
-    col = treeview_.get_column (cols_count - 1);
-
-    if (col) {
-        col->set_cell_data_func (
-            *cell, sigc::mem_fun (
-                *this, &DynamicProfilePanel::render_expcomp));
-    }
-
+    ADD_COL(profilepath, "DYNPROFILEEDITOR_PROFILE");
+    ADD_COL(camera, "EXIFFILTER_CAMERA");
+    ADD_COL(lens, "EXIFFILTER_LENS");
+    ADD_COL(iso, "EXIFFILTER_ISO");
+    ADD_COL(fnumber, "EXIFFILTER_APERTURE");
+    ADD_COL(focallen, "EXIFFILTER_FOCALLEN");
+    ADD_COL(shutterspeed, "EXIFFILTER_SHUTTER");
+    ADD_COL(expcomp, "EXIFFILTER_EXPOSURECOMPENSATION");
+    ADD_COL(filetype, "EXIFFILTER_FILETYPE");
+    ADD_COL(software, "EXIFFILTER_SOFTWARE");
+    ADD_COL(imagetype, "EXIFFILTER_IMAGETYPE");
+    
     show_all_children();
 
     for (auto &r : ProfileStore::getInstance()->getRules()) {
@@ -373,6 +321,8 @@ void DynamicProfilePanel::update_rule (Gtk::TreeModel::Row row,
     row[columns_.lens] = rule.lens;
     row[columns_.imagetype] = rule.imagetype;
     row[columns_.profilepath] = rule.profilepath;
+    row[columns_.software] = rule.software;
+    row[columns_.filetype] = rule.filetype;
 }
 
 void DynamicProfilePanel::add_rule (const DynamicProfileRule &rule)
@@ -396,6 +346,8 @@ DynamicProfileRule DynamicProfilePanel::to_rule (Gtk::TreeModel::Row row,
     ret.lens = row[columns_.lens];
     ret.profilepath = row[columns_.profilepath];
     ret.imagetype = row[columns_.imagetype];
+    ret.software = row[columns_.software];
+    ret.filetype = row[columns_.filetype];
     return ret;
 }
 
@@ -506,6 +458,21 @@ void DynamicProfilePanel::render_lens (
     RENDER_OPTIONAL_ (lens);
 }
 
+
+void DynamicProfilePanel::render_software(
+    Gtk::CellRenderer *cell, const Gtk::TreeModel::iterator &iter)
+{
+    RENDER_OPTIONAL_(software);
+}
+
+
+void DynamicProfilePanel::render_filetype(
+    Gtk::CellRenderer *cell, const Gtk::TreeModel::iterator &iter)
+{
+    RENDER_OPTIONAL_(filetype);
+}
+
+
 void DynamicProfilePanel::render_imagetype (
     Gtk::CellRenderer *cell, const Gtk::TreeModel::iterator &iter)
 {
@@ -615,7 +582,7 @@ void DynamicProfilePanel::save()
 
     if (!ProfileStore::getInstance()->storeRules()) {
         printf ("Error in saving dynamic profile rules\n");
-    } else if (options.rtSettings.verbose) {
+    } else if (options.rtSettings.verbose > 1) {
         printf ("Saved %d dynamic profile rules\n", int (rules.size()));
     }
 }

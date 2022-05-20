@@ -58,4 +58,5 @@ private:
     Adjuster *smoothing;
 
     rtengine::procparams::HSLEqualizerParams initial_params;
+    std::vector<double> default_flat_curve_;
 };

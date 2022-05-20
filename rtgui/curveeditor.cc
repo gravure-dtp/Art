@@ -108,7 +108,7 @@ std::vector<double> DiagonalCurveEditor::getCurve ()
     case (DCT_NURBS):
         return curve = NURBSCurveEd;
 
-    case (DCT_CatumullRom):
+    case (DCT_CatmullRom):
         return curve = catmullRomCurveEd;
 
     default:
@@ -142,7 +142,7 @@ void DiagonalCurveEditor::setResetCurve(DiagonalCurveType cType, const std::vect
 
         break;
 
-    case (DCT_CatumullRom):
+    case (DCT_CatmullRom):
         if (resetCurve.size() && DiagonalCurveType(resetCurve.at(0)) == cType) {
             catmullRomResetCurve = resetCurve;
         }

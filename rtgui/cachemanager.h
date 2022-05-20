@@ -27,6 +27,7 @@
 #include "../rtengine/noncopyable.h"
 #include "../rtengine/rtengine.h"
 #include "threadutils.h"
+#include "cacheimagedata.h"
 
 class Thumbnail;
 
@@ -71,6 +72,8 @@ public:
                                    const Glib::ustring& fname,
                                    const Glib::ustring& fext,
                                    const Glib::ustring& md5) const;
+
+    bool getImageData(const Glib::ustring &fn, CacheImageData &out);
 };
 
 #define cacheMgr CacheManager::getInstance()

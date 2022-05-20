@@ -261,9 +261,9 @@ void local_contrast_wavelets(array2D<float> &Y, const LocalContrastParams::Regio
     int skip = scale;
     wavelet_decomposition wd(static_cast<float *>(Y), W, H, wavelet_level, 1, skip);
 
-    if (wd.memoryAllocationFailed) {
-        return;
-    }
+    // if (wd.memoryAllocationFailed) {
+    //     return;
+    // }
 
     const float contrast = params.contrast;
     int maxlvl = wd.maxlevel();

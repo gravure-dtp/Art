@@ -221,12 +221,12 @@ Gtk::TreeIter ProfileStoreComboBox::findRowFromFullPath (Glib::ustring path)
         return row;
     }
 
-    if (path == DEFPROFILE_INTERNAL) {
+    if (path == Options::DEFPROFILE_INTERNAL) {
         row = findRowFromEntry (profileStore->getInternalDefaultPSE());
         return row;
     }
 
-    if (path == DEFPROFILE_DYNAMIC) {
+    if (path == Options::DEFPROFILE_DYNAMIC) {
         row = findRowFromEntry (profileStore->getInternalDynamicPSE());
         return row;
     }
@@ -277,11 +277,11 @@ Glib::ustring ProfileStoreComboBox::getFullPathFromActiveRow()
         }
 
         if (currEntry == profileStore->getInternalDefaultPSE()) {
-            return Glib::ustring (DEFPROFILE_INTERNAL);
+            return Glib::ustring (Options::DEFPROFILE_INTERNAL);
         }
 
         if (currEntry == profileStore->getInternalDynamicPSE()) {
-            return Glib::ustring (DEFPROFILE_DYNAMIC);
+            return Glib::ustring (Options::DEFPROFILE_DYNAMIC);
         }
 
         path = Glib::build_filename (profileStore->getPathFromId (currEntry->parentFolderId), currEntry->label);

@@ -33,6 +33,8 @@
 #include "previewmodepanel.h"
 #include "edit.h"
 
+class ToolShortcutManager;
+
 class ImageAreaPanel;
 class ImageArea : public Gtk::DrawingArea, public CropWindowListener, public EditDataProvider, public LockablePickerToolListener
 {
@@ -50,7 +52,7 @@ protected:
 
     std::list<CropWindow*> cropWins;
     PreviewHandler* previewHandler;
-    rtengine::StagedImageProcessor* ipc;
+    std::shared_ptr<rtengine::StagedImageProcessor> ipc;
 
     bool        dirty;
     CropWindow* focusGrabber;
@@ -58,6 +60,8 @@ protected:
     PointerMotionListener* pmlistener;
     PointerMotionListener* pmhlistener;
     ImageAreaToolListener* listener;
+
+    ToolShortcutManager *shortcut_mgr_;
 
     CropWindow* getCropWindow (int x, int y);
     Gtk::SizeRequestMode get_request_mode_vfunc () const override;
@@ -79,8 +83,8 @@ public:
     explicit ImageArea (ImageAreaPanel* p);
     ~ImageArea () override;
 
-    rtengine::StagedImageProcessor* getImProcCoordinator() const;
-    void setImProcCoordinator(rtengine::StagedImageProcessor* ipc_);
+    std::shared_ptr<rtengine::StagedImageProcessor> getImProcCoordinator() const;
+    void setImProcCoordinator(std::shared_ptr<rtengine::StagedImageProcessor> ipc_);
     void setPreviewModePanel(PreviewModePanel* previewModePanel_)
     {
         previewModePanel = previewModePanel_;
@@ -161,6 +165,8 @@ public:
     }
 
     void setAreaDrawListenerProvider(AreaDrawListenerProvider *ap);
+
+    void setToolShortcutManager(ToolShortcutManager *mgr);
 };
 
 

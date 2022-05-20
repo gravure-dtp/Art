@@ -440,9 +440,9 @@ public:
     {
         if (pressure_mode_ == PRESSURE_OFF) {
             bool ctrl = modifierKey & GDK_CONTROL_MASK;
-            bool shift = modifierKey & GDK_SHIFT_MASK;
-            if ((!ctrl && shift) != prev_erase_) {
-                prev_erase_ = (!ctrl && shift);
+            bool alt = modifierKey & GDK_MOD1_MASK;            
+            if ((!ctrl && alt) != prev_erase_) {
+                prev_erase_ = (!ctrl && alt);
                 erase_->set_active(!erase_->get_active());
             }
         }
@@ -461,13 +461,17 @@ public:
         undo_stack_.push_back(mask_->strokes.size());
         bool ctrl = modifierKey & GDK_CONTROL_MASK;
         bool shift = modifierKey & GDK_SHIFT_MASK;
+        bool alt = modifierKey & GDK_MOD1_MASK;
+        bool dragging = shift && !mask_->strokes.empty();
         if (ctrl && !shift) {
             mask_->strokes.push_back(rtengine::procparams::DrawnMask::Stroke());
-        } else if ((!ctrl && shift) != prev_erase_) {
-            prev_erase_ = !ctrl && shift;
+            dragging = false;
+        } else if ((!ctrl && alt) != prev_erase_) {
+            prev_erase_ = !ctrl && alt;
             erase_->set_active(!erase_->get_active());
+            dragging = false;
         }
-        add_stroke(false);
+        add_stroke(dragging);
         return true;
     }
 
@@ -518,7 +522,7 @@ public:
             if (alt) {
                 update_brush(true, false, -3);
             } else {
-                update_pressure(PressureMode((int(cur_pressure_) + (shift ? -1 : 1)) % 3));
+                update_pressure(PressureMode((int(pressure_mode_) + (shift ? -1 : 1)) % 3));
             }
             EditSubscriber::action = ES_ACTION_PICKING;
         } else {
@@ -541,7 +545,7 @@ public:
 
     bool scroll(int bstate, GdkScrollDirection direction, double deltaX, double deltaY, bool &propagateEvent) override
     {
-        double delta = (abs(deltaX) > abs(deltaY)) ? deltaX : deltaY;
+        double delta = (fabs(deltaX) > fabs(deltaY)) ? deltaX : deltaY;
         bool isUp = direction == GDK_SCROLL_UP || (direction == GDK_SCROLL_SMOOTH && delta < 0.0);
         int incr = isUp ? 1 : -1;
 
@@ -694,7 +698,7 @@ private:
         double y = double(p.y) / double(h);
         double radius = 0;
         if (pressure_mode_ == PRESSURE_RADIUS) {
-            radius = rtengine::LIM01(int(cur_pressure_ * 100.0) / 100.0);
+            radius = rtengine::SQR(rtengine::LIM01(int(cur_pressure_ * 100.0) / 100.0));
         } else {
             radius = radius_->getValue() / 100.0;
         }
@@ -751,7 +755,7 @@ private:
             pen_->center += provider->deltaImage;
         }
         if (pressure_mode_ == PRESSURE_RADIUS) {
-            pen_->radius = rtengine::LIM01(int(cur_pressure_ * 100.0) / 100.0) * std::min(w, h) * 0.25;
+            pen_->radius = rtengine::SQR(rtengine::LIM01(int(cur_pressure_ * 100.0) / 100.0)) * std::min(w, h) * 0.25;
         } else {
             pen_->radius = radius_->getValue() / 100.0 * std::min(w, h) * 0.25;
         }
@@ -914,7 +918,7 @@ LabMasksPanel::LabMasksPanel(LabMasksContentProvider *cp):
     deltaE_provider_(nullptr)
 {
     Gtk::Widget *child = cp_->getWidget();
-    cp_->getEvents(EvMaskList, EvParametricMask, EvHMask, EvCMask, EvLMask, EvMaskBlur, EvShowMask, EvAreaMask, EvDeltaEMask, EvContrastThresholdMask, EvDrawnMask);
+    cp_->getEvents(EvMaskList, EvParametricMask, EvHMask, EvCMask, EvLMask, EvMaskBlur, EvShowMask, EvAreaMask, EvDeltaEMask, EvContrastThresholdMask, EvDrawnMask, EvMaskPostprocess);
     EvAreaMaskVoid = ProcEventMapper::getInstance()->newEvent(M_VOID, EvAreaMask.get_message());
     EvDeltaEMaskVoid = ProcEventMapper::getInstance()->newEvent(M_VOID, EvDeltaEMask.get_message());
     EvMaskName = ProcEventMapper::getInstance()->newEvent(M_VOID, "HISTORY_MSG_LABMASKS_MASK_NAME");
@@ -964,6 +968,8 @@ LabMasksPanel::LabMasksPanel(LabMasksContentProvider *cp):
         list->get_column(col-1)->set_expand(true);
     }
     list->set_activate_on_single_click(true);
+    setTreeViewCssProvider(list);
+    
     selectionConn = list->get_selection()->signal_changed().connect(sigc::mem_fun(this, &LabMasksPanel::onSelectionChanged));
     Gtk::HBox *hb = Gtk::manage(new Gtk::HBox());
     Gtk::ScrolledWindow *scroll = Gtk::manage(new Gtk::ScrolledWindow());
@@ -1109,11 +1115,16 @@ LabMasksPanel::LabMasksPanel(LabMasksContentProvider *cp):
     deltaEDecay = Gtk::manage(new Adjuster(M("TP_LABMASKS_DELTAE_DECAY"), 1, 100, 1, 1, nullptr, nullptr, nullptr, nullptr, false, false));//true));
     deltaEDecay->setLogScale(10.f, 10.f, true);
     deltaEDecay->setAdjusterListener(this);
+    deltaEStrength = Gtk::manage(new Adjuster(M("TP_SOFTLIGHT_STRENGTH"), 0, 100, 1, 100));
+    deltaEStrength->setAdjusterListener(this);
     deltaEInverted = Gtk::manage(new Gtk::CheckButton(M("TP_LABMASKS_INVERTED")));
     vb = Gtk::manage(new Gtk::VBox());
     vb->pack_start(*deltaERange);
     vb->pack_start(*deltaEDecay);
-    vb->pack_start(*deltaEInverted);
+    hb = Gtk::manage(new Gtk::HBox());
+    hb->pack_start(*deltaEInverted);
+    hb->pack_start(*deltaEStrength);
+    vb->pack_start(*hb);
     hb = Gtk::manage(new Gtk::HBox());
     hb->pack_start(*vb);
     vb = Gtk::manage(new Gtk::VBox());
@@ -1331,6 +1342,32 @@ LabMasksPanel::LabMasksPanel(LabMasksContentProvider *cp):
     mask_box->pack_start(*drawnMask);
     static_cast<DrawnMaskPanel *>(drawnMask)->signal_draw_updated().connect(sigc::mem_fun(this, &LabMasksPanel::onDrawnMaskUpdated));
     
+
+    // -----------------------------------------------------------------------
+    MyExpander *ppMask = Gtk::manage(new MyExpander(false, M("TP_LABMASKS_POSTPROCESS")));
+    {
+        ToolParamBlock *tb = Gtk::manage(new ToolParamBlock());
+        ppMask->add(*tb, false);
+        ppMask->setLevel(1);
+
+        maskPosterization = Gtk::manage(new Adjuster(M("TP_LABMASKS_POSTPROCESS_POSTERIZATION"), 0, 6, 1, 0));
+        tb->pack_start(*maskPosterization);
+        maskPosterization->setAdjusterListener(this);
+
+        maskSmoothing = Gtk::manage(new Adjuster(M("TP_LABMASKS_POSTPROCESS_SMOOTHING"), 0, 100, 1, 0));
+        tb->pack_start(*maskSmoothing);
+        maskSmoothing->setAdjusterListener(this);
+        
+        CurveEditorGroup *cg = Gtk::manage(new CurveEditorGroup(options.lastToneCurvesDir, M("TP_LABMASKS_POSTPROCESS_CURVE")));
+        cg->setCurveListener(this);
+
+        maskCurve = static_cast<DiagonalCurveEditor *>(cg->addCurve(CT_Diagonal, ""));
+        cg->curveListComplete();
+        tb->pack_start(*cg, Gtk::PACK_SHRINK, 2);
+    }
+    mask_box->pack_start(*ppMask);
+    // -----------------------------------------------------------------------
+
     mask_box->set_border_width(4);
 
     MyExpander *mask_exp = nullptr;
@@ -1367,7 +1404,7 @@ LabMasksPanel::LabMasksPanel(LabMasksContentProvider *cp):
         
     maskBlur->delay = options.adjusterMaxDelay;
 
-    mask_expanders_ = { parametricMask, areaMask, deltaEMask, drawnMask };
+    mask_expanders_ = { parametricMask, areaMask, deltaEMask, drawnMask, ppMask };
     for (auto e : mask_expanders_) {
         e->signal_button_release_event().connect_notify(sigc::bind(sigc::mem_fun(this, &LabMasksPanel::onMaskExpanded), e));
     }
@@ -1514,7 +1551,11 @@ void LabMasksPanel::maskGet(int idx)
     r.deltaEMask.range = deltaERange->getValue();
     int sgn = deltaEInverted->get_active() ? -1 : 1;
     r.deltaEMask.decay = sgn * deltaEDecay->getValue();
+    r.deltaEMask.strength = deltaEStrength->getValue();
     r.name = maskName->get_text();
+    r.curve = maskCurve->getCurve();
+    r.posterization = maskPosterization->getValue();
+    r.smoothing = maskSmoothing->getValue();
 }
 
 
@@ -1701,6 +1742,9 @@ void LabMasksPanel::maskShow(int idx, bool list_only, bool unsub)
         maskBlur->setValue(r.parametricMask.blur);
         maskInverted->set_active(r.inverted);
         maskName->set_text(r.name);
+        maskCurve->setCurve(r.curve);
+        maskPosterization->setValue(r.posterization);
+        maskSmoothing->setValue(r.smoothing);
 
         if (unsub && isCurrentSubscriber()) {
             if (areaMaskToggle->get_active()) {
@@ -1783,6 +1827,7 @@ void LabMasksPanel::maskShow(int idx, bool list_only, bool unsub)
         deltaEH->setValue(r.deltaEMask.weight_H, r.deltaEMask.H);
         deltaERange->setValue(r.deltaEMask.range);
         deltaEDecay->setValue(std::abs(r.deltaEMask.decay));
+        deltaEStrength->setValue(std::abs(r.deltaEMask.strength));
         deltaEInverted->set_active(r.deltaEMask.decay < 0);
         static_cast<DeltaEArea *>(deltaEColor)->setColor(r.deltaEMask.L, r.deltaEMask.C, r.deltaEMask.H);
     }
@@ -2098,6 +2143,8 @@ void LabMasksPanel::curveChanged(CurveEditor* ce)
             l->panelChanged(EvCMask, M("HISTORY_CUSTOMCURVE"));
         } else if (ce == lightnessMask) {
             l->panelChanged(EvLMask, M("HISTORY_CUSTOMCURVE"));
+        } else if (ce == maskCurve) {
+            l->panelChanged(EvMaskPostprocess, M("TP_LABMASKS_POSTPROCESS_CURVE") + ": " + M("HISTORY_CUSTOMCURVE"));
         }
     }
 }
@@ -2117,7 +2164,7 @@ void LabMasksPanel::adjusterChanged(Adjuster *a, double newval)
         if (l) {
             l->panelChanged(areaMaskEvent(), M("GENERAL_CHANGED"));
         }
-    } else if (a == deltaERange || a == deltaEDecay) {
+    } else if (a == deltaERange || a == deltaEDecay || a == deltaEStrength) {
         if (l) {
             l->panelChanged(deltaEMaskEvent(), M("GENERAL_CHANGED"));
         }
@@ -2128,6 +2175,14 @@ void LabMasksPanel::adjusterChanged(Adjuster *a, double newval)
     } else if (a == lightnessMaskDetail) {
         if (l) {
             l->panelChanged(EvLMask, a->getTextValue());
+        }
+    } else if (a == maskPosterization) {
+        if (l) {
+            l->panelChanged(EvMaskPostprocess, M("TP_LABMASKS_POSTPROCESS_POSTERIZATION") + ": " + a->getTextValue());
+        }
+    } else if (a == maskSmoothing) {
+        if (l) {
+            l->panelChanged(EvMaskPostprocess, M("TP_LABMASKS_POSTPROCESS_SMOOTHING") + ": " + a->getTextValue());
         }
     }
     maskShow(selected_, true);
@@ -2159,18 +2214,19 @@ void LabMasksPanel::adjusterAutoToggled(Adjuster *a, bool newval)
 }
 
 
-void LabMasksPanel::setMasks(const std::vector<rtengine::procparams::Mask> &masks, int show_mask_idx)
+void LabMasksPanel::setMasks(const std::vector<rtengine::procparams::Mask> &masks, int selected_idx, bool show_mask)
 {
     disableListener();
     ConnectionBlocker b(selectionConn);
     
     masks_ = masks;
     selected_ = 0;
-    if (show_mask_idx >= 0) {
-        selected_ = show_mask_idx;
-        showMask->set_active(true);
-    } else {
-        showMask->set_active(false);
+    showMask->set_active(false);
+    if (selected_idx >= 0 && size_t(selected_idx) < masks.size()) {
+        selected_ = selected_idx;
+        if (show_mask) {
+            showMask->set_active(true);
+        }
     }
     static_cast<DrawnMaskPanel *>(drawnMask)->setTargetMask(nullptr);
     populateList();
@@ -2836,11 +2892,14 @@ void LabMasksPanel::on_map()
 {
     Gtk::VBox::on_map();
     if (first_mask_exp_) {
-        parametricMask->set_expanded(false);
-        areaMask->set_expanded(false);
-        deltaEMask->set_expanded(false);
-        drawnMask->set_expanded(false);
-        mask_exp_->set_expanded(false);
+        // parametricMask->set_expanded(false);
+        // areaMask->set_expanded(false);
+        // deltaEMask->set_expanded(false);
+        // drawnMask->set_expanded(false);
+        // mask_exp_->set_expanded(false);
+        for (auto e : mask_expanders_) {
+            e->set_expanded(false);
+        }
         first_mask_exp_ = false;
     }
 }

@@ -93,11 +93,6 @@ FilePanel::FilePanel () :
     fileCatalog->setInspector(inspectorPanel);
     inspectorPanel->signal_ready().connect(sigc::mem_fun(*this, &FilePanel::on_inspector_ready));
 
-    // Gtk::ScrolledWindow* sExportPanel = Gtk::manage ( new Gtk::ScrolledWindow() );
-    // exportPanel = Gtk::manage ( new ExportPanel () );
-    // sExportPanel->add (*exportPanel);
-    // sExportPanel->set_policy(Gtk::POLICY_AUTOMATIC, Gtk::POLICY_AUTOMATIC);
-
     fileCatalog->setFilterPanel (filterPanel);
 
     //------------------
@@ -128,7 +123,6 @@ FilePanel::FilePanel () :
     rightNotebook->append_page (*inspectorPanel, *inspectLab);
     // rightNotebook->append_page (*tpcPaned, *devLab);
     //rightNotebook->append_page (*taggingBox, *tagLab); commented out: currently the tab is empty ...
-    // rightNotebook->append_page (*sExportPanel, *exportLab);
     rightNotebook->set_name ("RightNotebook");
 
     rightBox->pack_start (*rightNotebook);
@@ -194,11 +188,11 @@ void FilePanel::init ()
         }
         dirBrowser->open(d);
     } else {
-        if (options.startupDir == STARTUPDIR_HOME) {
+        if (options.startupDir == Options::STARTUPDIR_HOME) {
             dirBrowser->open (PlacesBrowser::userPicturesDir ());
-        } else if (options.startupDir == STARTUPDIR_CURRENT) {
+        } else if (options.startupDir == Options::STARTUPDIR_CURRENT) {
             dirBrowser->open (argv0);
-        } else if (options.startupDir == STARTUPDIR_CUSTOM || options.startupDir == STARTUPDIR_LAST) {
+        } else if (options.startupDir == Options::STARTUPDIR_CUSTOM || options.startupDir == Options::STARTUPDIR_LAST) {
             if (options.startupPath.length() && Glib::file_test(options.startupPath, Glib::FILE_TEST_EXISTS) && Glib::file_test(options.startupPath, Glib::FILE_TEST_IS_DIR)) {
                 dirBrowser->open (options.startupPath);
             } else {
@@ -253,36 +247,47 @@ void FilePanel::on_NB_switch_page(Gtk::Widget* page, guint page_num)
 }
 
 
-bool FilePanel::fileSelected (Thumbnail* thm)
+FileSelectionListener::Result FilePanel::fileSelected (Thumbnail* thm)
 {
     if (!parent) {
-        return false;
+        return FileSelectionListener::Result::FAIL;
     }
 
     // Check if it's already open BEFORE loading the file
     if (options.tabbedUI && parent->selectEditorPanel(thm->getFileName())) {
-        return true;
+        return FileSelectionListener::Result::OK;
+    }
+
+    if (!options.tabbedUI && parent->epanel->getIsProcessing()) {
+        return FileSelectionListener::Result::BUSY;
     }
 
     // try to open the file
     bool loading = thm->imageLoad( true );
 
     if( !loading ) {
-        return false;
+        return FileSelectionListener::Result::FAIL;
     }
 
     pendingLoadMutex.lock();
+    if (parent->epanel) {
+        parent->epanel->setIsProcessing();
+    }
+    
     pendingLoad *pl = new pendingLoad();
     pl->complete = false;
     pl->pc = nullptr;
     pl->thm = thm;
     pendingLoads.push_back(pl);
+    if (!options.tabbedUI) {
+        parent->epanel->close();
+    }
     pendingLoadMutex.unlock();
 
     ProgressConnector<rtengine::InitialImage*> *ld = new ProgressConnector<rtengine::InitialImage*>();
     ld->startFunc (sigc::bind(sigc::ptr_fun(&rtengine::InitialImage::load), thm->getFileName (), thm->getType() == FT_Raw, &error, parent->getProgressListener()),
                    sigc::bind(sigc::mem_fun(*this, &FilePanel::imageLoaded), thm, ld) );
-    return true;
+    return FileSelectionListener::Result::OK;
 }
 
 bool FilePanel::addBatchQueueJobs(const std::vector<BatchQueueEntry*>& entries)
@@ -348,6 +353,9 @@ bool FilePanel::imageLoaded( Thumbnail* thm, ProgressConnector<rtengine::Initial
                 parent->set_title_decorated(pl->thm->getFileName());
             }
         } else {
+            if (parent->epanel) {
+                parent->epanel->refreshProcessingState(false);
+            }
             Glib::ustring msg_ = Glib::ustring("<b>") + M("MAIN_MSG_CANNOTLOAD") + " \"" + thm->getFileName() + "\" .\n</b>";
             Gtk::MessageDialog msgd (*parent, msg_, true, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
             msgd.run ();
@@ -385,7 +393,7 @@ void FilePanel::saveOptions ()
     //options.browserToolPanelWidth = winW - (rightNotebook->get_current_page() == 0 ? get_position() : pane_pos_);
     // options.browserToolPanelHeight = tpcPaned->get_position ();
 
-    if (options.startupDir == STARTUPDIR_LAST && fileCatalog->lastSelectedDir () != "") {
+    if (options.startupDir == Options::STARTUPDIR_LAST && fileCatalog->lastSelectedDir () != "") {
         options.startupPath = fileCatalog->lastSelectedDir ();
     }
 

@@ -26,6 +26,11 @@ link_directories(
     ${RSVG_LIBRARY_DIRS}
     )
 
+if(LIBRAW_FOUND)
+    include_directories(${LIBRAW_INCLUDE_DIRS})
+    link_directories(${LIBRAW_LIBRARY_DIRS})
+endif()
+
 set(CAMCONSTSFILE "camconst.json")
 
 set(RTENGINESOURCEFILES
@@ -161,6 +166,7 @@ set(RTENGINESOURCEFILES
     imgiomanager.cc
     lensexif.cc
     nlmeans.cc
+    newdelete.cc
     x3f_tools/x3f_printf.cc
     x3f_tools/x3f_io.cc
     x3f_tools/x3f_meta.cc
@@ -228,6 +234,9 @@ target_link_libraries(rtengine
     )
 if(LCMS_FAST_FLOAT AND NOT LCMS_FAST_FLOAT_SYSTEM)
     target_link_libraries(rtengine lcms2_fast_float)
+endif()
+if(LIBRAW_FOUND)
+    target_link_libraries(rtengine ${LIBRAW_LIBRARIES})
 endif()
 
 install(FILES ${CAMCONSTSFILE} DESTINATION "${DATADIR}" PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ)

@@ -32,9 +32,9 @@ namespace rtengine
 
 extern const Settings* settings;
 
-// *********************** class dfInfo **************************************
+// *********************** class DFInfo **************************************
 
-inline dfInfo& dfInfo::operator =(const dfInfo &o)
+inline DFInfo& DFInfo::operator =(const DFInfo &o)
 {
     if (this != &o) {
         pathname = o.pathname;
@@ -53,7 +53,7 @@ inline dfInfo& dfInfo::operator =(const dfInfo &o)
     return *this;
 }
 
-bool dfInfo::operator <(const dfInfo &e2) const
+bool DFInfo::operator <(const DFInfo &e2) const
 {
     if( this->maker.compare( e2.maker) >= 0 ) {
         return false;
@@ -78,7 +78,7 @@ bool dfInfo::operator <(const dfInfo &e2) const
     return true;
 }
 
-std::string dfInfo::key(const std::string &mak, const std::string &mod, int iso, double shut )
+std::string DFInfo::key(const std::string &mak, const std::string &mod, int iso, double shut )
 {
     std::ostringstream s;
     s << mak << " " << mod << " ";
@@ -90,7 +90,7 @@ std::string dfInfo::key(const std::string &mak, const std::string &mod, int iso,
     return s.str();
 }
 
-double dfInfo::distance(const std::string &mak, const std::string &mod, int iso, double shutter) const
+double DFInfo::distance(const std::string &mak, const std::string &mod, int iso, double shutter) const
 {
     if( this->maker.compare( mak) != 0 ) {
         return INFINITY;
@@ -105,7 +105,7 @@ double dfInfo::distance(const std::string &mak, const std::string &mod, int iso,
     return sqrt( dISO * dISO +  dShutter * dShutter);
 }
 
-RawImage* dfInfo::getRawImage()
+RawImage* DFInfo::getRawImage()
 {
     if(ri) {
         return ri;
@@ -117,7 +117,7 @@ RawImage* dfInfo::getRawImage()
     return ri;
 }
 
-std::vector<badPix>& dfInfo::getHotPixels()
+std::vector<badPix>& DFInfo::getHotPixels()
 {
     if( !ri ) {
         updateRawImage();
@@ -130,7 +130,7 @@ std::vector<badPix>& dfInfo::getHotPixels()
  * otherwise load each file from the pathNames list and extract a template from the media;
  * the first file is used also for reading all information other than pixels
  */
-void dfInfo::updateRawImage()
+void DFInfo::updateRawImage()
 {
     typedef unsigned int acc_t;
 
@@ -209,7 +209,7 @@ void dfInfo::updateRawImage()
     }
 }
 
-void dfInfo::updateBadPixelList( RawImage *df )
+void DFInfo::updateBadPixelList( RawImage *df )
 {
     if(!df) {
         return;
@@ -270,8 +270,12 @@ void dfInfo::updateBadPixelList( RawImage *df )
 
 // ************************* class DFManager *********************************
 
-void DFManager::init( Glib::ustring pathname )
+void DFManager::init(const Glib::ustring &pathname)
 {
+    if (pathname.empty()) {
+        return;
+    }
+    
     std::vector<Glib::ustring> names;
 
     auto dir = Gio::File::create_for_path (pathname);
@@ -312,7 +316,7 @@ void DFManager::init( Glib::ustring pathname )
 
     // Where multiple shots exist for same group, move filename to list
     for( dfList_t::iterator iter = dfList.begin(); iter != dfList.end(); ++iter ) {
-        dfInfo &i = iter->second;
+        DFInfo &i = iter->second;
 
         if( !i.pathNames.empty() && !i.pathname.empty() ) {
             i.pathNames.push_back( i.pathname );
@@ -338,7 +342,7 @@ void DFManager::init( Glib::ustring pathname )
     return;
 }
 
-dfInfo* DFManager::addFileInfo (const Glib::ustring& filename, bool pool)
+DFInfo* DFManager::addFileInfo (const Glib::ustring& filename, bool pool)
 {
     auto ext = getFileExtension(filename);
 
@@ -360,7 +364,7 @@ dfInfo* DFManager::addFileInfo (const Glib::ustring& filename, bool pool)
 
         auto info = file->query_info("standard::name,standard::type,standard::is-hidden");
 
-        if (!info && info->get_file_type() == Gio::FILE_TYPE_DIRECTORY) {
+        if (!info || info->get_file_type() == Gio::FILE_TYPE_DIRECTORY) {
             return nullptr;
         }
 
@@ -378,18 +382,18 @@ dfInfo* DFManager::addFileInfo (const Glib::ustring& filename, bool pool)
         dfList_t::iterator iter;
 
         if(!pool) {
-            dfInfo n(filename, "", "", 0, 0, 0);
+            DFInfo n(filename, "", "", 0, 0, 0);
             iter = dfList.emplace("", n);
             return &(iter->second);
         }
 
         FramesData idata(filename);
         /* Files are added in the map, divided by same maker/model,ISO and shutter*/
-        std::string key(dfInfo::key(((Glib::ustring)idata.getMake()).uppercase(), ((Glib::ustring)idata.getModel()).uppercase(), idata.getISOSpeed(), idata.getShutterSpeed()));
+        std::string key(DFInfo::key(((Glib::ustring)idata.getMake()).uppercase(), ((Glib::ustring)idata.getModel()).uppercase(), idata.getISOSpeed(), idata.getShutterSpeed()));
         iter = dfList.find(key);
 
         if(iter == dfList.end()) {
-            dfInfo n(filename, ((Glib::ustring)idata.getMake()).uppercase(), ((Glib::ustring)idata.getModel()).uppercase(), idata.getISOSpeed(), idata.getShutterSpeed(), idata.getDateTimeAsTS());
+            DFInfo n(filename, ((Glib::ustring)idata.getMake()).uppercase(), ((Glib::ustring)idata.getModel()).uppercase(), idata.getISOSpeed(), idata.getShutterSpeed(), idata.getDateTimeAsTS());
             iter = dfList.emplace(key, n);
         } else {
             while(iter != dfList.end() && iter->second.key() == key && ABS(iter->second.timestamp - idata.getDateTimeAsTS()) > 60 * 60 * 6) { // 6 hour difference
@@ -399,7 +403,7 @@ dfInfo* DFManager::addFileInfo (const Glib::ustring& filename, bool pool)
             if(iter != dfList.end()) {
                 iter->second.pathNames.push_back(filename);
             } else {
-                dfInfo n(filename, ((Glib::ustring)idata.getMake()).uppercase(), ((Glib::ustring)idata.getModel()).uppercase(), idata.getISOSpeed(), idata.getShutterSpeed(), idata.getDateTimeAsTS());
+                DFInfo n(filename, ((Glib::ustring)idata.getMake()).uppercase(), ((Glib::ustring)idata.getModel()).uppercase(), idata.getISOSpeed(), idata.getShutterSpeed(), idata.getDateTimeAsTS());
                 iter = dfList.emplace(key, n);
             }
         }
@@ -417,7 +421,7 @@ void DFManager::getStat( int &totFiles, int &totTemplates)
     totTemplates = 0;
 
     for( dfList_t::iterator iter = dfList.begin(); iter != dfList.end(); ++iter ) {
-        dfInfo &i = iter->second;
+        DFInfo &i = iter->second;
 
         if( i.pathname.empty() ) {
             totTemplates++;
@@ -432,13 +436,13 @@ void DFManager::getStat( int &totFiles, int &totTemplates)
  *  if perfect matches for iso and shutter are found, then the list is scanned for lesser distance in time
  *  otherwise if no match is found, the whole list is searched for lesser distance in iso and shutter
  */
-dfInfo* DFManager::find( const std::string &mak, const std::string &mod, int isospeed, double shut, time_t t )
+DFInfo* DFManager::find( const std::string &mak, const std::string &mod, int isospeed, double shut, time_t t )
 {
     if( dfList.empty() ) {
         return nullptr;
     }
 
-    std::string key( dfInfo::key(mak, mod, isospeed, shut) );
+    std::string key( DFInfo::key(mak, mod, isospeed, shut) );
     dfList_t::iterator iter = dfList.find( key );
 
     if(  iter != dfList.end() ) {
@@ -475,7 +479,7 @@ dfInfo* DFManager::find( const std::string &mak, const std::string &mod, int iso
 
 RawImage* DFManager::searchDarkFrame( const std::string &mak, const std::string &mod, int iso, double shut, time_t t )
 {
-    dfInfo *df = find( ((Glib::ustring)mak).uppercase(), ((Glib::ustring)mod).uppercase(), iso, shut, t );
+    DFInfo *df = find( ((Glib::ustring)mak).uppercase(), ((Glib::ustring)mod).uppercase(), iso, shut, t );
 
     if( df ) {
         return df->getRawImage();
@@ -492,7 +496,7 @@ RawImage* DFManager::searchDarkFrame( const Glib::ustring filename )
         }
     }
 
-    dfInfo *df = addFileInfo( filename, false );
+    DFInfo *df = addFileInfo( filename, false );
 
     if(df) {
         return df->getRawImage();
@@ -512,7 +516,7 @@ std::vector<badPix> *DFManager::getHotPixels ( const Glib::ustring filename )
 }
 std::vector<badPix> *DFManager::getHotPixels ( const std::string &mak, const std::string &mod, int iso, double shut, time_t t )
 {
-    dfInfo *df = find( ((Glib::ustring)mak).uppercase(), ((Glib::ustring)mod).uppercase(), iso, shut, t );
+    DFInfo *df = find( ((Glib::ustring)mak).uppercase(), ((Glib::ustring)mod).uppercase(), iso, shut, t );
 
     if( df ) {
         if( settings->verbose ) {

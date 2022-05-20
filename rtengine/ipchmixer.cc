@@ -21,6 +21,7 @@
 // (improcfun.cc) of RawTherapee
 
 #include "improcfun.h"
+#include "linalgebra.h"
 
 namespace rtengine {
 
@@ -44,62 +45,48 @@ void get_mixer_matrix(const ChannelMixerParams &chmix, const Glib::ustring &work
                       float &gr, float &gg, float &gb,
                       float &br, float &bg, float &bb)
 {
-    typedef std::array<float, 3> A3;
-    typedef std::array<A3, 3> M33;
+    typedef Vec3f A3;
+    typedef Mat33f M33;
     
-    TMatrix m = ICCStore::getInstance()->workingSpaceMatrix(workingProfile);
-    const M33 ws = {
-        A3{ float(m[0][0]), float(m[0][1]), float(m[0][2]) },
-        A3{ float(m[1][0]), float(m[1][1]), float(m[1][2]) },
-        A3{ float(m[2][0]), float(m[2][1]), float(m[2][2]) }
-    };
+    TMatrix ws = ICCStore::getInstance()->workingSpaceMatrix(workingProfile);
 
     constexpr float D65_x = 0.3127f;
     constexpr float D65_y = 0.3290f;
 
     
-    const A3 D65_bb_white = { D65_x, D65_y, 1.f - D65_x - D65_y };
+    const A3 D65_bb_white(D65_x, D65_y, 1.f - D65_x - D65_y);
 
     const auto rgb2xy =
         [&](const A3 &rgb) -> A3
         {
-            A3 xyz = dotProduct(ws, rgb);
+            A3 xyz = dot_product(ws, rgb);
             float sum = xyz[0] + xyz[1] + xyz[2];
             if (sum == 0.f) {
                 return D65_bb_white;
             }
             float x = xyz[0] / sum;
             float y = xyz[1] / sum;
-            return { x, y, 1.f - x - y };
+            return A3(x, y, 1.f - x - y);
         };
 
     const auto get_matrix =
         [&](const A3 &r_xy, const A3 &g_xy, const A3 &b_xy, const A3 &white) -> M33
         {
-            M33 m = {
-                A3{ r_xy[0], g_xy[0], b_xy[0] },
-                A3{ r_xy[1], g_xy[1], b_xy[1] },
-                A3{ r_xy[2], g_xy[2], b_xy[2] }
-            };
+            M33 m(r_xy[0], g_xy[0], b_xy[0],
+                  r_xy[1], g_xy[1], b_xy[1],
+                  r_xy[2], g_xy[2], b_xy[2]
+                );
 
-            M33 mi;
-            invertMatrix(m, mi);
-
-            A3 kr = dotProduct(mi, white);
-
-            M33 kr_m = {
-                A3{ kr[0], 0.f, 0.f },
-                A3{ 0.f, kr[1], 0.f },
-                A3{ 0.f, 0.f, kr[2] }
-            };
-
-            M33 ret = dotProduct(m, kr_m);
+            M33 mi = inverse(m);
+            A3 kr = dot_product(mi, white);
+            M33 kr_m = diagonal(kr[0], kr[1], kr[2]);
+            M33 ret = dot_product(m, kr_m);
             return ret;
         };
 
-    A3 red = {1.f, 0.f, 0.f};
-    A3 green = {0.f, 1.f, 0.f};
-    A3 blue = {0.f, 0.f, 1.f};
+    A3 red(1.f, 0.f, 0.f);
+    A3 green(0.f, 1.f, 0.f);
+    A3 blue(0.f, 0.f, 1.f);
 
     A3 r_xy = rgb2xy(red);
     A3 g_xy = rgb2xy(green);
@@ -120,7 +107,7 @@ void get_mixer_matrix(const ChannelMixerParams &chmix, const Glib::ustring &work
             CoordD d(p);
             d += w;
 
-            return A3{ float(d.x), float(d.y), float(1.0 - d.x - d.y) };
+            return A3(float(d.x), float(d.y), float(1.0 - d.x - d.y));
         };
 
     M33 N = get_matrix(tweak(r_xy, chmix.hue_tweak[0], chmix.sat_tweak[0],
@@ -131,8 +118,8 @@ void get_mixer_matrix(const ChannelMixerParams &chmix, const Glib::ustring &work
                              0.075f, 0.5f),
                        D65_bb_white);
 
-    M33 Minv;
-    if (!invertMatrix(M, Minv)) {
+    M33 Minv = inverse(M);
+    if (!Minv[1][1]) {
         rr = 1.f;
         rg = 0.f;
         rb = 0.f;
@@ -145,7 +132,7 @@ void get_mixer_matrix(const ChannelMixerParams &chmix, const Glib::ustring &work
         bg = 0.f;
         bb = 1.f;
     } else {
-        M33 res = dotProduct(N, Minv);
+        M33 res = dot_product(N, Minv);
 
         rr = res[0][0];
         rg = res[0][1];
@@ -222,9 +209,9 @@ void ImProcFunctions::channelMixer(Imagefloat *img)
                 vfloat gmix = (r * vGR + g * vGG + b * vGB);
                 vfloat bmix = (r * vBR + g * vBG + b * vBB);
 
-                STVF(img->r(y, x), rmix);
-                STVF(img->g(y, x), gmix);
-                STVF(img->b(y, x), bmix);
+                STVF(img->r(y, x), vmaxf(rmix, ZEROV));
+                STVF(img->g(y, x), vmaxf(gmix, ZEROV));
+                STVF(img->b(y, x), vmaxf(bmix, ZEROV));
             }
 #endif
             for (; x < img->getWidth(); ++x) {
@@ -236,9 +223,9 @@ void ImProcFunctions::channelMixer(Imagefloat *img)
                 float gmix = (r * GR + g * GG + b * GB);
                 float bmix = (r * BR + g * BG + b * BB);
 
-                img->r(y, x) = rmix;
-                img->g(y, x) = gmix;
-                img->b(y, x) = bmix;
+                img->r(y, x) = max(rmix, 0.f);
+                img->g(y, x) = max(gmix, 0.f);
+                img->b(y, x) = max(bmix, 0.f);
             }
         }
     }

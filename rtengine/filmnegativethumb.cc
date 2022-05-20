@@ -103,7 +103,7 @@ void Thumbnail::processFilmNegative(const procparams::ProcParams &params, const 
             calcMedians(baseImg, bW, bH, rwidth - bW, rheight - bH, rmed, gmed, bmed);
         }
 
-        if (settings->verbose) {
+        if (settings->verbose > 1) {
             printf("Thumbnail input channel medians: %g %g %g\n", rmed, gmed, bmed);
         }
 
@@ -133,7 +133,7 @@ void Thumbnail::processFilmNegative(const procparams::ProcParams &params, const 
         gbase *= (greenMultiplier / camwbGreen) * scaleGain;
         bbase *= (blueMultiplier / camwbBlue)   * scaleGain;
 
-        if (settings->verbose) {
+        if (settings->verbose > 1) {
             printf("Thumbnail input film base values: %g %g %g\n", rbase, gbase, bbase);
         }
 
@@ -142,7 +142,7 @@ void Thumbnail::processFilmNegative(const procparams::ProcParams &params, const 
         gbase = powf(gbase, gexp);
         bbase = powf(bbase, bexp);
 
-        if (settings->verbose) {
+        if (settings->verbose > 1) {
             printf("Thumbnail output film base values: %g %g %g\n", rbase, gbase, bbase);
         }
 
@@ -197,7 +197,7 @@ void Thumbnail::processFilmNegative(const procparams::ProcParams &params, const 
     }
 
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         printf("Thumbnail computed multipliers: %g %g %g\n", static_cast<double>(rmult), static_cast<double>(gmult), static_cast<double>(bmult));
     }
 

@@ -16,64 +16,90 @@
 #include "camconst.h"
 #include "utils.h"
 #include "metadata.h"
+#include "image8.h"
+
+#ifdef ART_USE_LIBRAW
+# include <libraw/libraw.h>
+#endif // ART_USE_LIBRAW
+
 
 
 namespace rtengine {
 
-extern const Settings* settings;
+extern const Settings *settings;
+extern MyMutex *librawMutex;
 
-RawImage::RawImage(  const Glib::ustring &name )
-    : data(nullptr)
+
+RawImage::RawImage(const Glib::ustring &name)
+    : DCraw()
+    , data(nullptr)
     , prefilters(0)
     , filename(name)
     , rotate_deg(0)
     , profile_data(nullptr)
     , allocation(nullptr)
-    , has_raw_border_(true)
     , foveon_helper(nullptr)
+    , thumb_data(nullptr)
+    , use_internal_decoder_(true)
 {
+    profile_length = 0;
     memset(maximum_c4, 0, sizeof(maximum_c4));
+    memset(white, 0, sizeof(white));
     RT_matrix_from_constant = ThreeValBool::X;
     RT_blacklevel_from_constant = ThreeValBool::X;
     RT_whitelevel_from_constant = ThreeValBool::X;
+    memset(make, 0, sizeof(make));
+    memset(model, 0, sizeof(model));
 }
+
 
 RawImage::~RawImage()
 {
-    if(ifp) {
+    if (ifp) {
         fclose(ifp);
         ifp = nullptr;
     }
 
-    if( image ) {
+    if (image && use_internal_decoder_) {
         free(image);
     }
 
-    if(allocation) {
-        delete [] allocation;
+    if (allocation) {
+        delete[] allocation;
         allocation = nullptr;
     }
 
-    if(float_raw_image) {
-        delete [] float_raw_image;
+    if (float_raw_image) {
+        delete[] float_raw_image;
         float_raw_image = nullptr;
     }
 
-    if(data) {
-        delete [] data;
+    if (data) {
+        delete[] data;
         data = nullptr;
     }
 
-    if(profile_data) {
-        delete [] profile_data;
+    if (profile_data) {
+        delete[] profile_data;
         profile_data = nullptr;
     }
     
     if(foveon_helper) {
         delete foveon_helper;
         foveon_helper = nullptr;
+	}
+
+    if (thumb_data) {
+        delete[] thumb_data;
     }
 }
+
+
+void RawImage::pre_interpolate()
+{
+    DCraw::pre_interpolate();
+}
+
 
 eSensorType RawImage::getSensorType() const
 {
@@ -475,6 +501,7 @@ skip_block:
     }
 }
 
+
 int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, ProgressListener *plistener, double progressRange, bool apply_corrections)
 {
     ifname = filename.c_str();
@@ -506,7 +533,159 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
     // set the number of the frame to extract. If the number is larger then number of existing frames - 1, dcraw will handle that correctly
 
     shot_select = imageNum;
-    identify();
+    use_internal_decoder_ = true;
+
+#ifdef ART_USE_LIBRAW
+    libraw_.reset(new LibRaw());
+    {
+        use_internal_decoder_ = false;
+        libraw_->imgdata.params.use_camera_wb = 1;
+
+        int err = libraw_->open_buffer(ifp->data, ifp->size);
+        if (err != LIBRAW_SUCCESS && err != LIBRAW_FILE_UNSUPPORTED) {
+            return err;
+        } else if (err == LIBRAW_FILE_UNSUPPORTED) {
+            // fallback to the internal one
+            use_internal_decoder_ = true;
+        } else if (strncmp(libraw_->unpack_function_name(), "sony_arq_load_raw", 17) == 0 || strncmp(libraw_->imgdata.idata.software, "HDRMerge", 8) == 0) {
+            use_internal_decoder_ = true;
+        } else {
+            auto &d = libraw_->imgdata.idata;
+            is_raw = d.raw_count;
+            strncpy(make, d.normalized_make, sizeof(make)-1);
+            make[sizeof(make)-1] = 0;
+            strncpy(model, d.normalized_model, sizeof(model)-1);
+            model[sizeof(model)-1] = 0;
+            RT_software = d.software;
+            dng_version = d.dng_version;
+            filters = d.filters;
+            is_foveon = d.is_foveon;
+            colors = d.colors;
+            tiff_bps = 0;
+
+            for (int i = 0; i < 6; ++i) {
+                for (int j = 0; j < 6; ++j) {
+                    xtrans[i][j] = d.xtrans[i][j];
+                    xtrans_abs[i][j] = d.xtrans_abs[i][j];
+                }
+            }
+            auto &s = libraw_->imgdata.sizes;
+            raw_width = s.raw_width;
+            raw_height = s.raw_height;
+            width = s.width;
+            height = s.height;
+            top_margin = s.top_margin;
+            left_margin = s.left_margin;
+            iheight = s.iheight;
+            iwidth = s.iwidth;
+            flip = s.flip;
+
+            auto &o = libraw_->imgdata.other;
+            iso_speed = o.iso_speed;
+            shutter = o.shutter;
+            aperture = o.aperture;
+            focal_len = o.focal_len;
+            timestamp = o.timestamp;
+            shot_order = o.shot_order;
+
+            auto &io = libraw_->imgdata.rawdata.ioparams;
+            shrink = io.shrink;
+            zero_is_bad = io.zero_is_bad;
+            fuji_width = io.fuji_width;
+            raw_color = io.raw_color;
+            mix_green = io.mix_green;
+
+            auto &cd = libraw_->imgdata.color;
+            black = cd.black;
+            maximum = cd.maximum;
+            tiff_bps = cd.raw_bps;
+
+            for (size_t i = 0; i < sizeof(cblack)/sizeof(unsigned); ++i) {
+                cblack[i] = cd.cblack[i];
+            }
+            for (int i = 0; i < 4; ++i) {
+                cam_mul[i] = cd.cam_mul[i];
+                pre_mul[i] = cd.pre_mul[i];
+            }
+
+            for (int i = 0; i < 3; ++i) {
+                for (int j = 0; j < 4; ++j) {
+                    cmatrix[i][j] = cd.cmatrix[i][j];
+                    rgb_cam[i][j] = cd.rgb_cam[i][j];
+                }
+            }
+
+            for (int i = 0; i < 8; ++i) {
+                for (int j = 0; j < 8; ++j) {
+                    white[i][j] = cd.white[i][j];
+                }
+            }
+
+            for (int i = 0; i < 8; ++i) {
+                for (int j = 0; j < 4; ++j) {
+                    mask[i][j] = s.mask[i][j];
+                }
+            }
+
+            auto &mkn = libraw_->imgdata.makernotes;
+
+            // if (!strcmp(make, "Panasonic") && mkn.panasonic.BlackLevelDim > 0) {
+            //     memset(cblack, 0, sizeof(cblack));
+            //     if (mkn.panasonic.BlackLevelDim >= 4) {
+            //         for (size_t i = 0; i < 4; ++i) {
+            //             cblack[i] = mkn.panasonic.BlackLevel[i];
+            //         }
+            //         black = 0;
+            //     } else {
+            //         black = mkn.panasonic.BlackLevel[0];
+            //     }
+            // } else
+            if (!strcmp(make, "Canon") && isBayer() && !dng_version) {
+                if (mkn.canon.AverageBlackLevel) {
+                    memset(cblack, 0, sizeof(cblack));
+                    for (size_t i = 0; i < 4; ++i) {
+                        cblack[i] = mkn.canon.ChannelBlackLevel[i];
+                    }
+                    black = 0;
+                }
+                if (mkn.canon.SpecularWhiteLevel) {
+                    maximum = mkn.canon.SpecularWhiteLevel;
+                } else if (mkn.canon.NormalWhiteLevel) {
+                    maximum = mkn.canon.NormalWhiteLevel;
+                }
+            }
+            while (tiff_bps < 16 && (size_t(1) << size_t(tiff_bps)) < maximum) {
+                ++tiff_bps;
+            }
+
+            if (dng_version) {
+                RT_whitelevel_from_constant = ThreeValBool::F;
+                RT_blacklevel_from_constant = ThreeValBool::F;
+                if (!isBayer() && !isXtrans()) {
+                    RT_matrix_from_constant = ThreeValBool::F;
+                }
+            } else if (strcmp(make, "Panasonic") != 0) {
+                RT_whitelevel_from_constant = ThreeValBool::T;
+                RT_blacklevel_from_constant = ThreeValBool::T;
+            }
+
+            if (is_foveon) {
+                raw_width = width;
+                raw_height = height;
+                top_margin = 0;
+                left_margin = 0;
+            }
+        }
+    }
+    if (use_internal_decoder_) {
+        libraw_->recycle();
+    }
+#endif // ART_USE_LIBRAW
+
+    if (use_internal_decoder_) {
+        identify();
+    }
+
     // in case dcraw didn't handle the above mentioned case...
     shot_select = std::min(shot_select, std::max(is_raw, 1u) - 1);
 
@@ -525,11 +704,13 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
         if(!foveon_helper) foveon_helper = new FoveonHelper(this);
     }
 
-    if(!strcmp(make,"Fujifilm") && raw_height * raw_width * 2u != raw_size) {
-        if (raw_width * raw_height * 7u / 4u == raw_size) {
-            load_raw = &RawImage::fuji_14bit_load_raw;
-        } else {
-            parse_fuji_compressed_header();
+    if (use_internal_decoder_) {
+        if (!strcmp(make,"Fujifilm") && raw_height * raw_width * 2u != raw_size) {
+            if (raw_width * raw_height * 7u / 4u == raw_size) {
+                load_raw = &RawImage::fuji_14bit_load_raw;
+            } else {
+                parse_fuji_compressed_header();
+            }
         }
     }
 
@@ -545,8 +726,7 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
         this->rotate_deg = 0;
     }
 
-    if( loadData ) {
-
+    if (loadData) {
         use_camera_wb = 1;
         shrink = 0;
 
@@ -557,30 +737,82 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
         iheight = height;
         iwidth  = width;
 
-        if (filters || colors == 1) {
-            raw_image = (ushort *) calloc ((static_cast<unsigned int>(raw_height) + 7u) * static_cast<unsigned int>(raw_width), 2);
-            merror (raw_image, "main()");
+        if (use_internal_decoder_) {
+            if (filters || colors == 1) {
+                raw_image = (ushort *) calloc ((static_cast<unsigned int>(raw_height) + 7u) * static_cast<unsigned int>(raw_width), 2);
+                merror (raw_image, "main()");
+            }
+
+            // dcraw needs this global variable to hold pixel data
+            image = (ImageType)calloc (static_cast<unsigned int>(height) * static_cast<unsigned int>(width) * sizeof * image + meta_length, 1);
+            meta_data = (char *) (image + static_cast<unsigned int>(height) * static_cast<unsigned int>(width));
+
+            if (!image) {
+                return 200;
+            }
+
+            // Load raw pixels data
+            fseek(ifp, data_offset, SEEK_SET);
+            (this->*load_raw)();
+        } else {
+#ifdef ART_USE_LIBRAW
+            libraw_->imgdata.rawparams.shot_select = shot_select;
+
+            int err = libraw_->open_buffer(ifp->data, ifp->size);
+            if (err) {
+                return err;
+            }
+            {
+#ifdef LIBRAW_USE_OPENMP
+                MyMutex::MyLock lock(*librawMutex);
+#endif
+                err = libraw_->unpack();
+            }
+            if (err) {
+                return err;
+            }
+
+            auto &rd = libraw_->imgdata.rawdata;
+            raw_image = rd.raw_image;
+            if (rd.float_image) {
+                float_raw_image = new float[raw_width * raw_height];
+                for (int y = 0; y < raw_height; ++y) {
+                    for (int x = 0; x < raw_width; ++x) {
+                        size_t idx = y * raw_width + x;
+                        float_raw_image[idx] = rd.float_image[idx];
+                    }
+                }
+            } else {
+#ifdef LIBRAW_USE_OPENMP
+                MyMutex::MyLock lock(*librawMutex);
+#endif
+                float_raw_image = nullptr;
+                err = libraw_->raw2image();
+                if (err) {
+                    return err;
+                }
+                image = libraw_->imgdata.image;
+            }
+
+            // get our custom camera matrices, but don't mess with black/white levels yet
+            // (if we have custom levels in json files, we will get them later)
+            auto bl = RT_blacklevel_from_constant;
+            auto wl = RT_whitelevel_from_constant;
+            RT_blacklevel_from_constant = ThreeValBool::F;
+            RT_whitelevel_from_constant = ThreeValBool::F;
+
+            adobe_coeff(make, model);
+
+            RT_blacklevel_from_constant = bl;
+            RT_whitelevel_from_constant = wl;
+
+            if (libraw_->imgdata.color.profile_length) {
+                profile_length = libraw_->imgdata.color.profile_length;
+                profile_data = new char[profile_length];
+                memcpy(profile_data, libraw_->imgdata.color.profile, profile_length);
+            }
+#endif // ART_USE_LIBRAW
         }
-
-        // dcraw needs this global variable to hold pixel data
-        image = (ImageType)calloc (static_cast<unsigned int>(height) * static_cast<unsigned int>(width) * sizeof * image + meta_length, 1);
-        meta_data = (char *) (image + static_cast<unsigned int>(height) * static_cast<unsigned int>(width));
-
-        if(!image) {
-            return 200;
-        }
-
-        /* Issue 2467
-              if (setjmp (failure)) {
-                  if (image) { free (image); image=NULL; }
-                  if (raw_image) { free(raw_image); raw_image=NULL; }
-                  fclose(ifp); ifp=NULL;
-                  return 100;
-              }
-        */
-        // Load raw pixels data
-        fseek (ifp, data_offset, SEEK_SET);
-        (this->*load_raw)();
 
         if (!float_raw_image) { // apply baseline exposure only for float DNGs
             RT_baseline_exposure = 0;
@@ -607,7 +839,8 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
             orig_raw_width = raw_width;
             orig_raw_height = raw_height;
 
-            if (cc && cc->has_rawCrop(raw_width, raw_height)) {
+            if (cc && cc->has_rawCrop(raw_width, raw_height) && use_internal_decoder_) {
+
                 raw_crop_cc = true;
                 int lm, tm, w, h;
                 cc->get_rawCrop(raw_width, raw_height, lm, tm, w, h);
@@ -685,12 +918,13 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
                 }
             }
 
-            crop_masked_pixels();
-            free (raw_image);
+            if (use_internal_decoder_) {
+                crop_masked_pixels();
+                free(raw_image);
+            }
             raw_image = nullptr;
         } else {
-            if (get_maker() == "Sigma" && cc && cc->has_rawCrop(width, height)) { // foveon images
-            
+            if (get_maker() == "Sigma" && cc && cc->has_rawCrop(width, height) && use_internal_decoder_) { // foveon images
                 raw_crop_cc = true;
                 int lm, tm, w, h;
                 cc->get_rawCrop(width, height, lm, tm, w, h);
@@ -714,10 +948,12 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
         }
 
         // Load embedded profile
-        if (profile_length) {
-            profile_data = new char[profile_length];
-            fseek ( ifp, profile_offset, SEEK_SET);
-            fread ( profile_data, 1, profile_length, ifp);
+        if (use_internal_decoder_) {
+            if (profile_length) {
+                profile_data = new char[profile_length];
+                fseek(ifp, profile_offset, SEEK_SET);
+                fread(profile_data, 1, profile_length, ifp);
+            }
         }
 
         /*
@@ -761,16 +997,16 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
         }
 
         if (black_c4[0] == -1) {
-            if(isXtrans())
+            if (isXtrans()) {
                 for (int c = 0; c < 4; c++) {
                     black_c4[c] = cblack[6];
                 }
-            else
-
+            } else {
                 // RT constants not set, bring in the DCRAW single channel black constant
                 for (int c = 0; c < 4; c++) {
                     black_c4[c] = black + cblack[c];
                 }
+            }
         } else if(isFoveon() && foveon_helper && foveon_helper->get_BlackDev(black_c4)){
         	// compute black levels for foveon from raw
         	// a bit confused about different black calculation
@@ -792,11 +1028,8 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
         for (int c = 0; c < 4; c++) {
             if (static_cast<int>(cblack[c]) < black_c4[c]) {
                 cblack[c] = black_c4[c];
+                cblack[4] = cblack[5] = 0;
             }
-        }
-
-        if (cc && cc->has_rawBorder()) {
-            has_raw_border_ = cc->get_rawBorder();
         }
 
         if (settings->verbose) {
@@ -829,7 +1062,7 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
         }
     }
 
-    if ( closeFile ) {
+    if (closeFile) {
         fclose(ifp);
         ifp = nullptr;
     }
@@ -841,9 +1074,10 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
     return 0;
 }
 
+
 float** RawImage::compress_image(unsigned int frameNum, bool freeImage)
 {
-    if( !image ) {
+    if (!image) {
         return nullptr;
     }
 
@@ -935,15 +1169,20 @@ float** RawImage::compress_image(unsigned int frameNum, bool freeImage)
             }
     }
 
-    if(freeImage) {
-        free(image); // we don't need this anymore
+    if (freeImage) {
+        if (use_internal_decoder_) {
+            free(image); // we don't need this anymore
+        } else {
+#ifdef ART_USE_LIBRAW
+            libraw_->recycle();
+#endif // ART_USE_LIBRAW
+        }
         image = nullptr;
     }
     return data;
 }
 
-bool
-RawImage::is_supportedThumb() const
+bool RawImage::is_supportedThumb() const
 {
     return ( (thumb_width * thumb_height) > 0 &&
              ( write_thumb == &rtengine::RawImage::jpeg_thumb ||
@@ -951,23 +1190,15 @@ RawImage::is_supportedThumb() const
              !thumb_load_raw );
 }
 
-bool
-RawImage::is_jpegThumb() const
-{
-    return ( (thumb_width * thumb_height) > 0 &&
-              write_thumb == &rtengine::RawImage::jpeg_thumb &&
-             !thumb_load_raw );
-}
 
-bool
-RawImage::is_ppmThumb() const
+bool RawImage::is_ppmThumb() const
 {
     return ( (thumb_width * thumb_height) > 0 &&
              write_thumb == &rtengine::RawImage::ppm_thumb &&
              !thumb_load_raw );
 }
 
-void RawImage::getXtransMatrix( int XtransMatrix[6][6])
+void RawImage::getXtransMatrix(int XtransMatrix[6][6])
 {
     for(int row = 0; row < 6; row++)
         for(int col = 0; col < 6; col++) {
@@ -975,7 +1206,8 @@ void RawImage::getXtransMatrix( int XtransMatrix[6][6])
         }
 }
 
-void RawImage::getRgbCam (float rgbcam[3][4])
+
+void RawImage::getRgbCam(float rgbcam[3][4])
 {
     for(int row = 0; row < 3; row++)
         for(int col = 0; col < 4; col++) {
@@ -984,8 +1216,8 @@ void RawImage::getRgbCam (float rgbcam[3][4])
 
 }
 
-bool
-RawImage::get_thumbSwap() const
+
+bool RawImage::get_thumbSwap() const
 {
     return (order == 0x4949) == (ntohs(0x1234) == 0x1234);
 }
@@ -1035,6 +1267,69 @@ float RawImage::get_optical_black(int row, int col) const
     }
     int c = FC(row, col);
     return raw_optical_black_med_[row][c];
+}
+
+
+Image8 *RawImage::getThumbnail()
+{
+    if (use_internal_decoder_) {
+        if (!checkThumbOk()) {
+            return nullptr;
+        }
+
+        Image8 *img = new Image8();
+        img->setSampleFormat(IIOSF_UNSIGNED_CHAR);
+        img->setSampleArrangement(IIOSA_CHUNKY);
+
+        const char *data = reinterpret_cast<const char *>(fdata(get_thumbOffset(), get_file()));
+
+        int err = 1;
+        if ((unsigned char)data[1] == 0xd8) {
+            err = img->loadJPEGFromMemory(data, get_thumbLength());
+        } else if (is_ppmThumb()) {
+            err = img->loadPPMFromMemory(data, get_thumbWidth(), get_thumbHeight(), get_thumbSwap(), get_thumbBPS());
+        }
+
+        // did we succeed?
+        if (err) {
+            delete img;
+            img = nullptr;
+        }
+
+        return img;
+    }
+#ifdef ART_USE_LIBRAW
+    if (!ifp) {
+        return nullptr;
+    } else {
+        int err = libraw_->unpack_thumb();
+        if (err) {
+            return nullptr;
+        }
+        auto &t = libraw_->imgdata.thumbnail;
+        if (!t.thumb) {
+            return nullptr;
+        } else if (t.tformat != LIBRAW_THUMBNAIL_JPEG && t.tformat != LIBRAW_THUMBNAIL_BITMAP) {
+            return nullptr;
+        } else {
+            Image8 *img = new Image8();
+            img->setSampleFormat(IIOSF_UNSIGNED_CHAR);
+            img->setSampleArrangement(IIOSA_CHUNKY);
+            if (t.tformat == LIBRAW_THUMBNAIL_JPEG) {
+                err = img->loadJPEGFromMemory(t.thumb, t.tlength);
+            } else {
+                err = img->loadPPMFromMemory(t.thumb, t.twidth, t.theight, false, 8);
+            }
+            if (err) {
+                delete img;
+                return nullptr;
+            } else {
+                return img;
+            }
+        }
+    }
+#endif // ART_USE_LIBRAW
+    return nullptr;
 }
 
 } //namespace rtengine
@@ -1284,21 +1579,6 @@ DCraw::dcraw_coeff_overrides(const char make[], const char model[], const int is
         *white_level = maximum;
     }
     memset(trans, 0, sizeof(*trans) * 12);
-
-    // // indicate that DCRAW wants these from constants (rather than having loaded these from RAW file
-    // // note: this is simplified so far, in some cases dcraw calls this when it has say the black level
-    // // from file, but then we will not provide any black level in the tables. This case is mainly just
-    // // to avoid loading table values if we have loaded a DNG conversion of a raw file (which already
-    // // have constants stored in the file).
-    // if (RT_whitelevel_from_constant == ThreeValBool::X || is_pentax_dng) {
-    //     RT_whitelevel_from_constant = ThreeValBool::T;
-    // }
-    // if (RT_blacklevel_from_constant == ThreeValBool::X || is_pentax_dng) {
-    //     RT_blacklevel_from_constant = ThreeValBool::T;
-    // }
-    // if (RT_matrix_from_constant == ThreeValBool::X) {
-    //     RT_matrix_from_constant = ThreeValBool::T;
-    // }
 
     {
         // test if we have any information in the camera constants store, if so we take that.

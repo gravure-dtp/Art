@@ -2121,5 +2121,9 @@ headerbar button.titlebutton.close:active{
     background-image: linear-gradient(to bottom, rgb(215,0,0), rgb(185,0,0) 40%, rgb(150,0,0));
     box-shadow: inset 0 0.083333333333333333em rgba(242, 242, 242, 0.4);
 }
+
+.app-notification {
+    background-color: rgba(0, 0, 0, 0.7);
+}
 /*** end ***************************************************************************************/
 

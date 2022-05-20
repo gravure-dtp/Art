@@ -26,11 +26,7 @@
 #include "options.h"
 #include "../rtengine/iccstore.h"
 
-class Navigator : public Gtk::Frame, public PointerMotionListener
-{
-
-    typedef const double (*TMatrix)[3];
-
+class Navigator : public Gtk::Frame, public PointerMotionListener {
 private:
     Options::NavigatorUnit currentRGBUnit;
     Options::NavigatorUnit currentLCHUnit;

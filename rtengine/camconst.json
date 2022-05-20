@@ -78,9 +78,6 @@ Examples:
            { "frame" : [0, 0], "crop": [10, 20, 4000, 3000] }
         ],
 
-        // if false, do not subtract a border from the specified raw crop
-        "raw_border" : false,
-
         // Almost same as MaskedAreas DNG tag, used for black level measuring. Here up to two areas can be defined
         // by tetrads of numbers:
         "masked_areas": [ 51, 2, 3804, 156, 51, 5794, 3804, 5792 ],
@@ -1497,7 +1494,7 @@ Camera constants:
     },
     
     { // Quality B
-        "make_model": [ "FUJIFILM X-T30", "FUJIFILM X100V", "FUJIFILM X-T4" ],
+        "make_model": [ "FUJIFILM X-T30", "FUJIFILM X100V", "FUJIFILM X-T4", "FUJIFILM X-S10" ],
         "dcraw_matrix": [ 13426,-6334,-1177,-4244,12136,2371,-580,1303,5980 ], // DNG_v11, standard_v2 d65
         "raw_crop": [ 0, 5, 6252, 4176]
     },
@@ -1513,11 +1510,6 @@ Camera constants:
         "dcraw_matrix": [ 9252,-2704,-1064,-5893,14265,1717,-1101,2341,4349 ], // DNG_v8.8 D65
         "ranges": { "white": 4040 }
     },
-
-    { // Quality C, only border spec
-        "make_model": "KANDAO QOOCAM 8K",
-        "raw_border" : false
-    },    
 
     { // Quality B, Matrix from Adobe's dcp D65 instead of the internal in Leica's DNG
         "make_model": "LEICA Q (Typ 116)",

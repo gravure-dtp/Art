@@ -41,10 +41,11 @@ private:
     static DiagonalCurve *phaseOneIccCurveInv;
     static LUTf invGrad;  // for fast_demosaic
     static LUTf initInvGrad ();
-    static void colorSpaceConversion_ (Imagefloat* im, const ColorManagementParams& cmp, const ColorTemp &wb, double pre_mul[3], cmsHPROFILE embedded, cmsHPROFILE camprofile, double cam[3][3], const std::string &camName, const Glib::ustring &fileName, ProgressListener *plistener);
-    static int defTransform(const RawImage *ri, int tran);
+    static void colorSpaceConversion_(Imagefloat* im, const ColorManagementParams& cmp, const ColorTemp &wb, double pre_mul[3], cmsHPROFILE camprofile, double cam[3][3], cmsHPROFILE in, DCPProfile *dcpProf, ProgressListener *plistener);
 
 protected:
+    static int defTransform(const RawImage *ri, int tran);
+
     MyMutex getImageMutex;  // locks getImage
 
     int W, H;
@@ -108,7 +109,7 @@ protected:
     inline void getRowStartEnd (int x, int &start, int &end);
     static void getProfilePreprocParams(cmsHPROFILE in, float& gammafac, float& lineFac, float& lineSum);
 
-    void HLRecovery_inpaint(bool soft, float rm, float gm, float bm, float** red, float** green, float** blue);
+    void HLRecovery_inpaint(bool soft, int blur, float rm, float gm, float bm, float** red, float** green, float** blue);
 
 public:
     RawImageSource ();
@@ -185,10 +186,7 @@ public:
 
     void convertColorSpace(Imagefloat* image, const ColorManagementParams &cmp, const ColorTemp &wb) override;
     static bool findInputProfile(Glib::ustring inProfile, cmsHPROFILE embedded, std::string camName, const Glib::ustring &filename, DCPProfile **dcpProf, cmsHPROFILE& in, ProgressListener *plistener=nullptr);
-    static void colorSpaceConversion   (Imagefloat* im, const ColorManagementParams& cmp, const ColorTemp &wb, double pre_mul[3], cmsHPROFILE embedded, cmsHPROFILE camprofile, double cam[3][3], const std::string &camName, const Glib::ustring &fileName, ProgressListener *plistener=nullptr)
-    {
-        colorSpaceConversion_ (im, cmp, wb, pre_mul, embedded, camprofile, cam, camName, fileName, plistener);
-    }
+    static void colorSpaceConversion(Imagefloat* im, const ColorManagementParams& cmp, const ColorTemp &wb, double pre_mul[3], cmsHPROFILE embedded, cmsHPROFILE camprofile, double cam[3][3], const std::string &camName, const Glib::ustring &fileName, ProgressListener *plistener=nullptr);
     static void inverse33 (const double (*coeff)[3], double (*icoeff)[3]);
 
     static void HLRecovery_blend (float* rin, float* gin, float* bin, int width, float maxval, float* hlmax);
@@ -221,7 +219,7 @@ public:
         virtual float operator()(int row) const { return 1.f; }
     };
     
-    static void computeFullSize(const RawImage *ri, int tr, int &w, int &h);
+    static void computeFullSize(const RawImage *ri, int tr, int &w, int &h, int border=-1);
 
 protected:
     typedef unsigned short ushort;
@@ -306,11 +304,15 @@ protected:
     bool getFilmNegativeExponents(Coord2D spotA, Coord2D spotB, int tran, const FilmNegativeParams& currentParams, std::array<float, 3>& newExps) override;
     bool getImageSpotValues(Coord2D spot, int spotSize, int tran, const procparams::FilmNegativeParams &params, std::array<float, 3>& rawValues) override;
 
-    void apply_gain_map(unsigned short black[4], std::vector<GainMap> maps);
+    void apply_gain_map(unsigned short black[4], std::vector<GainMap> &&maps);
     void apply_foveon_spatial_gain(unsigned short black[4], std::vector<GainMap> maps);
+
 
 public:
     float get_pre_mul(int c) const { return ri ? ri->get_pre_mul(c) : 1.f; }
+
+    void wbMul2Camera(double &rm, double &gm, double &bm) override;
+    void wbCamera2Mul(double &rm, double &gm, double &bm) override;
 };
 
 } // namespace rtengine

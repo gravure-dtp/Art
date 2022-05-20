@@ -96,13 +96,6 @@ void ImageIOManager::init(const Glib::ustring &dirname)
 
                 Format fmt = FMT_TIFF_FLOAT;
 
-                Glib::ustring cmd;
-                if (kf.has_key(group, "ReadCommand")) {
-                    cmd = kf.get_string(group, "ReadCommand");
-                } else {
-                    continue;
-                }
-
                 std::string ext;
                 if (kf.has_key(group, "Extension")) {
                     ext = kf.get_string(group, "Extension").lowercase();
@@ -110,10 +103,14 @@ void ImageIOManager::init(const Glib::ustring &dirname)
                     continue;
                 }
 
-                loaders_[ext] = cmd;
+                Glib::ustring cmd;
+                if (kf.has_key(group, "ReadCommand")) {
+                    cmd = kf.get_string(group, "ReadCommand");
+                    loaders_[ext] = cmd;
 
-                if (settings->verbose) {
-                    std::cout << "Found loader for extension \"" << ext << "\": " << S(cmd) << std::endl;
+                    if (settings->verbose > 1) {
+                        std::cout << "Found loader for extension \"" << ext << "\": " << S(cmd) << std::endl;
+                    }
                 }
 
                 if (kf.has_key(group, "WriteCommand")) {
@@ -128,7 +125,7 @@ void ImageIOManager::init(const Glib::ustring &dirname)
 
                     savelbls_[ext] = lbl;
                     
-                    if (settings->verbose) {
+                    if (settings->verbose > 1) {
                         std::cout << "Found saver for extension \"" << ext << "\": " << S(cmd) << std::endl;
                     }
                 }
@@ -214,7 +211,7 @@ bool ImageIOManager::load(const Glib::ustring &fileName, ProgressListener *plist
     }
     close(fd);
     g_remove(templ.c_str());
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         if (!sout.empty()) {
             std::cout << "  stdout: " << sout << std::flush;
         }
@@ -234,6 +231,9 @@ bool ImageIOManager::load(const Glib::ustring &fileName, ProgressListener *plist
     bool err = false;
 
     switch (fmt) {
+    case FMT_UNKNOWN:
+        err = true;
+        break;
     case FMT_JPG:
         sFormat = IIOSF_UNSIGNED_CHAR;
         sArrangement = IIOSA_CHUNKY;
@@ -321,6 +321,9 @@ bool ImageIOManager::save(IImagefloat *img, const std::string &ext, const Glib::
     bool ok = false;
 
     switch (fmt) {
+    case FMT_UNKNOWN:
+        ok = false;
+        break;
     case FMT_JPG:
         ok = (img->saveAsJPEG(tmpname) == 0);
         break;
@@ -358,7 +361,7 @@ bool ImageIOManager::save(IImagefloat *img, const std::string &ext, const Glib::
             }
             ok = false;
         }
-        if (settings->verbose) {
+        if (settings->verbose > 1) {
             if (!sout.empty()) {
                 std::cout << "  stdout: " << sout << std::flush;
             }
@@ -379,6 +382,18 @@ bool ImageIOManager::save(IImagefloat *img, const std::string &ext, const Glib::
     }
 
     return ok;
+}
+
+
+ImageIOManager::Format ImageIOManager::getFormat(const Glib::ustring &fname)
+{
+    auto ext = std::string(getFileExtension(fname).lowercase());
+    auto it = fmts_.find(ext);
+    if (it == fmts_.end()) {
+        return FMT_UNKNOWN;
+    } else {
+        return it->second;
+    }
 }
 
 

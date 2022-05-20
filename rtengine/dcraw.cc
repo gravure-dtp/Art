@@ -6380,11 +6380,14 @@ void CLASS parse_mos (int offset)
 void CLASS linear_table (unsigned len)
 {
   int i;
-  if (len > 0x1000) len = 0x1000;
-  read_shorts (curve, len);
-  for (i=len; i < 0x1000; i++)
-    curve[i] = curve[i-1];
-  maximum = curve[0xfff];
+  if (len > 0x10000)
+    len = 0x10000;
+  else if (len < 1)
+    return;
+  read_shorts(curve, len);
+  for (i = len; i < 0x10000; i++)
+    curve[i] = curve[i - 1];
+  maximum = curve[len < 0x1000 ? 0xfff : len - 1];
 }
 
 void CLASS parse_kodak_ifd (int base)
@@ -10121,7 +10124,7 @@ canon_a5:
     } else if (!strncmp(model, "X-A3", 4) || !strncmp(model, "X-A5", 4)) {
         width = raw_width = 6016;
         height = raw_height = 4014;
-    } else if (!strcmp(model, "X-Pro3") || !strcmp(model, "X-T3") || !strcmp(model, "X-T30")) {
+    } else if (!strcmp(model, "X-Pro3") || !strcmp(model, "X-T3") || !strcmp(model, "X-T30") || !strcmp(model, "X-T4") || !strcmp(model, "X100V") || !strcmp(model, "X-S10")) {
         width = raw_width = 6384;
         height = raw_height = 4182;
     }

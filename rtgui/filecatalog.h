@@ -29,13 +29,12 @@
 #include "coarsepanel.h"
 #include "toolbar.h"
 #include "filterpanel.h"
-//#include "exportpanel.h"
 #include "previewloader.h"
 #include "multilangmgr.h"
 #include "threadutils.h"
-//#include "popupbutton.h"
 
 class FilePanel;
+class BatchQueue;
 /*
  * Class:
  *   - handling the list of file (add/remove them)
@@ -45,8 +44,7 @@ class FilePanel;
 class FileCatalog : public Gtk::VBox,
     public PreviewLoaderListener,
     public FilterPanelListener,
-    public FileBrowserListener//,
-//    public ExportPanelListener
+    public FileBrowserListener
 {
 public:
     typedef sigc::slot<void, const Glib::ustring&> DirSelectionSlot;
@@ -97,6 +95,8 @@ private:
     Gtk::ToggleButton* exifInfo;
     //PopUpButton *thumbOrder;
     Gtk::MenuButton *thumbOrder;
+    std::vector<Gtk::MenuItem *> thumbOrderItems;
+    std::vector<Glib::ustring> thumbOrderLabels;
     sigc::connection bCateg[20];
     Gtk::Image* iFilterClear, *igFilterClear;
     Gtk::Image* iranked[5], *igranked[5], *iUnRanked, *igUnRanked;
@@ -131,7 +131,6 @@ private:
     bool hasValidCurrentEFS;
 
     FilterPanel* filterPanel;
-    // ExportPanel* exportPanel;
 
     int previewsToLoad;
     int previewsLoaded;
@@ -145,6 +144,9 @@ private:
 
     IdleRegister idle_register;
 
+    BatchQueue *bqueue_;    
+    std::vector<Thumbnail *> to_open_;
+    
     void addAndOpenFile (const Glib::ustring& fname);
     void addFile (const Glib::ustring& fName);
     std::vector<Glib::ustring> getFileList ();
@@ -154,6 +156,8 @@ private:
     void onBrowsePathChanged();
     Glib::ustring getBrowsePath();
 
+    void removeFromBatchQueue(const std::vector<FileBrowserEntry*>& tbe);
+    
 public:
     // thumbnail browsers
     FileBrowser* fileBrowser;
@@ -181,9 +185,6 @@ public:
 
     // filterpanel interface
     void exifFilterChanged () override;
-
-    // exportpanel interface
-    // void exportRequested() override;
 
     Glib::ustring lastSelectedDir ()
     {
@@ -221,7 +222,6 @@ public:
     void setDirSelector (const DirSelectionSlot& selectDir);
 
     void setFilterPanel (FilterPanel* fpanel);
-    // void setExportPanel (ExportPanel* expanel);
     void exifInfoButtonToggled();
     void categoryButtonToggled (Gtk::ToggleButton* b, bool isMouseClick);
     bool capture_event(GdkEventButton* event);
@@ -230,7 +230,7 @@ public:
 
     void on_realize() override;
     void reparseDirectory ();
-    void _openImage (const std::vector<Thumbnail*>& tmb);
+    void _openImage();
 
     void zoomIn ();
     void zoomOut ();
@@ -273,6 +273,7 @@ public:
 
     void on_dir_changed (const Glib::RefPtr<Gio::File>& file, const Glib::RefPtr<Gio::File>& other_file, Gio::FileMonitorEvent event_type, bool internal);
 
+    void setBatchQueue(BatchQueue *bq) { bqueue_ = bq; }
 };
 
 inline void FileCatalog::setDirSelector (const FileCatalog::DirSelectionSlot& selectDir)

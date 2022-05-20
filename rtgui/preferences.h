@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef __PREFERENCES_H__
-#define __PREFERENCES_H__
+#pragma once
 
 #include <gtkmm.h>
 #include "adjuster.h"
@@ -26,13 +25,9 @@
 #include <vector>
 #include "rtwindow.h"
 #include "dynamicprofilepanel.h"
-#include "exportpanel.h"
 
-class Preferences : public Gtk::Dialog, public ProfileStoreListener
-{
-
-    class ExtensionColumns : public Gtk::TreeModel::ColumnRecord
-    {
+class Preferences : public Gtk::Dialog, public ProfileStoreListener {
+    class ExtensionColumns: public Gtk::TreeModel::ColumnRecord {
     public:
         Gtk::TreeModelColumn<bool>  enabled;
         Gtk::TreeModelColumn<Glib::ustring>  ext;
@@ -45,14 +40,14 @@ class Preferences : public Gtk::Dialog, public ProfileStoreListener
     ExtensionColumns extensionColumns;
     Glib::RefPtr<Gtk::ListStore> extensionModel;
 
-
-    class ThemeFilename
-    {
+    class ThemeFilename {
     public:
         Glib::ustring shortFName;
         Glib::ustring longFName;
+        bool deprecated;
 
-        ThemeFilename (Glib::ustring sfname, Glib::ustring lfname) : shortFName (sfname), longFName (lfname) {}
+        ThemeFilename(Glib::ustring sfname, Glib::ustring lfname, bool d):
+            shortFName(sfname), longFName(lfname), deprecated(d) {}
     };
 
     std::vector<ThemeFilename> themeFNames;
@@ -97,7 +92,7 @@ class Preferences : public Gtk::Dialog, public ProfileStoreListener
 
     MyFileChooserButton* iccDir;
     MyFileChooserButton* monitorIccDir;
-    Gtk::ComboBoxText* prtProfile;
+    MyFileChooserButton *prtProfile;
     Gtk::ComboBoxText* prtIntent;
     Gtk::CheckButton* prtBPC;
     Gtk::ComboBoxText* monProfile;
@@ -128,10 +123,17 @@ class Preferences : public Gtk::Dialog, public ProfileStoreListener
     Gtk::ComboBoxText* themeCBT;
     Gtk::FontButton* mainFontFB;
     Gtk::FontButton* colorPickerFontFB;
-    Gtk::ColorButton* cropMaskColorCB;
-    Gtk::ColorButton* navGuideColorCB;
+    // Gtk::ColorButton* cropMaskColorCB;
+    // Gtk::ColorButton* navGuideColorCB;
     Gtk::CheckButton* pseudoHiDPI;
 
+    Gtk::ColorButton *theme_bg_color;
+    Gtk::ColorButton *theme_fg_color;
+    Gtk::ColorButton *theme_hl_color;
+    Gtk::Label *theme_bg_lbl;
+    Gtk::Label *theme_fg_lbl;
+    Gtk::Label *theme_hl_lbl;
+    Gtk::Button *theme_colors_reset;
 
     Gtk::SpinButton*   maxRecentFolders;
     Gtk::SpinButton*   maxThumbHeightSB;
@@ -153,11 +155,11 @@ class Preferences : public Gtk::Dialog, public ProfileStoreListener
     Gtk::CheckButton *thumbDelayUpdate;
     Gtk::CheckButton *thumbLazyCaching;
 
-    Gtk::CheckButton* ckbmenuGroupRank;
-    Gtk::CheckButton* ckbmenuGroupLabel;
-    Gtk::CheckButton* ckbmenuGroupFileOperations;
-    Gtk::CheckButton* ckbmenuGroupProfileOperations;
-    Gtk::CheckButton* ckbmenuGroupExtProg;
+    // Gtk::CheckButton* ckbmenuGroupRank;
+    // Gtk::CheckButton* ckbmenuGroupLabel;
+    // Gtk::CheckButton* ckbmenuGroupFileOperations;
+    // Gtk::CheckButton* ckbmenuGroupProfileOperations;
+    // Gtk::CheckButton* ckbmenuGroupExtProg;
 
     Gtk::CheckButton* chOverwriteOutputFile;
     Gtk::SpinButton *autosaveInterval;
@@ -198,8 +200,12 @@ class Preferences : public Gtk::Dialog, public ProfileStoreListener
     Gtk::ComboBoxText *xmpSidecarCombo;
     Gtk::Entry *exiftoolPath;
     Gtk::ComboBoxText *wbpreview;
+    Gtk::CheckButton *remember_metadata_filters;
 
     Gtk::CheckButton *thumbnailInspectorHover;
+
+    MySpinButton *fastexport_max_width;
+    MySpinButton *fastexport_max_height;
     
     Glib::ustring storedValueRaw;
     Glib::ustring storedValueImg;
@@ -228,8 +234,6 @@ class Preferences : public Gtk::Dialog, public ProfileStoreListener
     void layoutComboChanged ();
     void bundledProfilesChanged ();
     void iccDirChanged ();
-    void switchThemeTo (Glib::ustring newTheme);
-    void switchFontTo  (const Glib::ustring &newFontFamily, const int newFontSize);
     bool splashClosed (GdkEventAny* event);
 
     int getThemeRowNumber (Glib::ustring& longThemeFName);
@@ -242,7 +246,6 @@ class Preferences : public Gtk::Dialog, public ProfileStoreListener
     Gtk::ScrolledWindow *swPerformance;
     Gtk::ScrolledWindow *swSounds;
     Gtk::ScrolledWindow *swFastExport;
-    ExportPanel *exportPanel;
 
     Gtk::Widget *getGeneralPanel();
     Gtk::Widget *getImageProcessingPanel();
@@ -250,7 +253,6 @@ class Preferences : public Gtk::Dialog, public ProfileStoreListener
     Gtk::Widget *getFileBrowserPanel();
     Gtk::Widget *getColorManPanel();
     Gtk::Widget *getPerformancePanel();
-    Gtk::Widget *getFastExportPanel();
     Gtk::Widget *getSoundsPanel();
 
 public:
@@ -280,6 +282,7 @@ public:
     void storeCurrentValue() override;
     void updateProfileList() override;
     void restoreValue() override;
-};
 
-#endif
+    static void switchThemeTo(const Glib::ustring &newTheme, const Options *opts=nullptr);
+    static void switchFontTo(const Glib::ustring &newFontFamily, const int newFontSize);
+};

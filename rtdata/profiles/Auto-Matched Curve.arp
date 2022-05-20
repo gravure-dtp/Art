@@ -1,10 +1,13 @@
+[Version]
+Version=1030
+
 [Exposure]
-HLRecovery=Blend
+HLRecovery=Balanced
 
 [ToneCurve]
 Enabled=true
 HistogramMatching=true
-CurveMode=FilmLike
+CurveMode=Neutral
 Curve2=0;
 
 [LensProfile]

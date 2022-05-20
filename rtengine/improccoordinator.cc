@@ -30,6 +30,7 @@
 #include "color.h"
 #include "metadata.h"
 #include "perspectivecorrection.h"
+#include "threadpool.h"
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -74,7 +75,7 @@ ImProcCoordinator::ImProcCoordinator():
     ipf(&params, true),
     monitorIntent(RI_RELATIVE),
     softProof(false),
-    gamutCheck(false),
+    gamutCheck(GAMUT_CHECK_OFF),
     sharpMask(false),
     scale(10),
     highDetailPreprocessComputed(false),
@@ -131,7 +132,7 @@ ImProcCoordinator::ImProcCoordinator():
     lastOutputProfile("BADFOOD"),
     lastOutputIntent(RI__COUNT),
     lastOutputBPC(false),
-    thread(nullptr),
+    //thread(nullptr),
     changeSinceLast(0),
     updaterRunning(false),
     destroying(false),
@@ -154,21 +155,19 @@ void ImProcCoordinator::assign(ImageSource* imgsrc)
 
 ImProcCoordinator::~ImProcCoordinator()
 {
-
     destroying = true;
-    updaterThreadStart.lock();
+    // updaterThreadStart.lock();
 
-    if (updaterRunning && thread) {
-        thread->join();
-    }
+    wait_not_running();
 
-    mProcessing.lock();
-    mProcessing.unlock();
-    freeAll();
+    {
+        MyMutex::MyLock lock(mProcessing);
+        freeAll();
 
-    if (drcomp_11_dcrop_cache) {
-        delete drcomp_11_dcrop_cache;
-        drcomp_11_dcrop_cache = nullptr;
+        if (drcomp_11_dcrop_cache) {
+            delete drcomp_11_dcrop_cache;
+            drcomp_11_dcrop_cache = nullptr;
+        }
     }
 
     std::vector<Crop*> toDel = crops;
@@ -189,7 +188,7 @@ ImProcCoordinator::~ImProcCoordinator()
         customTransformOut = nullptr;
     }
 
-    updaterThreadStart.unlock();
+    // updaterThreadStart.unlock();
 }
 
 DetailedCrop* ImProcCoordinator::createCrop(::EditDataProvider *editDataProvider, bool isDetailWindow)
@@ -238,6 +237,7 @@ void ImProcCoordinator::updatePreviewImage(int todo, bool panningRelatedChange)
     bool highDetailNeeded_WB = highDetailNeeded;
     if ((todo & M_HIGHQUAL) || options.prevdemo == PD_Sidecar) {
         highDetailNeeded = true;
+        todo |= M_AUTOEXP;
     }
 
     ipf.setPipetteBuffer(nullptr);
@@ -397,13 +397,6 @@ void ImProcCoordinator::updatePreviewImage(int todo, bool panningRelatedChange)
         if (todo & (M_INIT | M_LINDENOISE | M_HDR)) {
             MyMutex::MyLock initLock(minit);  // Also used in crop window
     
-            //imgsrc->HLRecovery_Global(params.exposure);   // this handles Color HLRecovery
-    
-    
-            if (settings->verbose) {
-                printf("Applying white balance, color correction & sRBG conversion...\n");
-            }
-
             if (params.wb.method == WBParams::AUTO) {
                 if (lastAwbEqual != params.wb.equal) {
                     double rm, gm, bm;
@@ -654,9 +647,16 @@ void ImProcCoordinator::updateWB()
         case WBParams::CUSTOM_TEMP:
             currWB = ColorTemp(params.wb.temperature, params.wb.green, params.wb.equal, "Custom");
             break;
-        case WBParams::CUSTOM_MULT:
+        case WBParams::CUSTOM_MULT_LEGACY:
             currWB = ColorTemp(params.wb.mult[0], params.wb.mult[1], params.wb.mult[2], 1.0);            
             break;
+        case WBParams::CUSTOM_MULT: {
+            double rm = params.wb.mult[0];
+            double gm = params.wb.mult[1];
+            double bm = params.wb.mult[2];
+            imgsrc->wbCamera2Mul(rm, gm, bm);
+            currWB = ColorTemp(rm, gm, bm, 1.0);            
+        } break;
         case WBParams::AUTO:
         default:
             currWB = ColorTemp();
@@ -1343,16 +1343,10 @@ void ImProcCoordinator::getMonitorProfile(Glib::ustring& profile, RenderingInten
     intent = monitorIntent;
 }
 
-void ImProcCoordinator::setSoftProofing(bool softProof, bool gamutCheck)
+void ImProcCoordinator::setSoftProofing(bool softProof, GamutCheck gamutCheck)
 {
     this->softProof = softProof;
     this->gamutCheck = gamutCheck;
-}
-
-void ImProcCoordinator::getSoftProofing(bool &softProof, bool &gamutCheck)
-{
-    softProof = this->softProof;
-    gamutCheck = this->gamutCheck;
 }
 
 void ImProcCoordinator::setSharpMask (bool sharpMask)
@@ -1405,9 +1399,16 @@ void ImProcCoordinator::saveInputICCReference(const Glib::ustring& fname, bool a
         case WBParams::CUSTOM_TEMP:
             currWB = ColorTemp(params.wb.temperature, params.wb.green, params.wb.equal, "Custom");
             break;
-        case WBParams::CUSTOM_MULT:
+        case WBParams::CUSTOM_MULT_LEGACY:
             currWB = ColorTemp(params.wb.mult[0], params.wb.mult[1], params.wb.mult[2], 1.0);
             break;
+        case WBParams::CUSTOM_MULT: {
+            double rm = params.wb.mult[0];
+            double gm = params.wb.mult[1];
+            double bm = params.wb.mult[2];
+            imgsrc->wbCamera2Mul(rm, gm, bm);
+            currWB = ColorTemp(rm, gm, bm, 1.0);
+        } break;
         }            
     }
 
@@ -1483,35 +1484,34 @@ void ImProcCoordinator::saveInputICCReference(const Glib::ustring& fname, bool a
 void ImProcCoordinator::stopProcessing()
 {
 
-    updaterThreadStart.lock();
+    // updaterThreadStart.lock();
 
-    if (updaterRunning && thread) {
+    if (updaterRunning) {
         changeSinceLast = 0;
-        thread->join();
+        wait_not_running();
     }
+    // if (updaterRunning && thread) {
+    //     changeSinceLast = 0;
+    //     thread->join();
+    // }
 
-    updaterThreadStart.unlock();
+    // updaterThreadStart.unlock();
 }
+
 
 void ImProcCoordinator::startProcessing()
 {
-
-#undef THREAD_PRIORITY_NORMAL
-
     if (!destroying) {
         if (!updaterRunning) {
-            updaterThreadStart.lock();
-            thread = nullptr;
-            updaterRunning = true;
-            updaterThreadStart.unlock();
+            // updaterThreadStart.lock();
+            set_updater_running(true);
+            // updaterThreadStart.unlock();
 
-            //batchThread->yield(); //the running batch should wait other threads to avoid conflict
-
-            thread = Glib::Thread::create(sigc::mem_fun(*this, &ImProcCoordinator::process), 0, true, true, Glib::THREAD_PRIORITY_NORMAL);
-
+            rtengine::ThreadPool::add_task(rtengine::ThreadPool::Priority::HIGHEST, sigc::mem_fun(*this, &ImProcCoordinator::process));
         }
     }
 }
+
 
 void ImProcCoordinator::startProcessing(int changeCode)
 {
@@ -1563,7 +1563,8 @@ void ImProcCoordinator::process()
     }
 
     paramsUpdateMutex.unlock();
-    updaterRunning = false;
+
+    set_updater_running(false);
 
     if (plistener) {
         if (!changed) {
@@ -1629,9 +1630,10 @@ bool ImProcCoordinator::getDeltaELCH(EditUniqueID id, int x, int y, float &L, fl
     startProcessing(change);
 
     bool ret = false;
-    updaterThreadStart.lock();
-    if (updaterRunning && thread) {
-        thread->join();
+    // updaterThreadStart.lock();
+    if (updaterRunning) {// && thread) {
+        wait_not_running();
+        //thread->join();
         if (ipf.deltaE.ok) {
             ret = true;
             L = ipf.deltaE.L;
@@ -1640,7 +1642,7 @@ bool ImProcCoordinator::getDeltaELCH(EditUniqueID id, int x, int y, float &L, fl
         }
     }
     ipf.setDeltaEData(EUID_None, -1, -1);
-    updaterThreadStart.unlock();
+    // updaterThreadStart.unlock();
 
     return ret;
 }
@@ -1702,6 +1704,44 @@ void ImProcCoordinator::requestUpdateVectorscopeHS()
     if (updated) {
         notifyHistogramChanged();
     }
+}
+
+
+void ImProcCoordinator::wait_not_running()
+{
+    std::unique_lock<std::mutex> lck(updater_mutex_);
+    while (updaterRunning) {
+        updater_cond_.wait(lck);
+    }
+}
+
+
+void ImProcCoordinator::set_updater_running(bool val)
+{
+    std::unique_lock<std::mutex> lck(updater_mutex_);
+    if (val) {
+        while (updaterRunning) {
+            updater_cond_.wait(lck);
+        }
+        updaterRunning = true;
+    } else {
+        updaterRunning = false;
+        updater_cond_.notify_all();
+    }
+}
+
+
+bool ImProcCoordinator::is_running() const
+{
+    if (updaterRunning) {
+        return true;
+    }
+    for (auto c : crops) {
+        if (c->updating) {
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace rtengine

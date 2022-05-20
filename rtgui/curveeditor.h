@@ -135,6 +135,8 @@ public:
     CursorShape getCursor(int objectID) override;
 
     void showEditButton(bool yes);
+
+    PopUpToggleButton *getCurveTypeButton() { return curveType; }
 };
 
 

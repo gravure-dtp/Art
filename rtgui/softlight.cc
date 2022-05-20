@@ -100,3 +100,9 @@ void SoftLight::toolReset(bool to_initial)
     pp.softlight.enabled = getEnabled();
     read(&pp);
 }
+
+
+void SoftLight::registerShortcuts(ToolShortcutManager *mgr)
+{
+    mgr->addShortcut(GDK_KEY_o, this, strength);
+}

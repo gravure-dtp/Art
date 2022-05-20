@@ -1,4 +1,5 @@
-/*
+/* -*- C++ -*-
+ *  
  *  This file is part of RawTherapee.
  *
  *  Copyright (c) 2004-2010 Gabor Horvath <hgabor@rawtherapee.com>
@@ -16,8 +17,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _FILEBROWSER_
-#define _FILEBROWSER_
+#pragma once
 
 #include <gtkmm.h>
 #include <map>
@@ -27,7 +27,6 @@
 #include "browserfilter.h"
 #include "pparamschangelistener.h"
 #include "partialpastedlg.h"
-#include "exportpanel.h"
 #include "extprog.h"
 #include "profilestorecombobox.h"
 
@@ -55,7 +54,6 @@ public:
  */
 class FileBrowser  : public ThumbBrowserBase,
     public LWButtonListener,
-    /* public ExportPanelListener, */
     public ProfileStoreListener
 {
 private:
@@ -130,7 +128,6 @@ protected:
     void requestColorLabel(int colorlabel);
     void notifySelectionListener ();
     void openRequested( std::vector<FileBrowserEntry*> mselected);
-    // ExportPanel* exportPanel;
 
     type_trash_changed m_trash_changed;
 
@@ -194,10 +191,6 @@ public:
 
     void selectionChanged () override;
 
-    /* void setExportPanel (ExportPanel* expanel); */
-    // exportpanel interface
-    /* void exportRequested() override; */
-
     void storeCurrentValue() override;
     void updateProfileList() override;
     void restoreValue() override;
@@ -211,5 +204,3 @@ public:
 
     void enableThumbRefresh();
 };
-
-#endif

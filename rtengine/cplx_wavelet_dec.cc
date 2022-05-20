@@ -20,12 +20,12 @@
 
 #include "cplx_wavelet_dec.h"
 
-namespace rtengine
-{
+namespace rtengine {
 
 wavelet_decomposition::~wavelet_decomposition()
 {
-    for(int i = 0; i <= lvltot; i++) {
+    // for(int i = 0; i <= lvltot; i++) {
+    for (size_t i = 0; i < wavelet_decomp.size(); ++i) {
         if(wavelet_decomp[i] != nullptr) {
             delete wavelet_decomp[i];
         }
@@ -39,5 +39,5 @@ wavelet_decomposition::~wavelet_decomposition()
     }
 }
 
-}
+} // namespace rtengine
 

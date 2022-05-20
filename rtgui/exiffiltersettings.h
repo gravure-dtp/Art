@@ -17,12 +17,12 @@
  *  You should have received a copy of the GNU General Public License
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _EXIFFILTERSETTINGS_
-#define _EXIFFILTERSETTINGS_
+#pragma once
 
 #include <set>
 #include <string>
 #include <glibmm/date.h>
+#include <glibmm/keyfile.h>
 
 
 class ExifFilterSettings {
@@ -42,6 +42,7 @@ public:
     Glib::Date dateFrom;
     Glib::Date dateTo;
 
+    bool enabled;
     bool filterFNumber;
     bool filterShutter;
     bool filterFocalLen;
@@ -54,7 +55,7 @@ public:
 
     ExifFilterSettings();
     void clear();
+
+    void load(const Glib::KeyFile &kf, const Glib::ustring &group);
+    void save(Glib::KeyFile &kf, const Glib::ustring &group) const;
 };
-
-#endif
-

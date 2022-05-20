@@ -90,7 +90,7 @@ private:
 
     ClutComboBox *m_clutComboBox;
     sigc::connection m_clutComboBoxConn;
-    Glib::ustring m_oldClutFilename;
+    //Glib::ustring m_oldClutFilename;
 
     Adjuster *m_strength;
 

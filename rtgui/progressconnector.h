@@ -1,4 +1,5 @@
-/*
+/* -*- C++ -*-
+ *  
  *  This file is part of RawTherapee.
  *
  *  Copyright (c) 2004-2010 Gabor Horvath <hgabor@rawtherapee.com>
@@ -16,13 +17,13 @@
  *  You should have received a copy of the GNU General Public License
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _PROGRESSCONNECTOR_
-#define _PROGRESSCONNECTOR_
+#pragma once
 
 #include <sigc++/sigc++.h>
 #include <gtkmm.h>
 #include "../rtengine/rtengine.h"
 #include "guiutils.h"
+#include "../rtengine/threadpool.h"
 
 #undef THREAD_PRIORITY_NORMAL
 
@@ -65,16 +66,15 @@ private:
     rtengine::ProgressListener* const pl;
 };
 
-template<class T>
-class ProgressConnector
-{
 
+template <class T>
+class ProgressConnector {
     sigc::signal0<T> opStart;
     sigc::signal0<bool> opEnd;
     T retval;
-    Glib::Thread *workThread;
+    bool working_;
 
-    static int emitEndSignalUI (void* data)
+    static int emitEndSignalUI(void* data)
     {
 
         sigc::signal0<bool>* opEnd = (sigc::signal0<bool>*) data;
@@ -84,23 +84,23 @@ class ProgressConnector
         return r;
     }
 
-    void workingThread ()
+    void workingThread()
     {
         retval = opStart.emit ();
         gdk_threads_add_idle(ProgressConnector<T>::emitEndSignalUI, new sigc::signal0<bool>(opEnd));
-        workThread = nullptr;
+        working_ = false;
     }
 
 public:
 
-    ProgressConnector (): retval( 0 ), workThread( nullptr ) { }
+    ProgressConnector(): retval( 0 ), working_(false) {}
 
-    void startFunc (const sigc::slot0<T>& startHandler, const sigc::slot0<bool>& endHandler )
+    void startFunc(const sigc::slot0<T>& startHandler, const sigc::slot0<bool>& endHandler)
     {
-        if( !workThread ) {
+        if (!working_) {
             opStart.connect (startHandler);
             opEnd.connect (endHandler);
-            workThread = Glib::Thread::create(sigc::mem_fun(*this, &ProgressConnector<T>::workingThread), 0, true, true, Glib::THREAD_PRIORITY_NORMAL);
+            rtengine::ThreadPool::add_task(rtengine::ThreadPool::Priority::NORMAL, sigc::mem_fun(*this, &ProgressConnector<T>::workingThread));
         }
     }
 
@@ -109,4 +109,3 @@ public:
         return retval;
     }
 };
-#endif

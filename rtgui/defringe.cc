@@ -59,7 +59,6 @@ Defringe::Defringe () : FoldableToolPanel(this, "defringe", M("TP_DEFRINGE_LABEL
     curveEditorPF->curveListComplete();
 
     pack_start (*curveEditorPF, Gtk::PACK_SHRINK, 4);
-
 }
 
 Defringe::~Defringe ()
@@ -103,7 +102,7 @@ void Defringe::read(const ProcParams* pp)
 void Defringe::autoOpenCurve ()
 {
     // WARNING: The following line won't work, since linear is a flat curve at 0.
-    // chshape->openIfNonlinear();
+    chshape->openIfNonlinear();
 }
 
 void Defringe::write(ProcParams* pp)

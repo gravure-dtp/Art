@@ -25,9 +25,7 @@
 #include "thresholdadjuster.h"
 #include "toolpanel.h"
 
-class Sharpening : public ToolParamBlock, public ThresholdAdjusterListener, public AdjusterListener, public FoldableToolPanel, public rtengine::AutoDeconvRadiusListener
-{
-
+class Sharpening: public ToolParamBlock, public ThresholdAdjusterListener, public AdjusterListener, public FoldableToolPanel, public rtengine::AutoDeconvRadiusListener {
 protected:
     Adjuster* contrast;
     // Adjuster* blur;
@@ -38,7 +36,7 @@ protected:
     Adjuster *deconvCornerLatitude;
     Gtk::VBox* usm;
     Gtk::VBox* rld;
-
+    
     Adjuster* radius;
     Adjuster* amount;
     Adjuster* eradius;
@@ -56,12 +54,18 @@ protected:
     bool lastHaloControl;
     sigc::connection hcConn;
 
+    Gtk::VBox *psf;
+    MyFileChooserButton *psf_kernel;
+    Adjuster *psf_iterations;
+
     rtengine::ProcEvent EvSharpenContrast;
     rtengine::ProcEvent EvSharpenBlur;
     rtengine::ProcEvent EvAutoRadiusOn;
     rtengine::ProcEvent EvAutoRadiusOff;
     rtengine::ProcEvent EvDeconvCornerBoost;
     rtengine::ProcEvent EvDeconvCornerLatitude;
+    rtengine::ProcEvent EvPSFKernel;
+    rtengine::ProcEvent EvPSFIterations;
 
     IdleRegister idle_register;
 

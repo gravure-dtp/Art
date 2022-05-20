@@ -119,3 +119,10 @@ void Saturation::toolReset(bool to_initial)
     pp.saturation.enabled = getEnabled();
     read(&pp);
 }
+
+
+void Saturation::registerShortcuts(ToolShortcutManager *mgr)
+{
+    mgr->addShortcut(GDK_KEY_s, this, saturation);
+    mgr->addShortcut(GDK_KEY_v, this, vibrance);
+}

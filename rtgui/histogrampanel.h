@@ -31,6 +31,7 @@
 #include "../rtengine/array2D.h"
 #include "../rtengine/LUT.h"
 #include "../rtengine/noncopyable.h"
+#include "../rtengine/iccstore.h"
 
 using rtengine::array2D;
 class HistogramArea;
@@ -48,19 +49,16 @@ struct HistogramRGBAreaIdleHelper {
     int pending;
 };
 
-class HistogramScaling
-{
+class HistogramScaling {
 public:
     double factor;
     HistogramScaling();
     double log (double vsize, double val);
 };
 
-class HistogramRGBArea : public Gtk::DrawingArea, public BackBuffer, protected HistogramScaling, public rtengine::NonCopyable
-{
-private:
-    typedef const double (*TMatrix)[3];
 
+class HistogramRGBArea : public Gtk::DrawingArea, public BackBuffer, protected HistogramScaling, public rtengine::NonCopyable { 
+private:
     IdleRegister idle_register;
 
 protected:

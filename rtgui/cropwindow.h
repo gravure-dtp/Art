@@ -195,7 +195,7 @@ public:
     void getPosition (int& x, int& y);
     void setSize     (int w, int h, bool norefresh = false);
     void getSize     (int& w, int& h);
-    void enable      ();
+    void enable(bool do_update=true);
 
     void leaveNotify (GdkEventCrossing* event);
     void flawnOver   (bool isFlawnOver);

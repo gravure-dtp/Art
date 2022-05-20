@@ -28,11 +28,12 @@
 
 namespace rtengine {
 
-GamutWarning::GamutWarning(cmsHPROFILE iprof, cmsHPROFILE gamutprof, RenderingIntent intent, bool gamutbpc):
+GamutWarning::GamutWarning(cmsHPROFILE gamutprof, RenderingIntent intent, bool gamutbpc):
     lab2ref(nullptr),
     lab2softproof(nullptr),
     softproof2ref(nullptr)
 {
+    cmsHPROFILE iprof = cmsCreateLab4Profile(nullptr);
     if (cmsIsMatrixShaper(gamutprof) && !cmsIsCLUT(gamutprof, intent, LCMS_USED_AS_OUTPUT)) {
         cmsHPROFILE aces = ICCStore::getInstance()->workingSpace("ACESp0");
         if (aces) {
@@ -57,6 +58,7 @@ GamutWarning::GamutWarning(cmsHPROFILE iprof, cmsHPROFILE gamutprof, RenderingIn
             softproof2ref = nullptr;
         }
     }
+    cmsCloseProfile(iprof);
 }
 
 

@@ -37,6 +37,8 @@
 #include "ciecam02.h"
 #include "color.h"
 #include "iccstore.h"
+#include "linalgebra.h"
+
 #undef CLIPD
 #define CLIPD(a) ((a)>0.0f?((a)<1.0f?(a):1.0f):0.0f)
 
@@ -459,7 +461,7 @@ void CurveFactory::complexCurve (double ecomp, double black, double hlcompr, dou
         const DiagonalCurve tcurve(curvePoints2, CURVES_MIN_POLY_POINTS / skip);
 
         if (!tcurve.isIdentity()) {
-            customToneCurve2.Set(tcurve, gamma_);
+            customToneCurve2.Set(tcurve);
         }
 
         if (outBeforeCCurveHistogram ) {
@@ -478,7 +480,7 @@ void CurveFactory::complexCurve (double ecomp, double black, double hlcompr, dou
         const DiagonalCurve tcurve(curvePoints, CURVES_MIN_POLY_POINTS / skip);
 
         if (!tcurve.isIdentity()) {
-            customToneCurve1.Set(tcurve, gamma_);
+            customToneCurve1.Set(tcurve);
         }
 
         if (outBeforeCCurveHistogram) {
@@ -524,6 +526,22 @@ void CurveFactory::complexCurve (double ecomp, double black, double hlcompr, dou
 }
 
 
+void CurveFactory::contrastCurve(double contr, LUTu &histogram, LUTf &outCurve,
+                                 int skip)
+{
+    LUTf curve1(65536);
+    LUTf curve2(65536);
+    LUTu dummy;
+    ToneCurve customToneCurve1, customToneCurve2;
+    
+    CurveFactory::complexCurve(0, 0, 0, 0, 0, 0, contr,
+                               { DCT_Linear }, { DCT_Linear },
+                               histogram, curve1, curve2, outCurve, dummy,
+                               customToneCurve1, customToneCurve2,
+                               skip);
+}
+
+
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 void CurveFactory::RGBCurve (const std::vector<double>& curvePoints, LUTf & outCurve, int skip)
@@ -565,37 +583,15 @@ void ToneCurve::Reset()
 }
 
 // Fill a LUT with X/Y, ranged 0xffff
-void ToneCurve::Set(const Curve &pCurve, float gamma)
+void ToneCurve::Set(const Curve &pCurve, float whitecoeff)
 {
+    this->whitecoeff = whitecoeff;
+    this->curve = &pCurve;
+    this->whitept = 65535.f * whitecoeff;
     lutToneCurve(65536);
 
-    if (gamma <= 0.0 || gamma == 1.) {
-        for (int i = 0; i < 65536; i++) {
-            lutToneCurve[i] = (float)pCurve.getVal(float(i) / 65535.f) * 65535.f;
-        }
-    } else if(gamma == (float)Color::sRGBGammaCurve) {
-        // for sRGB gamma we can use luts, which is much faster
-        for (int i = 0; i < 65536; i++) {
-            float val = Color::gammatab_srgb[i] / 65535.f;
-            val = pCurve.getVal(val);
-            val = Color::igammatab_srgb[val * 65535.f];
-            lutToneCurve[i] = val;
-        }
-
-    } else {
-        const float start = expf(gamma * logf( -0.055 / ((1.0 / gamma - 1.0) * 1.055 )));
-        const float slope = 1.055 * powf (start, 1.0 / gamma - 1) - 0.055 / start;
-        const float mul = 1.055;
-        const float add = 0.055;
-
-        // apply gamma, that is 'pCurve' is defined with the given gamma and here we convert it to a curve in linear space
-        for (int i = 0; i < 65536; i++) {
-            float val = float(i) / 65535.f;
-            val = CurveFactory::gamma (val, gamma, start, slope, mul, add);
-            val = pCurve.getVal(val);
-            val = CurveFactory::igamma (val, gamma, start, slope, mul, add);
-            lutToneCurve[i] = val * 65535.f;
-        }
+    for (int i = 0; i < 65536; i++) {
+        lutToneCurve[i] = (float)pCurve.getVal(float(i) / 65535.f) * 65535.f;
     }
 }
 
@@ -921,9 +917,9 @@ void PerceptualToneCurve::BatchApply(const size_t start, const size_t end, float
                 float newr = state.Working2Prophoto[0][0] * r + state.Working2Prophoto[0][1] * g + state.Working2Prophoto[0][2] * b;
                 float newg = state.Working2Prophoto[1][0] * r + state.Working2Prophoto[1][1] * g + state.Working2Prophoto[1][2] * b;
                 float newb = state.Working2Prophoto[2][0] * r + state.Working2Prophoto[2][1] * g + state.Working2Prophoto[2][2] * b;
-                r = newr;
-                g = newg;
-                b = newb;
+                r = CLIP(newr);
+                g = CLIP(newg);
+                b = CLIP(newb);
             }
         };
 
@@ -934,19 +930,19 @@ void PerceptualToneCurve::BatchApply(const size_t start, const size_t end, float
                 float newr = state.Prophoto2Working[0][0] * r + state.Prophoto2Working[0][1] * g + state.Prophoto2Working[0][2] * b;
                 float newg = state.Prophoto2Working[1][0] * r + state.Prophoto2Working[1][1] * g + state.Prophoto2Working[1][2] * b;
                 float newb = state.Prophoto2Working[2][0] * r + state.Prophoto2Working[2][1] * g + state.Prophoto2Working[2][2] * b;
-                r = newr;
-                g = newg;
-                b = newb;
+                r = CLIP(newr);
+                g = CLIP(newg);
+                b = CLIP(newb);
             }
         };
 
     for (size_t i = start; i < end; ++i) {
-        // float r = CLIP(rc[i]);
-        // float g = CLIP(gc[i]);
-        // float b = CLIP(bc[i]);
-        float r = rc[i];
-        float g = gc[i];
-        float b = bc[i];
+        float r = CLIP(rc[i]);
+        float g = CLIP(gc[i]);
+        float b = CLIP(bc[i]);
+        // float r = rc[i];
+        // float g = gc[i];
+        // float b = bc[i];
 
         to_prophoto(r, g, b);
 
@@ -1032,9 +1028,9 @@ void PerceptualToneCurve::BatchApply(const size_t start, const size_t end, float
         if (!isfinite(J) || !isfinite(C) || !isfinite(h)) {
             // this can happen for dark noise colours or colours outside human gamut. Then we just return the curve's result.
             to_working(r, g, b);
-            rc[i] = intp(strength, r, std_r);
-            gc[i] = intp(strength, g, std_g);
-            bc[i] = intp(strength, b, std_b);
+            rc[i] = CLIP(intp(strength, r, std_r));
+            gc[i] = CLIP(intp(strength, g, std_g));
+            bc[i] = CLIP(intp(strength, b, std_b));
 
             continue;
         }
@@ -1197,11 +1193,13 @@ void PerceptualToneCurve::BatchApply(const size_t start, const size_t end, float
         // rc[i] = r;
         // gc[i] = g;
         // bc[i] = b;
-        rc[i] = intp(strength, r, std_r);
-        gc[i] = intp(strength, g, std_g);
-        bc[i] = intp(strength, b, std_b);
+        rc[i] = CLIP(intp(strength, r, std_r));
+        gc[i] = CLIP(intp(strength, g, std_g));
+        bc[i] = CLIP(intp(strength, b, std_b));
     }
 }
+
+
 float PerceptualToneCurve::cf_range[2];
 float PerceptualToneCurve::cf[1000];
 float PerceptualToneCurve::f, PerceptualToneCurve::c, PerceptualToneCurve::nc, PerceptualToneCurve::yb, PerceptualToneCurve::la, PerceptualToneCurve::xw, PerceptualToneCurve::yw, PerceptualToneCurve::zw;
@@ -1302,4 +1300,60 @@ void PerceptualToneCurve::initApplyState(PerceptualToneCurveState &state, const 
     }
 }
 
+
+NeutralToneCurve::ApplyState::ApplyState(const Glib::ustring &workingSpace, float whitept):
+    whitepoint(whitept)
+{
+    auto work = ICCStore::getInstance()->workingSpaceMatrix(workingSpace);
+    auto iwork = ICCStore::getInstance()->workingSpaceInverseMatrix(workingSpace);
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            ws[i][j] = work[i][j];
+            iws[i][j] = iwork[i][j];
+        }
+    }
 }
+
+
+void NeutralToneCurve::BatchApply(const size_t start, const size_t end, float *rc, float *gc, float *bc, const ApplyState &state) const
+{
+    Vec3f rgb;
+    Vec3f jch;
+
+    for (size_t i = start; i < end; ++i) {
+        rgb[0] = std::max(rc[i] / 65535.f, 0.f);
+        rgb[1] = std::max(gc[i] / 65535.f, 0.f);
+        rgb[2] = std::max(bc[i] / 65535.f, 0.f);
+
+        Color::rgb2jzazbz(rgb[0], rgb[1], rgb[2], jch[0], jch[1], jch[2], state.ws);
+        Color::jzazbz2jzch(jch[1], jch[2], jch[1], jch[2]);
+
+        for (int j = 0; j < 3; ++j) {
+            float nt = rgb[j] * 65535.f;
+            curves::setLutVal(lutToneCurve, curve, nt);
+            rgb[j] = nt / 65535.f;
+        }
+
+        float ilum = jch[0];
+        float hue = jch[2];
+
+        Color::rgb2jzazbz(rgb[0], rgb[1], rgb[2], jch[0], jch[1], jch[2], state.ws);
+        Color::jzazbz2jzch(jch[1], jch[2], jch[1], jch[2]);
+
+        float sat = jch[1];
+        float olum = jch[0];
+
+        float ccf = ilum > 1e-5f ? 1.f - (LIM01((olum / ilum) - 1.f) * 0.2f) : 1.f;
+        sat *= ccf;
+        
+        Color::jzch2jzazbz(sat, hue, jch[1], jch[2]);
+        Color::jzazbz2rgb(jch[0], jch[1], jch[2], rgb[0], rgb[1], rgb[2], state.iws);
+
+        rc[i] = LIM(rgb[0] * 65535.f, 0.f, whitept);
+        gc[i] = LIM(rgb[1] * 65535.f, 0.f, whitept);
+        bc[i] = LIM(rgb[2] * 65535.f, 0.f, whitept);
+    }
+}
+
+
+} // namespace rtengine

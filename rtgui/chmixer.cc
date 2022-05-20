@@ -101,9 +101,9 @@ ChMixer::ChMixer (): FoldableToolPanel(this, "chmixer", M("TP_CHMIXER_LABEL"), f
         green[i]->setAdjusterListener (this);
         blue[i]->setAdjusterListener (this);
 
-        red[i]->setLogScale(10, red[i]->getValue());
-        green[i]->setLogScale(10, green[i]->getValue());
-        blue[i]->setLogScale(10, blue[i]->getValue());
+        red[i]->setLogScale(25, 0, true);
+        green[i]->setLogScale(25, 0, true);
+        blue[i]->setLogScale(25, 0, true);
     }
 
     matrix_box->pack_start(*blabel);

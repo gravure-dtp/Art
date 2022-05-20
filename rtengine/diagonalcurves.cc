@@ -23,16 +23,23 @@
 #include <vector>
 #include "mytime.h"
 #include <cstring>
+#include "settings.h"
 
-#define CLIPD(a) ((a)>0.0?((a)<1.0?(a):1.0):0.0)
+namespace rtengine {
 
-namespace rtengine
-{
+extern const Settings *settings;
 
-DiagonalCurve::DiagonalCurve (const std::vector<double>& p, int poly_pn)
+namespace {
+
+inline double CLIPD(double d) { return std::max(d, 0.0); }
+
+} // namespace
+
+DiagonalCurve::DiagonalCurve(const std::vector<double>& p, int poly_pn)
 {
 
     ppn = poly_pn > 65500 ? 65500 : poly_pn;
+    hashSize = 1000;
 
     if (ppn < 500) {
         hashSize = 100;    // Arbitrary cut-off value, but multiple of 10
@@ -48,7 +55,7 @@ DiagonalCurve::DiagonalCurve (const std::vector<double>& p, int poly_pn)
         bool identity = true;
         kind = (DiagonalCurveType)p[0];
 
-        if (kind == DCT_Linear || kind == DCT_Spline || kind == DCT_NURBS || kind == DCT_CatumullRom) {
+        if (kind == DCT_Linear || kind == DCT_Spline || kind == DCT_NURBS || kind == DCT_CatmullRom) {
             N = (p.size() - 1) / 2;
             x = new double[N];
             y = new double[N];
@@ -90,7 +97,7 @@ DiagonalCurve::DiagonalCurve (const std::vector<double>& p, int poly_pn)
                 } else if (kind == DCT_NURBS && N > 2) {
                     NURBS_set ();
                     fillHash();
-                } else if (kind == DCT_CatumullRom && N > 2) {
+                } else if (kind == DCT_CatmullRom && N > 2) {
                     catmull_rom_set();
                 } else {
                     kind = DCT_Linear;
@@ -502,7 +509,7 @@ double DiagonalCurve::getVal (double t) const
         break;
     }
 
-    case DCT_CatumullRom: {
+    case DCT_CatmullRom: {
         auto it = std::lower_bound(poly_x.begin(), poly_x.end(), t);
         if (it == poly_x.end()) {
             return poly_y.back();
@@ -511,7 +518,7 @@ double DiagonalCurve::getVal (double t) const
         if (it+1 < poly_x.end() && t - *it > *(it+1) - t) {
             ++d;
         }
-        return LIM01(*(poly_y.begin() + d));
+        return CLIPD(*(poly_y.begin() + d));
         break;
     }
 
@@ -520,8 +527,10 @@ double DiagonalCurve::getVal (double t) const
         unsigned short int i = (unsigned short int)(t * hashSize);
 
         if (UNLIKELY(i > (hashSize + 1))) {
-            //printf("\nOVERFLOW: hash #%d is used while seeking for value %.8f, corresponding polygon's point #%d (out of %d point) x value: %.8f\n\n", i, t, hash.at(i), poly_x.size(), poly_x[hash.at(i)]);
-            printf("\nOVERFLOW: hash #%d is used while seeking for value %.8f\n\n", i, t);
+            if (settings->verbose) {
+                //printf("\nOVERFLOW: hash #%d is used while seeking for value %.8f, corresponding polygon's point #%d (out of %d point) x value: %.8f\n\n", i, t, hash.at(i), poly_x.size(), poly_x[hash.at(i)]);
+                printf("OVERFLOW: hash #%d is used while seeking for value %.8f\n", i, t);
+            }
             return t;
         }
 
@@ -542,7 +551,7 @@ double DiagonalCurve::getVal (double t) const
             }
         }
 
-        return poly_y[k_lo] + (t - poly_x[k_lo]) * dyByDx[k_lo];
+        return CLIPD(poly_y[k_lo] + (t - poly_x[k_lo]) * dyByDx[k_lo]);
     }
 
     case DCT_Empty :
@@ -565,4 +574,5 @@ void DiagonalCurve::getVal (const std::vector<double>& t, std::vector<double>& r
     }
 }
 
-}
+} // namespace rtengine
+

@@ -218,8 +218,7 @@ FileBrowser::FileBrowser () :
     clearFromCacheFull(nullptr),
     colorLabel_actionData(nullptr),
     tbl(nullptr),
-    numFiltered(-1)//,
-//    exportPanel(nullptr)
+    numFiltered(-1)
 {
     session_id_ = 0;
 
@@ -862,12 +861,6 @@ void FileBrowser::menuItemActivated (Gtk::MenuItem* m)
     else if (m == develop) {
         tbl->developRequested (mselected, false);
     } else if (m == developfast) {
-        // if (exportPanel) {
-        //     // force saving export panel settings
-        //     exportPanel->setExportPanelListener(nullptr);
-        //     exportPanel->FastExportPressed();
-        //     exportPanel->setExportPanelListener(this);
-        // }
         tbl->developRequested (mselected, true);
     }
 
@@ -1604,12 +1597,15 @@ bool FileBrowser::checkFilter (ThumbBrowserEntryBase* entryb)   // true -> entry
 
 void FileBrowser::toTrashRequested (std::vector<FileBrowserEntry*> tbe)
 {
+    const bool need_pp = options.thumbnail_rating_mode == Options::ThumbnailRatingMode::PROCPARAMS;
 
     for (size_t i = 0; i < tbe.size(); i++) {
-        // try to load the last saved parameters from the cache or from the paramfile file
-        tbe[i]->thumbnail->createProcParamsForUpdate(false, false, true);  // this can execute customprofilebuilder to generate param file in "flagging" mode
+        if (need_pp) {
+            // try to load the last saved parameters from the cache or from the paramfile file
+            tbe[i]->thumbnail->createProcParamsForUpdate(false, false, true);  // this can execute customprofilebuilder to generate param file in "flagging" mode
 
-        // no need to notify listeners as item goes to trash, likely to be deleted
+            // no need to notify listeners as item goes to trash, likely to be deleted
+        }
 
         if (tbe[i]->thumbnail->getInTrash()) {
             continue;
@@ -2041,20 +2037,6 @@ FileBrowser::type_trash_changed FileBrowser::trash_changed ()
     return m_trash_changed;
 }
 
-
-// // ExportPanel interface
-// void FileBrowser::exportRequested ()
-// {
-//     FileBrowser::menuItemActivated(developfast);
-// }
-
-// void FileBrowser::setExportPanel (ExportPanel* expanel)
-// {
-
-//     exportPanel = expanel;
-//     exportPanel->set_sensitive (false);
-//     exportPanel->setExportPanelListener (this);
-// }
 
 void FileBrowser::storeCurrentValue()
 {

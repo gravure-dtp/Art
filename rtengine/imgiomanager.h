@@ -31,6 +31,15 @@ namespace rtengine {
 
 class ImageIOManager: public NonCopyable {
 public:
+    enum Format {
+        FMT_UNKNOWN = 0,
+        FMT_JPG,
+        FMT_PNG,
+        FMT_PNG16,
+        FMT_TIFF,
+        FMT_TIFF_FLOAT
+    };
+
     static ImageIOManager *getInstance();
 
     void init(const Glib::ustring &dir);
@@ -43,15 +52,9 @@ public:
         return loaders_.find(ext) != loaders_.end();
     }
 
-private:
-    enum Format {
-        FMT_JPG,
-        FMT_PNG,
-        FMT_PNG16,
-        FMT_TIFF,
-        FMT_TIFF_FLOAT
-    };
+    Format getFormat(const Glib::ustring &fileName);
 
+private:
     static Glib::ustring get_ext(Format f);
     
     std::unordered_map<std::string, Glib::ustring> loaders_;

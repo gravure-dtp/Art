@@ -41,7 +41,7 @@ public:
         return parent_->box;
     }
 
-    void getEvents(rtengine::ProcEvent &mask_list, rtengine::ProcEvent &parametric_mask, rtengine::ProcEvent &h_mask, rtengine::ProcEvent &c_mask, rtengine::ProcEvent &l_mask, rtengine::ProcEvent &blur, rtengine::ProcEvent &show, rtengine::ProcEvent &area_mask, rtengine::ProcEvent &deltaE_mask, rtengine::ProcEvent &contrastThreshold_mask, rtengine::ProcEvent &drawn_mask) override
+    void getEvents(rtengine::ProcEvent &mask_list, rtengine::ProcEvent &parametric_mask, rtengine::ProcEvent &h_mask, rtengine::ProcEvent &c_mask, rtengine::ProcEvent &l_mask, rtengine::ProcEvent &blur, rtengine::ProcEvent &show, rtengine::ProcEvent &area_mask, rtengine::ProcEvent &deltaE_mask, rtengine::ProcEvent &contrastThreshold_mask, rtengine::ProcEvent &drawn_mask, rtengine::ProcEvent &mask_postprocess) override
     {
         mask_list = parent_->EvList;
         parametric_mask = parent_->EvParametricMask;
@@ -54,6 +54,7 @@ public:
         deltaE_mask = parent_->EvDeltaEMask;
         contrastThreshold_mask = parent_->EvContrastThresholdMask;
         drawn_mask = parent_->EvDrawnMask;
+        mask_postprocess = parent_->EvMaskPostprocess;
     }
 
     ToolPanelListener *listener() override
@@ -184,6 +185,7 @@ LocalContrast::LocalContrast(): FoldableToolPanel(this, "localcontrast", M("TP_L
     EvDeltaEMask = m->newEvent(EVENT, "HISTORY_MSG_LOCALCONTRAST_DELTAEMASK");
     EvContrastThresholdMask = m->newEvent(EVENT, "HISTORY_MSG_LOCALCONTRAST_CONTRASTTHRESHOLDMASK");
     EvDrawnMask = m->newEvent(EVENT, "HISTORY_MSG_LOCALCONTRAST_DRAWNMASK");
+    EvMaskPostprocess = m->newEvent(EVENT, "HISTORY_MSG_LOCALCONTRAST_MASK_POSTPROCESS");
 
     EvToolEnabled.set_action(EVENT);
     EvToolReset.set_action(EVENT);
@@ -225,7 +227,7 @@ void LocalContrast::read(const ProcParams *pp)
         regionData.emplace_back(rtengine::procparams::LocalContrastParams::Region());
         m.emplace_back(rtengine::procparams::Mask());
     }
-    labMasks->setMasks(m, pp->localContrast.showMask);
+    labMasks->setMasks(m, pp->localContrast.selectedRegion, pp->localContrast.showMask >= 0 && pp->localContrast.showMask == pp->localContrast.selectedRegion);
 
     enableListener();
 }
@@ -237,6 +239,7 @@ void LocalContrast::write(ProcParams *pp)
     regionGet(labMasks->getSelected());
     pp->localContrast.regions = regionData;
     labMasks->getMasks(pp->localContrast.labmasks, pp->localContrast.showMask);
+    pp->localContrast.selectedRegion = labMasks->getSelected();
     assert(pp->localContrast.regions.size() == pp->localContrast.labmasks.size());
     labMasks->updateSelected();
 }

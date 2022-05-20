@@ -82,6 +82,7 @@ public:
     bool getPixelShift () const override { return f()->getPixelShift(); }
     bool getHDR() const override { return f()->getHDR(); }
     std::string getImageType() const override { return f()->getImageType(); }
+    std::string getSoftware() const override { return f()->getSoftware(); }
     rtengine::IIOSampleFormat getSampleFormat() const override { return f()->getSampleFormat(); }
     int getRating() const override { return f()->getRating(); }
     std::vector<rtengine::GainMap> getGainMaps() const override { return f()->getGainMaps(); }
@@ -855,6 +856,8 @@ void FileCatalog::renameRequested(const std::vector<FileBrowserEntry *> &args)
 {
     Params params;
     if (get_params(getToplevelWindow(this), args, params)) {
+        removeFromBatchQueue(args);
+        
         std::vector<std::pair<Glib::ustring, Glib::ustring>> torename;
         for (auto e : args) {
             get_targets(params, e, torename);

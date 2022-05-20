@@ -45,5 +45,6 @@ public:
     void enabledChanged() override;
 
     void toolReset(bool to_initial) override;
+    void registerShortcuts(ToolShortcutManager *mgr) override;
 };
 

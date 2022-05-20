@@ -1,4 +1,5 @@
-/*
+/* -*- C++ -*-
+ *  
  *  This file is part of RawTherapee.
  *
  *  Copyright (c) 2004-2010 Gabor Horvath <hgabor@rawtherapee.com>
@@ -23,11 +24,9 @@
 #include "pixelsmap.h"
 #include "rawimage.h"
 
-namespace rtengine
-{
+namespace rtengine {
 
-class dfInfo
-{
+class DFInfo {
 public:
 
     Glib::ustring pathname; // filename of dark frame
@@ -39,12 +38,12 @@ public:
     time_t timestamp;   ///< seconds since 1 Jan 1970
 
 
-    dfInfo(const Glib::ustring &name, const std::string &mak, const std::string &mod, int iso, double shut, time_t t)
+    DFInfo(const Glib::ustring &name, const std::string &mak, const std::string &mod, int iso, double shut, time_t t)
         : pathname(name), maker(mak), model(mod), iso(iso), shutter(shut), timestamp(t), ri(nullptr) {}
 
-    dfInfo( const dfInfo &o)
+    DFInfo( const DFInfo &o)
         : pathname(o.pathname), maker(o.maker), model(o.model), iso(o.iso), shutter(o.shutter), timestamp(o.timestamp), ri(nullptr) {}
-    ~dfInfo()
+    ~DFInfo()
     {
         if( ri ) {
             delete ri;
@@ -52,8 +51,8 @@ public:
     }
 
 
-    dfInfo &operator =(const dfInfo &o);
-    bool operator <(const dfInfo &e2) const;
+    DFInfo &operator =(const DFInfo &o);
+    bool operator <(const DFInfo &e2) const;
 
     // Calculate virtual distance between two shots; different model return infinite
     double distance(const std::string &mak, const std::string &mod, int iso, double shutter) const;
@@ -75,10 +74,10 @@ protected:
     void updateRawImage();
 };
 
-class DFManager
-{
+
+class DFManager {
 public:
-    void init( Glib::ustring pathname );
+    void init(const Glib::ustring &pathname);
     Glib::ustring getPathname()
     {
         return currentPath;
@@ -91,17 +90,17 @@ public:
     std::vector<badPix> *getBadPixels ( const std::string &mak, const std::string &mod, const std::string &serial);
 
 protected:
-    typedef std::multimap<std::string, dfInfo> dfList_t;
+    typedef std::multimap<std::string, DFInfo> dfList_t;
     typedef std::map<std::string, std::vector<badPix> > bpList_t;
     dfList_t dfList;
     bpList_t bpList;
     bool initialized;
     Glib::ustring currentPath;
-    dfInfo *addFileInfo(const Glib::ustring &filename, bool pool = true );
-    dfInfo *find( const std::string &mak, const std::string &mod, int isospeed, double shut, time_t t );
+    DFInfo *addFileInfo(const Glib::ustring &filename, bool pool = true );
+    DFInfo *find( const std::string &mak, const std::string &mod, int isospeed, double shut, time_t t );
     int scanBadPixelsFile( Glib::ustring filename );
 };
 
 extern DFManager dfm;
 
-}
+} // namespace rtengine

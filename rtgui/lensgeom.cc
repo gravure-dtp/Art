@@ -23,7 +23,7 @@
 using namespace rtengine;
 using namespace rtengine::procparams;
 
-LensGeometry::LensGeometry () : FoldableToolPanel(this, "lensgeom", M("TP_LENSGEOM_LABEL")), rlistener(nullptr), lastFill(false)
+GeometryPanel::GeometryPanel () : FoldableToolPanel(this, "lensgeom", M("TP_GEOM_LABEL")), rlistener(nullptr), lastFill(false)
 {
 
     fill = Gtk::manage (new Gtk::CheckButton (M("TP_LENSGEOM_FILL")));
@@ -37,19 +37,19 @@ LensGeometry::LensGeometry () : FoldableToolPanel(this, "lensgeom", M("TP_LENSGE
     packBox = Gtk::manage (new ToolParamBlock ());
     pack_start (*packBox);
 
-    autoCrop->signal_pressed().connect( sigc::mem_fun(*this, &LensGeometry::autoCropPressed) );
-    fillConn = fill->signal_toggled().connect( sigc::mem_fun(*this, &LensGeometry::fillPressed) );
+    autoCrop->signal_pressed().connect( sigc::mem_fun(*this, &GeometryPanel::autoCropPressed) );
+    fillConn = fill->signal_toggled().connect( sigc::mem_fun(*this, &GeometryPanel::fillPressed) );
 
     fill->set_active (true);
     show_all ();
 }
 
-LensGeometry::~LensGeometry ()
+GeometryPanel::~GeometryPanel ()
 {
     idle_register.destroy();
 }
 
-void LensGeometry::read(const ProcParams* pp)
+void GeometryPanel::read(const ProcParams* pp)
 {
 
     disableListener ();
@@ -64,12 +64,12 @@ void LensGeometry::read(const ProcParams* pp)
     enableListener ();
 }
 
-void LensGeometry::write(ProcParams* pp)
+void GeometryPanel::write(ProcParams* pp)
 {
     pp->commonTrans.autofill   = fill->get_active ();
 }
 
-void LensGeometry::autoCropPressed ()
+void GeometryPanel::autoCropPressed ()
 {
 
     if (rlistener) {
@@ -77,7 +77,7 @@ void LensGeometry::autoCropPressed ()
     }
 }
 
-void LensGeometry::fillPressed ()
+void GeometryPanel::fillPressed ()
 {
     autoCrop->set_sensitive (!fill->get_active());
 
@@ -90,3 +90,12 @@ void LensGeometry::fillPressed ()
     }
 }
 
+
+LensPanel::LensPanel():
+    FoldableToolPanel(this, "lensaberr", M("TP_LENS_LABEL"))
+{
+    packBox = Gtk::manage (new ToolParamBlock ());
+    pack_start (*packBox);
+
+    show_all ();
+}

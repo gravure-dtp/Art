@@ -37,18 +37,21 @@ public:
     void trimValues(rtengine::procparams::ProcParams *pp) override;
 
     void toolReset(bool to_initial) override;
+    void registerShortcuts(ToolShortcutManager *mgr) override;
 
 private:
     void colormapToggled();
     
     std::array<Adjuster *, 5> bands;
     Adjuster *regularization;
+    Adjuster *pivot;
     Gtk::CheckButton *show_colormap;
     
     rtengine::ProcEvent EvEnabled;
     rtengine::ProcEvent EvBands;
     rtengine::ProcEvent EvRegularization;
     rtengine::ProcEvent EvColormap;
+    rtengine::ProcEvent EvPivot;
 
     rtengine::procparams::ToneEqualizerParams inital_params;
 };

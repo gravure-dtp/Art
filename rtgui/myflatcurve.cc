@@ -1624,7 +1624,7 @@ void MyFlatCurve::movePoint(bool moveX, bool moveY, bool pipetteDrag)
 void MyFlatCurve::getCursorPosition(Gdk::EventType evType, bool isHint, int evX, int evY, Gdk::ModifierType modifierKey)
 {
     int tx, ty;
-    int prevCursorX, prevCursorY;
+    int prevCursorX = 0, prevCursorY = 0;
     double incrementX = 1. / double(graphW);
     double incrementY = 1. / double(graphH);
 

@@ -713,7 +713,7 @@ float* RawImageSource::CA_correct_RT(
                                 blockvar[dir][c] = blocksqave[dir][c] / blockdenom[dir][c] - SQR(blockave[dir][c] / blockdenom[dir][c]);
                             } else {
                                 processpasstwo = false;
-                                if (settings->verbose) {
+                                if (settings->verbose > 1) {
                                     std::cout << "blockdenom vanishes" << std::endl;
                                 }
                                 break;
@@ -815,7 +815,7 @@ float* RawImageSource::CA_correct_RT(
                             numpar = 4;
 
                             if (numblox[1] < 10) {
-                                if (settings->verbose) {
+                                if (settings->verbose > 1) {
                                     std::cout << "numblox = " << numblox[1] << std::endl;
                                 }
                                 processpasstwo = false;

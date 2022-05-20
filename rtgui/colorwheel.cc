@@ -191,23 +191,50 @@ bool ColorWheelArea::on_draw(const ::Cairo::RefPtr<Cairo::Context> &crf)
         // flip y:
         cr->translate(0, height);
         cr->scale(1., -1.);
-        auto ws = rtengine::ICCStore::getInstance()->workingSpaceMatrix("sRGB");
         const float h2 = height * 0.5f;
         const float w2 = width * 0.5f;
-        const float Y = 0.5f;
         const float radius = std::min(w2, h2);
-        const float factor = Y * scale * 1.4 / radius;
+        const float inner_radius = radius * 0.93f;
+        const float factor = scale / 1.5f;
         for (int j = 0; j < height; ++j) {
             float jj = j - h2;
-            float u = jj * factor;
             for (int i = 0; i < width; ++i) {
                 float ii = i - w2;
                 float R, G, B;
-                if (std::sqrt(rtengine::SQR(ii) + rtengine::SQR(jj)) <= radius){
-                    float v = ii * factor;
-                    Color::yuv2rgb(Y, u, v, R, G, B, ws);
-                    cr->set_source_rgb(R, G, B);
-                    cr->rectangle(i, j, 1, 1);
+                float d = std::sqrt(rtengine::SQR(ii) + rtengine::SQR(jj));
+                if (d <= radius) {
+                    float s = d / radius;
+                    float h = atan2(jj, ii) / (2.f * rtengine::RT_PI_F);
+                    if (h < 0.f) {
+                        h += 1.f;
+                    } else if (h > 1.f) {
+                        h -= 1.f;
+                    }
+                    Color::hsl2rgb(h, s * factor, 0.5f, R, G, B);
+                    R /= 65535.f;
+                    G /= 65535.f;
+                    B /= 65535.f;
+
+                    float d1 = radius - d;
+                    float w = 1.f;
+                    float alpha = 1.f;
+                    float d2 = d - inner_radius;
+                    if (d1 < 1.f) {
+                        w = d1;
+                        cr->set_antialias(Cairo::ANTIALIAS_DEFAULT);
+                    } else {
+                        cr->set_antialias(Cairo::ANTIALIAS_NONE);
+                    }
+                    if (d2 <= 0) {
+                        alpha = 0.1f + 0.15f * d / inner_radius;
+                    } else if (d2 < 1.f) {
+                        w += d2;
+                        cr->set_antialias(Cairo::ANTIALIAS_DEFAULT);
+                    }
+                    float xoff = ii > 0 ? -w : 0.f;
+                    float yoff = jj > 0 ? -w : 0.f;
+                    cr->set_source_rgba(R, G, B, alpha);
+                    cr->rectangle(i+xoff, j+yoff, w, w);
                     cr->fill();
                 }
             }
@@ -419,6 +446,7 @@ ColorWheel::ColorWheel(bool use_scale):
         scale->set_inverted(true);
         scale->set_value(1.0);
         scale->set_draw_value(false);
+        scale->set_has_origin(false);
         RTImage *icon = Gtk::manage(new RTImage("volume-small.png"));
         vb->pack_start(*icon, false, false);
         vb->pack_start(*scale, true, true);
@@ -588,7 +616,7 @@ bool ColorWheel::mouseOver(int modifierKey)
         double x = p->pipetteVal[0];
         double y = p->pipetteVal[2];
         double s = find_scale(x, y);
-        if (modifierKey & GDK_SHIFT_MASK) {
+        if (!(modifierKey & GDK_SHIFT_MASK)) {
             // invert
             rtengine::PolarCoord p(rtengine::CoordD(x, y));
             p.angle += 180;
@@ -609,7 +637,7 @@ bool ColorWheel::button1Pressed(int modifierKey)
         double x = p->pipetteVal[0];
         double y = p->pipetteVal[2];
         double s = find_scale(x, y);
-        if (modifierKey & GDK_SHIFT_MASK) {
+        if (!(modifierKey & GDK_SHIFT_MASK)) {
             // invert
             rtengine::PolarCoord p(rtengine::CoordD(x, y));
             p.angle += 180;

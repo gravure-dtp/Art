@@ -112,7 +112,8 @@ protected:
     Vignetting* vignetting;
     Gradient* gradient;
     PCVignette* pcvignette;
-    LensGeometry* lensgeom;
+    GeometryPanel *geompanel;
+    LensPanel *lenspanel;
     LensProfilePanel* lensProf;
     Rotate* rotate;
     Distortion* distortion;
@@ -300,6 +301,8 @@ public:
     }
 
     std::vector<WBPreset> getWBPresets() const override;
+    void convertWBCam2Mul(double &rm, double &gm, double &bm) override;
+    void convertWBMul2Cam(double &rm, double &gm, double &bm) override;
 
     //DFProvider interface
     rtengine::RawImage* getDF() override;
@@ -363,6 +366,8 @@ public:
     bool getDeltaELCH(EditUniqueID id, rtengine::Coord pos, float &L, float &C, float &H) override;
 
     void setProgressListener(rtengine::ProgressListener *pl);
+
+    void setToolShortcutManager(ToolShortcutManager *mgr);
 
 private:
     IdleRegister idle_register;

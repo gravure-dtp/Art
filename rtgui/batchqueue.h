@@ -52,7 +52,8 @@ public:
     ~BatchQueue () override;
 
     void addEntries (const std::vector<BatchQueueEntry*>& entries, bool head = false, bool save = true);
-    void cancelItems (const std::vector<ThumbBrowserEntryBase*>& items);
+    void cancelItems(const std::vector<ThumbBrowserEntryBase*>& items) { cancelItems(items, false); }
+    void cancelItems(const std::vector<ThumbBrowserEntryBase*>& items, bool immediately);
     void headItems (const std::vector<ThumbBrowserEntryBase *>& items);
     void tailItems (const std::vector<ThumbBrowserEntryBase *>& items);
     void selectAll ();
@@ -94,6 +95,7 @@ public:
     const rtengine::procparams::PartialProfile *getBatchProfile() override;
 
 private:
+    void cancelItems_(const std::vector<ThumbBrowserEntryBase*>& items) { cancelItems(items, false); }
     int getMaxThumbnailHeight() const override;
     void saveThumbnailHeight (int height) override;
     int  getThumbnailHeight () override;

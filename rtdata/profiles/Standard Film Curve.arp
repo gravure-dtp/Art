@@ -1,15 +1,15 @@
 [Version]
-AppVersion=1.7.1-41-g285fe032ebd9
-Version=1022
+Version=1030
+
+[Exposure]
+HLRecovery=Balanced
 
 [ToneCurve]
 Enabled=true
 Contrast=0
 HistogramMatching=false
 CurveFromHistogramMatching=false
-CurveMode=FilmLike
-CurveMode2=Standard
+CurveMode=Neutral
 Curve=1;0;0;0.11;0.089999999999999997;0.32000000000000001;0.46999999999999997;0.66000000000000003;0.87;1;1;
 Curve2=0;
 Saturation=0;
-PerceptualStrength=52

@@ -32,8 +32,7 @@
 
 #define SAT(a,b,c) ((float)max(a,b,c)-(float)min(a,b,c))/(float)max(a,b,c)
 
-namespace rtengine
-{
+namespace rtengine {
 
 typedef std::array<double, 7> GammaValues;
 
@@ -54,9 +53,7 @@ public:
 #endif
 
 
-class Color
-{
-
+class Color {
 private:
     // Jacques' 195 LUTf for Munsell Lch correction
     static LUTf _4P10, _4P20, _4P30, _4P40, _4P50, _4P60;
@@ -103,6 +100,9 @@ private:
 
     static float computeXYZ2Lab(float f);
     static float computeXYZ2LabY(float f);
+
+    static LUTf jzazbz_pq_;
+    static LUTf jzazbz_pq_inv_;
     
 public:
 
@@ -1873,7 +1873,37 @@ public:
 
 
     // This is Adobe's hue-stable film-like curve with a diagonal, ie only used for clipping. Can probably be further optimized.
-    static void filmlike_clip(float *r, float *g, float *b);
+    static void filmlike_clip(float *r, float *g, float *b, float Lmax);
+
+
+    static void xyz2jzazbz(float X, float Y, float Z, float &Jz, float &az, float &bz);
+    static void jzazbz2xyz(float Jz, float az, float bz, float &X, float &Y, float &Z);
+    
+    template <class T>
+    static void rgb2jzazbz(float R, float G, float B, float &Jz, float &az, float &bz, const T ws[3][3])
+    {
+        float X, Y, Z;
+        rgbxyz(R, G, B, X, Y, Z, ws);
+        xyz2jzazbz(X, Y, Z, Jz, az, bz);
+    }
+
+    template <class T>
+    static void jzazbz2rgb(float Jz, float az, float bz, float &R, float &G, float &B, const T iws[3][3])
+    {
+        float X, Y, Z;
+        jzazbz2xyz(Jz, az, bz, X, Y, Z);
+        xyz2rgb(X, Y, Z, R, G, B, iws);
+    }
+
+    static void jzazbz2jzch(float az, float bz, float &c, float &h)
+    {
+        yuv2hsl(bz, az, h, c);
+    }
+    
+    static void jzch2jzazbz(float c, float h, float &az, float &bz)
+    {
+        hsl2yuv(h, c, bz, az);
+    }
 };
 
-}
+} // namespace rtengine

@@ -202,6 +202,7 @@ public:
     double H;
     double range;
     double decay;
+    int strength;
     int weight_L;
     int weight_C;
     int weight_H;
@@ -271,6 +272,9 @@ public:
     DeltaEMask deltaEMask;
     DrawnMask drawnMask;
     Glib::ustring name;
+    std::vector<double> curve;
+    int posterization;
+    int smoothing;
 
     Mask();
     bool operator==(const Mask &other) const;
@@ -490,6 +494,7 @@ struct ExposureParams {
     HighlightReconstruction hrmode;
     double expcomp;
     double black;
+    int hrblur;
 
     ExposureParams();
 
@@ -521,7 +526,8 @@ struct ToneCurveParams {
         FILMLIKE,          // Film-like mode, as defined in Adobe's reference code
         SATANDVALBLENDING, // Modify the Saturation and Value channel
         LUMINANCE,         // Modify the Luminance channel with coefficients from Rec 709's
-        PERCEPTUAL         // Keep color appearance constant using perceptual modeling
+        PERCEPTUAL,        // Keep color appearance constant using perceptual modeling
+        NEUTRAL            // Neutral mode: Standard with JzAzBz hue preservation and ACES-inspired desaturation "sweetener"
     };
 
     int contrast;
@@ -533,11 +539,15 @@ struct ToneCurveParams {
     bool fromHistMatching;
     std::vector<double> saturation;
     int perceptualStrength;
+    bool contrastLegacyMode;
+    double whitePoint;
 
     ToneCurveParams();
 
     bool operator==(const ToneCurveParams &other) const;
     bool operator!=(const ToneCurveParams &other) const;
+
+    bool hasWhitePoint() const;
 };
 
 
@@ -577,6 +587,7 @@ struct LocalContrastParams {
     std::vector<Region> regions;
     std::vector<Mask> labmasks;
     int showMask;
+    int selectedRegion;
 
     LocalContrastParams();
 
@@ -621,6 +632,8 @@ struct SharpeningParams {
     bool deconvAutoRadius;
     double deconvCornerBoost;
     int deconvCornerLatitude;
+    Glib::ustring psf_kernel;
+    double psf_iterations;
 
     SharpeningParams();
 
@@ -635,7 +648,8 @@ struct WBParams {
         CAMERA,
         AUTO,
         CUSTOM_TEMP,
-        CUSTOM_MULT
+        CUSTOM_MULT,
+        CUSTOM_MULT_LEGACY
     };
     Type method;
     int temperature;
@@ -735,6 +749,7 @@ struct TextureBoostParams {
     std::vector<Region> regions;
     std::vector<Mask> labmasks;
     int showMask;
+    int selectedRegion;
 
     TextureBoostParams();
 
@@ -778,6 +793,7 @@ struct ToneEqualizerParams {
     std::array<int, 5> bands;
     int regularization;
     bool show_colormap;
+    double pivot;
 
     ToneEqualizerParams();
 
@@ -1116,6 +1132,7 @@ struct ColorManagementParams {
     Glib::ustring outputProfile;
     RenderingIntent outputIntent;
     bool outputBPC;
+    bool inputProfileCAT;
 
     static const Glib::ustring NoICMString;
     static const Glib::ustring NoProfileString;
@@ -1219,7 +1236,10 @@ struct SmoothingParams {
             GUIDED,
             GAUSSIAN,
             GAUSSIAN_GLOW,
-            NLMEANS
+            NLMEANS,
+            MOTION,
+            LENS,
+            NOISE
         };
         Mode mode;
         Channel channel;
@@ -1230,6 +1250,12 @@ struct SmoothingParams {
         double falloff;
         int nldetail;
         int nlstrength;
+        int numblades;
+        double angle;
+        double curvature;
+        double offset;
+        int noise_strength;
+        int noise_coarseness;
 
         Region();
         bool operator==(const Region &other) const;
@@ -1239,6 +1265,7 @@ struct SmoothingParams {
     std::vector<Region> regions;
     std::vector<Mask> labmasks;
     int showMask;
+    int selectedRegion;
 
     SmoothingParams();
 
@@ -1251,7 +1278,8 @@ struct ColorCorrectionParams {
     enum class Mode {
         YUV,
         RGB,
-        HSL
+        HSL,
+        JZAZBZ
     };
     struct Region {
         double a;
@@ -1266,7 +1294,9 @@ struct ColorCorrectionParams {
         std::array<double, 3> hue;
         std::array<double, 3> sat;
         std::array<double, 3> factor;
+        std::array<double, 3> compression;
         bool rgbluminance;
+        double hueshift;
         Mode mode;
 
         Region();
@@ -1278,6 +1308,7 @@ struct ColorCorrectionParams {
     std::vector<Region> regions;
     std::vector<Mask> labmasks;
     int showMask;
+    int selectedRegion;
 
     ColorCorrectionParams();
     bool operator==(const ColorCorrectionParams &other) const;

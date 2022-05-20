@@ -38,6 +38,7 @@ enum EditUniqueID {
     EUID_HSL_S,
     EUID_HSL_V,
     EUID_ColorCorrection_Wheel,
+    EUID_ColorCorrection_Wheel_Jzazbz,
     EUID_LabMasks_H1,
     EUID_LabMasks_C1,
     EUID_LabMasks_L1,

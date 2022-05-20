@@ -1,4 +1,5 @@
-/*
+/* -*- C++ -*-
+ *  
  *  This file is part of RawTherapee.
  *
  *  Copyright (c) 2004-2010 Gabor Horvath <hgabor@rawtherapee.com>
@@ -16,8 +17,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _MYDIAGONALCURVE_
-#define _MYDIAGONALCURVE_
+#pragma once
 
 #include <gtkmm.h>
 #include <vector>
@@ -34,7 +34,7 @@ enum DiagonalCurveType {
     DCT_Spline,         // 1
     DCT_Parametric,     // 2
     DCT_NURBS,          // 3
-    DCT_CatumullRom,    // 4
+    DCT_CatmullRom,    // 4
     // Insert new curve type above this line
     DCT_Unchanged       // Must remain the last of the enum
 };
@@ -102,4 +102,3 @@ public:
     void stopNumericalAdjustment() override;
 };
 
-#endif

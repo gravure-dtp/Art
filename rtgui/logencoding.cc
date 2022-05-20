@@ -50,7 +50,7 @@ LogEncoding::LogEncoding():
     gain->addAutoButton();
     targetGray = Gtk::manage(new Adjuster(M("TP_LOGENC_TARGET_GRAY"), 5.0, 80.0, 0.1, 18.0));
     blackEv = Gtk::manage(new Adjuster(M("TP_LOGENC_BLACK_EV"), -16.0, 0.0, 0.1, -13.5));
-    whiteEv = Gtk::manage(new Adjuster(M("TP_LOGENC_WHITE_EV"), 0.0, 32.0, 0.1, 2.5));
+    whiteEv = Gtk::manage(new Adjuster(M("TP_LOGENC_WHITE_EV"), 1.0, 32.0, 0.01, 2.5));
     regularization = Gtk::manage(new Adjuster(M("TP_LOGENC_REGULARIZATION"), 0, 100, 1, 65));
 
     gain->delay = options.adjusterMaxDelay;
@@ -74,6 +74,7 @@ LogEncoding::LogEncoding():
     targetGray->show();
 
     //gain->setLogScale(10, 18, true);
+    gain->setLogScale(64, 0, true);
     targetGray->setLogScale(10, 18, true);
 
     // Gtk::Frame *advanced = Gtk::manage(new Gtk::Frame(M("TP_LOGENC_ADVANCED")));
@@ -231,3 +232,9 @@ void LogEncoding::toolReset(bool to_initial)
 }
 
 
+void LogEncoding::registerShortcuts(ToolShortcutManager *mgr)
+{
+    mgr->addShortcut(GDK_KEY_g, this, gain);
+    mgr->addShortcut(GDK_KEY_b, this, targetGray);
+    mgr->addShortcut(GDK_KEY_w, this, whiteEv);
+}

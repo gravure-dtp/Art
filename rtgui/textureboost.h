@@ -70,6 +70,7 @@ private:
     rtengine::ProcEvent EvDeltaEMask;
     rtengine::ProcEvent EvContrastThresholdMask;
     rtengine::ProcEvent EvDrawnMask;
+    rtengine::ProcEvent EvMaskPostprocess;
 
     std::vector<rtengine::procparams::TextureBoostParams::Region> data;
 

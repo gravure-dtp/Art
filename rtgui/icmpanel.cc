@@ -40,19 +40,7 @@ ICMPanel::ICMPanel():
     filename("")
 {
     auto m = ProcEventMapper::getInstance();
-    EvICMprimariMethod = m->newEvent(GAMMA, "HISTORY_MSG_ICM_OUTPUT_PRIMARIES");
-    EvICMprofileMethod = m->newEvent(GAMMA, "HISTORY_MSG_ICM_OUTPUT_TYPE");
-    EvICMtempMethod = m->newEvent(GAMMA, "HISTORY_MSG_ICM_OUTPUT_TEMP");
-    EvICMpredx = m->newEvent(GAMMA, "HISTORY_MSG_ICMPREDX");
-    EvICMpredy = m->newEvent(GAMMA, "HISTORY_MSG_ICMPREDY");
-    EvICMpgrex = m->newEvent(GAMMA, "HISTORY_MSG_ICMPGREX");
-    EvICMpgrey = m->newEvent(GAMMA, "HISTORY_MSG_ICMPGREY");
-    EvICMpblux = m->newEvent(GAMMA, "HISTORY_MSG_ICMPBLUX");
-    EvICMpbluy = m->newEvent(GAMMA, "HISTORY_MSG_ICMPBLUY");
-    EvICMgamm = m->newEvent(AUTOEXP, "HISTORY_MSG_ICM_WORKING_GAMMA");
-    EvICMslop = m->newEvent(AUTOEXP, "HISTORY_MSG_ICM_WORKING_SLOPE");
-    EvICMtrcinMethod = m->newEvent(AUTOEXP, "HISTORY_MSG_ICM_WORKING_TRC_METHOD");
-
+    EvUseCAT = m->newEvent(ALLNORAW, "HISTORY_MSG_ICM_INPUT_CAT");
     EvToolReset.set_action(DEMOSAIC);
 
     ipDialog = Gtk::manage(new MyFileChooserButton(M("TP_ICM_INPUTDLGLABEL"), Gtk::FILE_CHOOSER_ACTION_OPEN));
@@ -157,6 +145,21 @@ ICMPanel::ICMPanel():
     dcpFrame->add(*dcpGrid);
     dcpFrame->set_sensitive(false);
     iVBox->pack_start(*dcpFrame);
+
+    use_CAT_ = Gtk::manage(new Gtk::CheckButton(M("TP_ICM_INPUT_CAT")));
+    iVBox->pack_start(*use_CAT_, Gtk::PACK_SHRINK);
+    use_CAT_->signal_toggled().connect(
+        sigc::slot<void>(
+            [this]() -> void
+            {
+                if (listener) {
+                    if (use_CAT_->get_active()) {
+                        listener->panelChanged(EvUseCAT, M("GENERAL_ENABLED"));
+                    } else {
+                        listener->panelChanged(EvUseCAT, M("GENERAL_DISABLED"));
+                    }
+                }
+            }));
 
     saveRef = Gtk::manage(new Gtk::Button(M("TP_ICM_SAVEREFERENCE")));
     saveRef->set_image(*Gtk::manage(new RTImage("save-small.png")));
@@ -345,6 +348,7 @@ void ICMPanel::updateDCP(int dcpIlluminant, Glib::ustring dcp_name)
 
     if (dcp) {
         dcpFrame->set_sensitive(true);
+        dcpFrame->set_visible(true);
 
         if (dcp->getHasToneCurve()) {
             ckbToneCurve->set_sensitive(true);
@@ -396,6 +400,8 @@ void ICMPanel::updateDCP(int dcpIlluminant, Glib::ustring dcp_name)
                 dcpIll->set_active(-1);
             }
         }
+    } else {
+        dcpFrame->set_visible(false);
     }
 
     if (!dcpIllLabel->get_sensitive() && dcpIll->get_active_row_number() != 0) {
@@ -483,6 +489,9 @@ void ICMPanel::read(const ProcParams* pp)
     ckbApplyBaselineExposureOffset->set_active(pp->icm.applyBaselineExposureOffset);
     ckbApplyHueSatMap->set_active(pp->icm.applyHueSatMap);
 
+    use_CAT_->set_active(pp->icm.inputProfileCAT);
+    use_CAT_->set_visible(icamera->get_active());
+
     enableListener();
 }
 
@@ -531,6 +540,8 @@ void ICMPanel::write(ProcParams* pp)
     pp->icm.applyHueSatMap = ckbApplyHueSatMap->get_active();
     pp->icm.outputBPC = obpc->get_active();
     pp->toneCurve.fromHistMatching = false;
+
+    pp->icm.inputProfileCAT = use_CAT_->get_active();
 }
 
 void ICMPanel::setDefaults(const ProcParams* defParams)
@@ -630,6 +641,8 @@ void ICMPanel::ipChanged()
     }
 
     updateDCP(-1, profname);
+
+    use_CAT_->set_visible(icamera->get_active());
 
     if (listener && profname != oldip) {
         listener->panelChanged(EvIProfile, profname);

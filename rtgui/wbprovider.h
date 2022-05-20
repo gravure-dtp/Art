@@ -40,6 +40,8 @@ public:
     virtual void spotWBRequested (int size) {}
     
     virtual std::vector<WBPreset> getWBPresets() const { return std::vector<WBPreset>(); }
+    virtual void convertWBCam2Mul(double &rm, double &gm, double &bm) {}
+    virtual void convertWBMul2Cam(double &rm, double &gm, double &bm) {}
 };
 
 namespace wb_presets {

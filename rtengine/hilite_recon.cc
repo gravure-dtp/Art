@@ -35,6 +35,7 @@
 #include "settings.h"
 #include "rescale.h"
 #include "guidedfilter.h"
+#include "linalgebra.h"
 
 namespace {
 
@@ -286,11 +287,7 @@ void boxblur_resamp(const float* const* src, float** dst, float** temp, int H, i
 }
 
 
-#define FLT_M(m) std::array<std::array<float, 3>, 3>({                  \
-    std::array<float, 3>({float(m[0][0]), float(m[0][1]), float(m[0][2])}), \
-    std::array<float, 3>({float(m[1][0]), float(m[1][1]), float(m[1][2])}), \
-    std::array<float, 3>({float(m[2][0]), float(m[2][1]), float(m[2][2])}) \
-        })
+#define FLT_M(m) Mat33f(m[0][0], m[0][1], m[0][2], m[1][0], m[1][1], m[1][2], m[2][0], m[2][1], m[2][2])
 
 } // namespace
 
@@ -298,7 +295,7 @@ namespace rtengine {
 
 extern const Settings *settings;
 
-void RawImageSource::HLRecovery_inpaint(bool soft, float rm, float gm, float bm, float** red, float** green, float** blue)
+void RawImageSource::HLRecovery_inpaint(bool soft, int blur, float rm, float gm, float bm, float** red, float** green, float** blue)
 {
     double progress = 0.0;
 
@@ -331,7 +328,7 @@ void RawImageSource::HLRecovery_inpaint(bool soft, float rm, float gm, float bm,
         {1.f, 0.f, 1.f}
     };
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         for (int c = 0; c < 3; ++c) {
             printf("chmax[%d] : %f\tclmax[%d] : %f\tratio[%d] : %f\n", c, chmax[c], c, clmax[c], c, chmax[c] / clmax[c]);
         }
@@ -374,7 +371,7 @@ void RawImageSource::HLRecovery_inpaint(bool soft, float rm, float gm, float bm,
         factor[0] = factor[1] = factor[2] = 1.f;
     }
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         for (int c = 0; c < 3; ++c) {
             printf("correction factor[%d] : %f\n", c, factor[c]);
         }
@@ -454,7 +451,7 @@ void RawImageSource::HLRecovery_inpaint(bool soft, float rm, float gm, float bm,
         {
             return (0.299f * r + 0.587f * g + 0.114f * b);
         };
-    
+
     array2D<float> luminance;
     array2D<float> clipped;
     if (soft) {
@@ -971,6 +968,40 @@ void RawImageSource::HLRecovery_inpaint(bool soft, float rm, float gm, float bm,
         hilite[c].free();
     }
 
+    const int W2 = blur > 0 ? blurWidth / 2.f + 0.5f : 0;
+    const int H2 = blur > 0 ? blurHeight / 2.f + 0.5f : 0;
+    array2D<float> mask(W2, H2, ARRAY2D_CLEAR_DATA);
+    array2D<float> rbuf(W2, H2);
+    array2D<float> gbuf(W2, H2);
+    array2D<float> bbuf(W2, H2);
+    array2D<float> guide(W2, H2);
+   
+    if (blur > 0) {
+        array2D<float> rbuffer(blurWidth, blurHeight, minx, miny, red, ARRAY2D_BYREFERENCE);
+        rescaleNearest(rbuffer, rbuf, true);
+        array2D<float> gbuffer(blurWidth, blurHeight, minx, miny, green, ARRAY2D_BYREFERENCE);
+        rescaleNearest(gbuffer, gbuf, true);
+        array2D<float> bbuffer(blurWidth, blurHeight, minx, miny, blue, ARRAY2D_BYREFERENCE);
+        rescaleNearest(bbuffer, bbuf, true);
+
+        LUTf gamma(65536);
+#ifdef _OPENMP
+        #pragma omp parallel for
+#endif
+        for (int i = 0; i < 65536; ++i) {
+            gamma[i] = pow_F(i / 65535.f, 2.2f);
+        }
+
+#ifdef _OPENMP
+        #pragma omp parallel for
+#endif
+        for (int y = 0; y < H2; ++y) {
+            for (int x = 0; x < W2; ++x) {
+                guide[y][x] = gamma[Color::rgbLuminance(rbuf[y][x], gbuf[y][x], bbuf[y][x], imatrices.xyz_cam)];
+            }
+        }
+    }
+
     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     // now reconstruct clipped channels using color ratios
 #ifdef _OPENMP
@@ -1124,6 +1155,7 @@ void RawImageSource::HLRecovery_inpaint(bool soft, float rm, float gm, float bm,
 
             if (soft) clipped[i][j] = 1.f;
 
+            float maskval = 1.f;
             int yy = i + miny;
             int xx = j + minx;
 
@@ -1155,6 +1187,8 @@ void RawImageSource::HLRecovery_inpaint(bool soft, float rm, float gm, float bm,
                     blue[yy][xx]  = max(pixel[2], clipfix[2] * ((notclipped[0] * pixel[0] + notclipped[1] * pixel[1]) /
                                                    (notclipped[0] * clipfix[0] + notclipped[1] * clipfix[1] + epsilon)));
                 }
+
+                maskval = 1.f - (notclipped[0] + notclipped[1] + notclipped[2]) / 5.f;                
             }
 
             Y = 0.299f * red[yy][xx] + 0.587f * green[yy][xx] + 0.114f * blue[yy][xx];
@@ -1166,6 +1200,15 @@ void RawImageSource::HLRecovery_inpaint(bool soft, float rm, float gm, float bm,
                 green[yy][xx] *= mult;
                 blue[yy][xx]  *= mult;
             }
+
+            if (blur > 0) {
+                const int ii = i / 2;
+                const int jj = j / 2;
+                rbuf[ii][jj] = red[yy][xx];
+                gbuf[ii][jj] = green[yy][xx];
+                bbuf[ii][jj] = blue[yy][xx];
+                mask[ii][jj] = maskval;
+            }            
         }
     }
 
@@ -1173,29 +1216,101 @@ void RawImageSource::HLRecovery_inpaint(bool soft, float rm, float gm, float bm,
         progress += 0.05;
         plistener->setProgress(progress);
     }
+
+    if (blur > 0) {
+        if (plistener) {
+            progress += 0.05;
+            plistener->setProgress(progress);
+        }
+        blur = rtengine::LIM(blur - 1, 0, 3);
+
+        constexpr float vals[4][3] = {{4.0f, 0.3f, 0.3f},
+                                  //    {3.5f, 0.5f, 0.2f},
+                                      {3.0f, 1.0f, 0.1f},
+                                      {3.0f, 2.0f, 0.01f},
+                                      {2.0f, 3.0f, 0.001f}
+                                     };
+
+        const float rad1 = vals[blur][0];
+        const float rad2 = vals[blur][1];
+        const float th = vals[blur][2];
+
+        guidedFilter(guide, mask, mask, rad1, th, true, 1);
+        if (plistener) {
+            progress += 0.03;
+            plistener->setProgress(progress);
+        }
+        if (blur > 0) { //no use of 2nd guidedFilter if Blur = 0 (slider to 1)..speed-up and very small differences.
+            guidedFilter(guide, rbuf, rbuf, rad2, 0.01f * 65535.f, true, 1);
+            if (plistener) {
+                progress += 0.03;
+                plistener->setProgress(progress);
+            }
+            guidedFilter(guide, gbuf, gbuf, rad2, 0.01f * 65535.f, true, 1);
+            if (plistener) {
+                progress += 0.03;
+                plistener->setProgress(progress);
+            }
+            guidedFilter(guide, bbuf, bbuf, rad2, 0.01f * 65535.f, true, 1);
+            if (plistener) {
+                progress += 0.03;
+                plistener->setProgress(progress);
+            }
+        }
+#ifdef _OPENMP
+        #pragma omp parallel for schedule(dynamic,16)
+#endif
+        for (int y = 0; y < blurHeight; ++y) {
+            const float fy = y * 0.5f;
+            const int yy = y / 2;
+            for (int x = 0; x < blurWidth; ++x) {
+                const int xx = x / 2;
+                const float m = mask[yy][xx];
+                if (m > 0.f) {
+                    const float fx = x * 0.5f;
+                    red[y + miny][x + minx] = intp(m, getBilinearValue(rbuf, fx, fy), red[y + miny][x + minx]);
+                    green[y + miny][x + minx] = intp(m, getBilinearValue(gbuf, fx, fy), green[y + miny][x + minx]);
+                    blue[y + miny][x + minx] = intp(m, getBilinearValue(bbuf, fx, fy), blue[y + miny][x + minx]);
+                }
+            }
+        }
+    }    
     
     if (soft) {
-        auto to_rec2020_m = dotProduct(FLT_M(rec2020_xyz), FLT_M(imatrices.xyz_cam));
-        auto to_cam_m = dotProduct(FLT_M(imatrices.cam_xyz), FLT_M(xyz_rec2020));
+        const auto to_xyz_m = FLT_M(imatrices.xyz_cam);
+        const auto to_cam_m = FLT_M(imatrices.cam_xyz);
 
-        const auto to_rec2020 =
-            [&](float &r, float &g, float &b) -> void
+        const float rs = rm / 65535.f;
+        const float gs = gm / 65535.f;
+        const float bs = bm / 65535.f;
+    
+        const auto to_jzazbz =
+            [&](float r, float g, float b, float &J, float &az, float &bz) -> bool
             {
-                std::array<float, 3> rgb({r * rm, g * gm, b * bm});
-                rgb = dotProduct(to_rec2020_m, rgb);
-                r = rgb[0];
-                g = rgb[1];
-                b = rgb[2];
+                Vec3f v(r * rs, g * gs, b * bs);
+                v = dot_product(to_xyz_m, v);
+                if (UNLIKELY(min(v[0], v[1], v[2]) < 0.f)) {
+                    Color::rgb2yuv(r * rs, g * gs, b * bs, J, az, bz, imatrices.xyz_cam);
+                    return true;
+                } else {
+                    Color::xyz2jzazbz(v[0], v[1], v[2], J, az, bz);
+                    return false;
+                }
             };
 
-        const auto to_cam =
-            [&](float &r, float &g, float &b) -> void
+        const auto to_rgb =
+            [&](float J, float az, float bz, float &r, float &g, float &b, bool oog) -> void
             {
-                std::array<float, 3> rgb({r, g, b});
-                rgb = dotProduct(to_cam_m, rgb);
-                r = rgb[0]/rm;
-                g = rgb[1]/gm;
-                b = rgb[2]/bm;
+                Vec3f v;
+                if (oog) {
+                    Color::yuv2rgb(J, az, bz, v[0], v[1], v[2], imatrices.xyz_cam);
+                } else {
+                    Color::jzazbz2xyz(J, az, bz, v[0], v[1], v[2]);
+                    v = dot_product(to_cam_m, v);
+                }
+                r = v[0] / rs;
+                g = v[1] / gs;
+                b = v[2] / bs;
             };
 
         guidedFilter(luminance, clipped, clipped, min(width, height) / 10, 0.05f, true);
@@ -1210,7 +1325,7 @@ void RawImageSource::HLRecovery_inpaint(bool soft, float rm, float gm, float bm,
             tmp.saveTIFF("/tmp/clipped.tif", 16);
         }
 #endif
-        
+
 #ifdef _OPENMP
         #pragma omp parallel for schedule(dynamic,16)
 #endif
@@ -1221,7 +1336,7 @@ void RawImageSource::HLRecovery_inpaint(bool soft, float rm, float gm, float bm,
                 float &b = blue[y + miny][x + minx];
                 float l2 = luminance[y][x] * 65535.f;
                 float l = getlum(r, g, b);
-                if (l > 0.f) {
+                if (l > 0.f && l2 > l) {
                     float f = l2 / l;
                     r *= f;
                     g *= f;
@@ -1232,14 +1347,12 @@ void RawImageSource::HLRecovery_inpaint(bool soft, float rm, float gm, float bm,
                     if ((r - b)/max(r, b) > 0.1f && f > 0.f) {
                         f = pow_F(f, 0.3f);
                     }
-                    to_rec2020(r, g, b);
-                    float Y, u, v, h, s;
-                    Color::rgb2yuv(r, g, b, Y, u, v, xyz_rec2020);
-                    Color::yuv2hsl(u, v, h, s);
-                    s = intp(clipped[y][x], s * f, s);
-                    Color::hsl2yuv(h, s, u, v);
-                    Color::yuv2rgb(Y, u, v, r, g, b, xyz_rec2020);
-                    to_cam(r, g, b);
+                    float J, az, bz;
+                    bool oog = to_jzazbz(r, g, b, J, az, bz);
+                    f = intp(clipped[y][x], f, 1.f);
+                    // az = intp(clipped[y][x], az * f, az);
+                    // bz = intp(clipped[y][x], bz * f, bz);
+                    to_rgb(J, az * f, bz * f, r, g, b, oog);
                 }
             }
         }

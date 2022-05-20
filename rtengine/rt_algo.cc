@@ -17,6 +17,8 @@
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <complex.h>
+#include <fftw3.h>
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -33,8 +35,11 @@
 #include "rt_algo.h"
 #include "rt_math.h"
 #include "sleef.h"
+#include "../rtgui/threadutils.h"
+#include "imagefloat.h"
 
 namespace {
+
 float calcBlendFactor(float val, float threshold) {
     // sigmoid function
     // result is in ]0;1] range
@@ -159,9 +164,13 @@ float calcContrastThreshold(float** luminance, int tileY, int tileX, int tilesiz
 
     return c / 100.f;
 }
-}
+
+} // namespace
 
 namespace rtengine {
+
+extern MyMutex *fftwMutex;
+
 
 void findMinMaxPercentile(const float* data, size_t size, float minPrct, float& minOut, float maxPrct, float& maxOut, bool multithread)
 {
@@ -658,6 +667,308 @@ float polyFill(float **buffer, int width, int height, const std::vector<CoordD> 
     }
 
     return ret;//float(rtengine::min<int>(xEnd - xStart, yEnd - yStart));
+}
+
+
+namespace {
+
+inline int round_up_pow2(int dim)
+{
+    // from https://graphics.stanford.edu/~seander/bithacks.html
+    assert (dim > 0);
+    unsigned int v = dim;
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v++;
+    return v;
+}
+
+inline int find_fast_dim(int dim)
+{
+    // as per the FFTW docs:
+    //
+    //   FFTW is generally best at handling sizes of the form
+    //     2^a 3^b 5^c 7^d 11^e 13^f,
+    //   where e+f is either 0 or 1.
+    //
+    // Here, we try to round up to the nearest dim that can be expressed in
+    // the above form. This is not exhaustive, but should be ok for pictures
+    // up to 100MPix at least
+
+    int d1 = round_up_pow2 (dim);
+    std::vector<int> d = {
+        d1 / 128 * 65,
+        d1 / 64 * 33,
+        d1 / 512 * 273,
+        d1 / 16 * 9,
+        d1 / 8 * 5,
+        d1 / 16 * 11,
+        d1 / 128 * 91,
+        d1 / 4 * 3,
+        d1 / 64 * 49,
+        d1 / 16 * 13,
+        d1 / 8 * 7,
+        d1
+    };
+
+    for (size_t i = 0; i < d.size(); ++i) {
+        if (d[i] >= dim) {
+            return d[i];
+        }
+    }
+
+    assert(false);
+    return dim;
+}
+
+
+void do_convolution(fftwf_plan fwd_plan, fftwf_plan inv_plan, fftwf_complex *kernel_fft, int kernel_radius, int pH, int pW, float *buf, fftwf_complex *buf_fft, int W, int H, float **const src, float **dst, bool multithread)
+{
+#ifdef _OPENMP
+#   pragma omp parallel for if (multithread)
+#endif
+    for (int y = 0; y < pH; ++y) {
+        int yy = LIM(y - kernel_radius, 0, H-1);
+        for (int x = 0; x < pW; ++x) {
+            int xx = LIM(x - kernel_radius, 0, W-1);
+            buf[y * pW + x] = src[yy][xx];
+        }
+    }
+
+    fftwf_execute(fwd_plan);
+
+#ifdef _OPENMP
+#   pragma omp parallel for if (multithread)
+#endif
+    for (int y = 0; y < pH; ++y) {
+        for (int x = 0, end = pW / 2 + 1; x < end; ++x) {
+            const int i = y * end + x;
+            float p = buf_fft[i][0], q = buf_fft[i][1];
+            float r = kernel_fft[i][0], s = kernel_fft[i][1];
+            buf_fft[i][0] = p * r - q * s;
+            buf_fft[i][1] = p * s + q * r;
+        }
+    }
+
+    fftwf_execute(inv_plan);
+
+    const int K = 2 * kernel_radius;
+    const float norm = pH * pW;
+#ifdef _OPENMP
+#           pragma omp parallel for if (multithread)
+#endif
+    for (int y = 0; y < H; ++y) {
+        for (int x = 0; x < W; ++x) {
+            int idx = (y + K) * pW + x + K;
+            assert(idx < pH * pW);
+            dst[y][x] = buf[idx] / norm;
+        }
+    }
+}
+
+
+fftwf_complex *prepare_kernel(const array2D<float> &kernel, float *buf, int pW, int pH, bool multithread)
+{
+    fftwf_complex *kernel_fft = fftwf_alloc_complex(pH * (pW / 2 + 1));
+    const int K = kernel.width();
+
+#ifdef _OPENMP
+#       pragma omp parallel for if (multithread)
+#endif
+    for (int y = 0; y < pH; ++y) {
+        for (int x = 0; x < pW; ++x) {
+            if (y < K && x < K) {
+                buf[y * pW + x] = kernel[y][x];
+            } else {
+                buf[y * pW + x] = 0.f;
+            }
+        }
+    }
+
+    auto plan = fftwf_plan_dft_r2c_2d(pH, pW, buf, kernel_fft, FFTW_ESTIMATE);
+    fftwf_execute(plan);
+    fftwf_destroy_plan(plan);
+
+    return kernel_fft;
+}
+
+
+struct ConvolutionData {
+    int K;
+    int W;
+    int H;
+    int pW;
+    int pH;
+    fftwf_complex *kernel_fft;
+    float *buf;
+    fftwf_complex *buf_fft;
+    fftwf_plan fwd_plan;
+    fftwf_plan inv_plan;
+    bool multithread;
+
+    ConvolutionData(const array2D<float> &kernel, int W, int H, bool multithread):
+        K(0),
+        kernel_fft(nullptr),
+        buf(nullptr),
+        buf_fft(nullptr),
+        fwd_plan(nullptr),
+        inv_plan(nullptr),
+        multithread(multithread)
+    {
+        K = kernel.width();
+        if (K == kernel.height()) {
+            MyMutex::MyLock lock(*fftwMutex);
+
+#ifdef RT_FFTW3F_OMP
+            if (multithread) {
+                fftwf_init_threads();
+                fftwf_plan_with_nthreads(omp_get_max_threads());
+            }
+#endif
+            
+            this->W = W;
+            this->H = H;
+            pW = find_fast_dim(W + K);
+            pH = find_fast_dim(H + K);
+
+            buf = static_cast<float *>(fftwf_malloc(sizeof(float) * pH * pW));
+            buf_fft = fftwf_alloc_complex(pH * (pW / 2 + 1));
+            kernel_fft = prepare_kernel(kernel, buf, pW, pH, false);
+
+            fwd_plan = fftwf_plan_dft_r2c_2d(pH, pW, buf, buf_fft, FFTW_ESTIMATE);
+            inv_plan = fftwf_plan_dft_c2r_2d(pH, pW, buf_fft, buf, FFTW_ESTIMATE);
+        }
+    }
+
+    ~ConvolutionData()
+    {
+        if (inv_plan) {
+            fftwf_destroy_plan(inv_plan);
+        }
+        if (fwd_plan) {
+            fftwf_destroy_plan(fwd_plan);
+        }
+        if (kernel_fft) {
+            fftwf_free(kernel_fft);
+        }
+        if (buf_fft) {
+            fftwf_free(buf_fft);
+        }
+        if (buf) {
+            fftwf_free(buf);
+        }
+    }
+};
+
+} // namespace
+
+
+Convolution::Convolution(const array2D<float> &kernel, int W, int H, bool multithread):
+    data_(nullptr)
+{
+    data_ = new ConvolutionData(kernel, W, H, multithread);
+}
+
+
+Convolution::~Convolution()
+{
+    delete static_cast<ConvolutionData *>(data_);
+}
+
+
+void Convolution::operator()(float **src, float **dst)
+{
+    ConvolutionData *d = static_cast<ConvolutionData *>(data_);
+    MyMutex::MyLock lock(*fftwMutex);
+
+    do_convolution(d->fwd_plan, d->inv_plan, d->kernel_fft, d->K/2, d->pH, d->pW, d->buf, d->buf_fft, d->W, d->H, src, dst, d->multithread);
+}
+
+
+void Convolution::operator()(const array2D<float> &src, array2D<float> &dst)
+{
+    operator()(static_cast<float **>(const_cast<array2D<float> &>(src)), static_cast<float **>(dst));
+}
+
+
+void build_gaussian_kernel(float sigma, array2D<float> &res)
+{
+    static constexpr float threshold = 0.005f;
+    int sz = (int(std::floor(1 + 2 * std::sqrt(-2.f * SQR(sigma) * std::log(threshold)))) + 1) | 1;
+    const float two_sigma2 = 2.f * SQR(sigma);
+    const auto gauss =
+        [two_sigma2](float x) -> float
+        {
+            return std::exp(-SQR(x)/two_sigma2);
+        };
+    const auto gauss_integral =
+        [&](float a, float b) -> float
+        {
+            return ((b - a) / 6.f) * (gauss(a) + 4.f * gauss((a + b) / 2.f) + gauss(b));
+        };
+    std::vector<float> row(sz);
+    const float halfsz = float(sz / 2);
+    for (int i = 0; i < sz; ++i) {
+        float x = float(i) - halfsz;
+        float val = gauss_integral(x - 0.5f, x + 0.5f);
+        row[i] = val;
+    }
+    res(sz, sz);
+    double totd = 0.0;
+    for (int i = 0; i < sz; ++i) {
+        for (int j = 0; j < sz; ++j) {
+            float val = row[i] * row[j];
+            res[i][j] = val;
+            totd += val;
+        }
+    }
+    const float tot = totd;
+    for (int i = 0; i < sz; ++i) {
+        for (int j = 0; j < sz; ++j) {
+            res[i][j] /= tot;
+        }
+    }
+}
+
+
+void get_luminance(const Imagefloat *src, array2D<float> &out, const float ws[3][3], bool multithread)
+{
+    const int W = src->getWidth();
+    const int H = src->getHeight();
+    out(W, H);
+    
+#ifdef _OPENMP
+#   pragma omp parallel for if (multithread)
+#endif
+    for (int y = 0; y < H; ++y) {
+        for (int x = 0; x < W; ++x) {
+            out[y][x] = Color::rgbLuminance(src->r(y, x), src->g(y, x), src->b(y, x), ws);
+        }
+    }
+}
+
+void multiply(Imagefloat *img, const array2D<float> &num, const array2D<float> &den, bool multithread)
+{
+    const int W = img->getWidth();
+    const int H = img->getHeight();
+    
+#ifdef _OPENMP
+#   pragma omp parallel for if (multithread)
+#endif
+    for (int y = 0; y < H; ++y) {
+        for (int x = 0; x < W; ++x) {
+            if (den[y][x] > 0.f) {
+                const float f = num[y][x] / den[y][x];
+                img->r(y, x) *= f;
+                img->g(y, x) *= f;
+                img->b(y, x) *= f;
+            }
+        }
+    }
 }
 
 } // namespace rtengine

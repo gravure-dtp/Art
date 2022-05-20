@@ -291,7 +291,7 @@ void exec_sync(const Glib::ustring &workdir, const std::vector<Glib::ustring> &a
             flags |= Glib::SPAWN_SEARCH_PATH;
         }
         std::string wd = Glib::filename_from_utf8(workdir);
-        Glib::spawn_sync(wd, args, flags, Glib::SlotSpawnChildSetup(), out, err, &exit_status);
+        Glib::spawn_sync(wd, args, get_env(), flags, Glib::SlotSpawnChildSetup(), out, err, &exit_status);
         if (!(WIFEXITED(exit_status) && WEXITSTATUS(exit_status) == 0)) {
             throw (error() << "exit status: " << exit_status);
         }
@@ -301,6 +301,31 @@ void exec_sync(const Glib::ustring &workdir, const std::vector<Glib::ustring> &a
 }
 
 #endif // WIN32
+
+
+std::vector<std::string> get_env()
+{
+    std::vector<std::string> ret;
+    std::set<std::string> seen;
+    auto env = Glib::listenv();
+    for (const auto &k : env) {
+        if (k.find("ART_restore_") == 0) {
+            auto key = k.substr(12);
+            seen.insert(key);
+            auto val = Glib::getenv(k);
+            if (!val.empty()) {
+                ret.push_back(key + "=" + val);
+            }
+        }
+    }
+    for (const auto &key : env) {
+        if (key.find("ART_restore_") != 0 && seen.find(key) == seen.end()) {
+            auto val = Glib::getenv(key);
+            ret.push_back(key + "=" + val);
+        }
+    }
+    return ret;
+}
 
 
 }} // namespace rtengine::subprocess

@@ -27,8 +27,8 @@
 #include "alignedbuffer.h"
 #include "color.h"
 
-// #define BENCHMARK
-// #include "StopWatch.h"
+#define BENCHMARK
+#include "StopWatch.h"
 
 namespace rtengine {
 
@@ -44,7 +44,7 @@ inline void copyAndClampLine(const float *src, unsigned char *dst, const int W)
 }
 
 
-inline void copyAndClamp(Imagefloat *src, unsigned char *dst, const double rgb_xyz[3][3], bool multiThread)
+inline void copyAndClamp(Imagefloat *src, unsigned char *dst, const float rgb_xyz[3][3], bool multiThread)
 {
     src->setMode(Imagefloat::Mode::XYZ, multiThread);
     
@@ -79,14 +79,25 @@ inline void copyAndClamp(Imagefloat *src, unsigned char *dst, const double rgb_x
 
 } // namespace
 
-void ImProcFunctions::rgb2monitor(Imagefloat *img, Image8* image)
+void ImProcFunctions::rgb2monitor(Imagefloat *img, Image8* image, bool bypass_out)
 {
-    //BENCHFUN
+//    BENCHFUN
+    Imagefloat *inimg = img;
         
     image->allocate(img->getWidth(), img->getHeight());
     
     if (monitorTransform) {
-        img->setMode(Imagefloat::Mode::LAB, multiThread);
+        std::unique_ptr<Imagefloat> del_img;
+        if (!bypass_out) {
+            img = rgb2out(img, params->icm);
+            del_img.reset(img);
+            img->setMode(Imagefloat::Mode::RGB, multiThread);
+        } else {
+            img->setMode(Imagefloat::Mode::LAB, multiThread);
+        }
+        if (gamutWarning) {
+            inimg->setMode(Imagefloat::Mode::LAB, multiThread);
+        }
 
         const int W = img->getWidth();
         const int H = img->getHeight();
@@ -102,14 +113,17 @@ void ImProcFunctions::rgb2monitor(Imagefloat *img, Image8* image)
 
             AlignedBuffer<float> gwBuf1;
             AlignedBuffer<float> gwBuf2;
+            AlignedBuffer<float> gwSrcBuf;
 
             if (gamutWarning) {
+                gwSrcBuf.resize(3 * W);
                 gwBuf1.resize(3 * W);
                 gwBuf2.resize(3 * W);
             }
 
             float *buffer = pBuf.data;
             float *outbuffer = mBuf.data;
+            float *gwbuffer = gwSrcBuf.data;
 
 #ifdef _OPENMP
             #pragma omp for schedule(dynamic,16)
@@ -120,29 +134,54 @@ void ImProcFunctions::rgb2monitor(Imagefloat *img, Image8* image)
                 const int ix = i * 3 * W;
                 int iy = 0;
 
-                float* rL = img->g(i);
-                float* ra = img->r(i);
-                float* rb = img->b(i);
+                if (gamutWarning) {
+                    float *rL = inimg->g(i);
+                    float *ra = inimg->r(i);
+                    float *rb = inimg->b(i);
 
-                for (int j = 0; j < W; j++) {
-                    buffer[iy++] = rL[j] / 327.68f;
-                    buffer[iy++] = ra[j] / 327.68f;
-                    buffer[iy++] = rb[j] / 327.68f;
+                    for (int j = 0; j < W; j++) {
+                        gwbuffer[iy++] = rL[j] / 327.68f;
+                        gwbuffer[iy++] = ra[j] / 327.68f;
+                        gwbuffer[iy++] = rb[j] / 327.68f;
+                    }
                 }
 
+                iy = 0;
+                if (!bypass_out) {
+                    float *rr = img->r(i);
+                    float *rg = img->g(i);
+                    float *rb = img->b(i);
+
+                    for (int j = 0; j < W; j++) {
+                        buffer[iy++] = rr[j] / 65535.f; //327.68f;
+                        buffer[iy++] = rg[j] / 65535.f; //327.68f;
+                        buffer[iy++] = rb[j] / 65535.f; //327.68f;
+                    }
+                } else {
+                    float *rL = inimg->g(i);
+                    float *ra = inimg->r(i);
+                    float *rb = inimg->b(i);
+
+                    for (int j = 0; j < W; j++) {
+                        buffer[iy++] = rL[j] / 327.68f;
+                        buffer[iy++] = ra[j] / 327.68f;
+                        buffer[iy++] = rb[j] / 327.68f;
+                    }
+                }
+                
                 cmsDoTransform(monitorTransform, buffer, outbuffer, W);
                 copyAndClampLine(outbuffer, data + ix, W);
 
                 if (gamutWarning) {
-                    gamutWarning->markLine(image, i, buffer, gwBuf1.data, gwBuf2.data);
+                    gamutWarning->markLine(image, i, gwSrcBuf.data, gwBuf1.data, gwBuf2.data);
                 }
             }
         } // End of parallelization
     } else {
+        img->setMode(Imagefloat::Mode::LAB, multiThread);
         copyAndClamp(img, image->data, sRGB_xyz, multiThread);
     }
 }
-
 
 Image8* ImProcFunctions::rgb2out(Imagefloat *img, int cx, int cy, int cw, int ch, const procparams::ColorManagementParams &icm, bool consider_histogram_settings)
 {

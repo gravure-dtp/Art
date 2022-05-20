@@ -72,8 +72,8 @@ public:
         listener = l;
     }
 
-    void setFilter(ExifFilterSettings &defefs, bool updateLists);
-    ExifFilterSettings getFilter();
+    void setFilter(ExifFilterSettings &defefs, bool update);
+    ExifFilterSettings getFilter(bool full_data=true);
     bool isEnabled();
 
     void valueChanged();

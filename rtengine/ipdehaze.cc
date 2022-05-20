@@ -156,6 +156,10 @@ float estimate_ambient_light(const array2D<float> &R, const array2D<float> &G, c
                 }
             }
         }
+        
+        if (p.empty()) {
+            return -1.f;
+        }
         darklim = get_percentile(p, 0.95);
     }
 
@@ -190,6 +194,9 @@ float estimate_ambient_light(const array2D<float> &R, const array2D<float> &G, c
             }
         }
 
+        if (l.empty()) {
+            return -1.f;
+        }
         bright_lim = get_percentile(l, 0.95);
     }
 
@@ -377,6 +384,13 @@ void ImProcFunctions::dehaze(Imagefloat *img)
             patchsize = 2;
             int npatches = get_dark_channel(RR, GG, BB, D, patchsize, nullptr, false, multiThread);
             max_t = estimate_ambient_light(RR, GG, BB, D, patchsize, npatches, ambient);
+            if (max_t < 0.f) {
+                if (options.rtSettings.verbose) {
+                    std::cout << "dehaze: no haze detected" << std::endl;
+                }
+                restore(img, maxchan, multiThread);
+                return; // probably no haze at all
+            }
         }
     
         patchsize = max(max(W, H) / 600, 2);

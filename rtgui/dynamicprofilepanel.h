@@ -16,15 +16,13 @@
  *  You should have received a copy of the GNU General Public License
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _DYNAMICPROFILEPANEL_H_
-#define _DYNAMICPROFILEPANEL_H_
+#pragma once
 
 #include <gtkmm.h>
 #include "../rtengine/dynamicprofile.h"
 #include "profilestorecombobox.h"
 
-class DynamicProfilePanel: public Gtk::VBox
-{
+class DynamicProfilePanel: public Gtk::VBox {
 public:
     DynamicProfilePanel();
     void save();
@@ -46,15 +44,17 @@ private:
     public:
         DynamicProfileColumns()
         {
-            add (iso);
-            add (fnumber);
-            add (focallen);
-            add (shutterspeed);
-            add (expcomp);
-            add (camera);
-            add (lens);
-            add (profilepath);
-            add (imagetype);
+            add(iso);
+            add(fnumber);
+            add(focallen);
+            add(shutterspeed);
+            add(expcomp);
+            add(camera);
+            add(lens);
+            add(imagetype);
+            add(software);
+            add(filetype);
+            add(profilepath);
         }
 
         Gtk::TreeModelColumn<DynamicProfileRule::Range<int>> iso;
@@ -65,22 +65,25 @@ private:
         Gtk::TreeModelColumn<DynamicProfileRule::Optional> camera;
         Gtk::TreeModelColumn<DynamicProfileRule::Optional> lens;
         Gtk::TreeModelColumn<DynamicProfileRule::Optional> imagetype;
+        Gtk::TreeModelColumn<DynamicProfileRule::Optional> software;
+        Gtk::TreeModelColumn<DynamicProfileRule::Optional> filetype;
         Gtk::TreeModelColumn<Glib::ustring> profilepath;
     };
 
     // cell renderers
-    void render_iso (Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
-    void render_fnumber (Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
-    void render_focallen (Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
-    void render_shutterspeed (Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
-    void render_expcomp (Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
-    void render_camera (Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
-    void render_lens (Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
-    void render_imagetype (Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
-    void render_profilepath (Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
+    void render_iso(Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
+    void render_fnumber(Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
+    void render_focallen(Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
+    void render_shutterspeed(Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
+    void render_expcomp(Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
+    void render_camera(Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
+    void render_lens(Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
+    void render_imagetype(Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
+    void render_software(Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
+    void render_filetype(Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
+    void render_profilepath(Gtk::CellRenderer* cell, const Gtk::TreeModel::iterator& iter);
 
-    class EditDialog: public Gtk::Dialog
-    {
+    class EditDialog: public Gtk::Dialog {
     public:
         EditDialog (const Glib::ustring &title, Gtk::Window &parent);
         void set_rule (const DynamicProfileRule &rule);
@@ -114,6 +117,12 @@ private:
 
         MyComboBoxText *imagetype_;
 
+        Gtk::CheckButton *has_software_;
+        Gtk::Entry *software_;
+
+        Gtk::CheckButton *has_filetype_;
+        Gtk::Entry *filetype_;
+        
         ProfileStoreComboBox *profilepath_;
     };
 
@@ -133,5 +142,3 @@ private:
     Gtk::Button button_edit_;
     Gtk::Button button_delete_;
 };
-
-#endif // _DYNAMICPROFILEPANEL_H_

@@ -28,16 +28,24 @@
 #include "StopWatch.h"
 #include "rt_algo.h"
 #include "coord.h"
+#include "cache.h"
+#include "stdimagesource.h"
+#include "cJSON.h"
+#include "../rtgui/multilangmgr.h"
+#include <sstream>
 
 using namespace std;
 
 
-namespace rtengine { extern const Settings *settings; }
+namespace rtengine {
+
+extern const Settings *settings;
 
 
 namespace {
 
-template <bool reverse, bool usm>
+
+template <bool reverse>
 void apply_gamma(float **Y, int W, int H, float pivot, float gamma, bool multiThread)
 {
     BENCHFUN
@@ -51,9 +59,7 @@ void apply_gamma(float **Y, int W, int H, float pivot, float gamma, bool multiTh
     const float d = 65535.f * pivot;
     for (int i = 1; i < 65536; ++i) {
         glut[i] = pow_F(float(i)/d, gamma) * pivot;
-        if (reverse || usm) {
-            glut[i] *= 65535.f;
-        }
+        glut[i] *= 65535.f;
     }
         
 #ifdef _OPENMP
@@ -63,15 +69,10 @@ void apply_gamma(float **Y, int W, int H, float pivot, float gamma, bool multiTh
         for (int x = 0; x < W; ++x) {
             float l = Y[y][x];
             if (LIKELY(l >= 0.f && l < 65536.f)) {
-                if (reverse && !usm) {
-                    l *= 65535.f;
-                }
                 l = glut[l];
             } else {
                 l = pow_F(std::max(l / d, 1e-18f), gamma) * pivot;
-                if (reverse || usm) {
-                    l *= 65535.f;
-                }
+                l *= 65535.f;
             }
             Y[y][x] = l;
         }
@@ -149,7 +150,6 @@ void deconvsharpening(float **luminance, float **blend, char **impulse, int W, i
         return;
     }
 BENCHFUN
-    //apply_gamma<false, false>(luminance, W, H, 0.18f, 3.f, multiThread);
 
     const int maxiter = 20;
     const float delta_factor = 0.2f;
@@ -229,15 +229,13 @@ BENCHFUN
             }
         }
     }
-
-    //apply_gamma<true, false>(luminance, W, H, 0.18f, 3.f, multiThread);    
 }
 
 
 void unsharp_mask(float **Y, float **blend, int W, int H, const SharpeningParams &sharpenParam, double scale, bool multiThread)
 {
 BENCHFUN
-    apply_gamma<false, true>(Y, W, H, 1.f, 3.f, multiThread);
+    apply_gamma<false>(Y, W, H, 1.f, 3.f, multiThread);
 
     float** b3 = nullptr;
 
@@ -313,7 +311,7 @@ BENCHFUN
         delete [] b3;
     }
 
-    apply_gamma<true, true>(Y, W, H, 1.f, 3.f, multiThread);
+    apply_gamma<true>(Y, W, H, 1.f, 3.f, multiThread);
 }
 
 
@@ -344,9 +342,375 @@ private:
     float sigma_;
 };
 
+
+Cache<Glib::ustring, std::shared_ptr<array2D<float>>> rl_kernel_cache(10);
+
+
+template <class Img>
+bool import_kernel(Img *img, array2D<float> &out)
+{
+    int w = img->getWidth();
+    if (w != img->getHeight()) {
+        return false;
+    }
+    if (!(w & 1)) {
+        return false;
+    }
+    out(w, w);
+    for (int y = 0; y < w; ++y) {
+        for (int x = 0; x < w; ++x) {
+            auto v = img->g(y, x);
+            out[y][x] = v;
+        }
+    }
+    return true;
+}
+
+
+bool import_kernel(cJSON *obj, array2D<float> &out)
+{
+    if (!cJSON_IsArray(obj)) {
+        return false;
+    }
+    int n2 = cJSON_GetArraySize(obj);
+    if (n2 <= 1) {
+        return false;
+    }
+    cJSON *item = cJSON_GetArrayItem(obj, 0);
+    if (cJSON_IsArray(item)) {
+        // matrix form
+        int kn = n2;
+        out(kn, kn);
+        cJSON *row;
+        int i = 0;
+        cJSON_ArrayForEach(row, obj) {
+            if (!cJSON_IsArray(row) || cJSON_GetArraySize(row) != kn) {
+                return false;
+            }
+            cJSON *elem;
+            int j = 0;
+            cJSON_ArrayForEach(elem, row) {
+                if (!cJSON_IsNumber(elem)) {
+                    return false;
+                }
+                out[i][j] = elem->valuedouble;
+                ++j;
+            }
+            ++i;
+        }
+        return true;
+    } else if (cJSON_IsNumber(item)) {
+        float n = std::sqrt(float(n2));
+        if (n != float(int(n))) {
+            return false;
+        }
+        int kn = int(n);
+        out(kn, kn);
+        int i = 0, j = 0;
+        cJSON *elem;
+        cJSON_ArrayForEach(elem, obj) {
+            if (!cJSON_IsNumber(elem)) {
+                return false;
+            }
+            out[i][j] = elem->valuedouble;
+            if (++j >= kn) {
+                ++i;
+                j = 0;
+            }
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+
+void rescale_kernel(const array2D<float> &src, array2D<float> &k)
+{
+    const int sw = src.width();
+    const int w = k.width();
+
+    const int sh = sw/2;
+    const int h = w/2;
+
+    const auto get =
+        [&](float y, float x) -> float
+        {
+            bool nx = x < 0;
+            bool ny = y < 0;
+            x = std::abs(x);
+            y = std::abs(y);
+
+            int xi = x;
+            int yi = y;
+            float xf = x - xi;
+            float yf = y - yi;
+            int xi1 = std::min(xi + 1, sh);
+            int yi1 = std::min(yi + 1, sh);
+
+            if (nx) {
+                xi1 = -xi1;
+                xi = -xi;
+            }
+            if (ny) {
+                yi1 = -yi1;
+                yi = -yi;
+            }
+
+            float bl = src[yi+sh][xi+sh];
+            float br = src[yi+sh][xi1+sh];
+            float tl = src[yi1+sh][xi+sh];
+            float tr = src[yi1+sh][xi1+sh];
+
+            // interpolate
+            float b = xf * br + (1.f - xf) * bl;
+            float t = xf * tr + (1.f - xf) * tl;
+            float pxf = yf * t + (1.f - yf) * b;
+            return pxf;
+        };
+
+    float s = float(sw)/float(w);
+
+    double sum = 0;
+    for (int y = -h; y <= h; ++y) {
+        for (int x = -h; x <= h; ++x) {
+            float v = get(y * s, x * s);
+            k[y+h][x+h] = v;
+            sum += v;
+        }
+    }
+    
+    if (sum >= 1e-5f) {
+        for (int y = 0; y < w; ++y) {
+            for (int x = 0; x < w; ++x) {
+                k[y][x] /= sum;
+            }
+        }
+    } else {
+        for (int y = 0; y < w; ++y) {
+            for (int x = 0; x < w; ++x) {
+                k[y][x] = 0;
+            }
+        }
+        k[w/2][w/2] = 1;
+    }
+}
+
+
+bool flip_kernel(array2D<float> &kernel)
+{
+    const int k = kernel.width();
+    bool res = false;
+
+    float magnitude = std::abs(kernel[k/2][k/2]);
+    for (int y = 0; y < k; ++y) {
+        for (int x = 0; x < k; ++x) {
+            magnitude = std::max(magnitude, std::abs(kernel[y][x]));
+        }
+    }
+
+    for (int y = 0; y < k; ++y) {
+        for (int x = 0; x < k; ++x) {
+            float d = std::abs(kernel[y][x] - kernel[k-1-y][k-1-x]) / magnitude;
+            if (d > 1e-5f) {
+                res = true;
+                kernel[y][x] = kernel[k-1-y][k-1-x];
+            }
+        }
+    }
+
+    return res;
+}
+
+
+void rl_deconvolution_psf(float **luminance, float **blend, int W, int H, const SharpeningParams &shparam, const ImProcData &data, ProgressListener *plistener)
+{
+    const Glib::ustring &psf_file = shparam.psf_kernel;
+    int iterations = shparam.psf_iterations;
+    
+    std::shared_ptr<array2D<float>> kernel_ptr;
+
+    auto &key = psf_file;
+    if (!rl_kernel_cache.get(key, kernel_ptr)) {
+        StdImageSource src;
+        std::unique_ptr<cJSON, decltype(&cJSON_Delete)> jobj(nullptr, cJSON_Delete);
+        int err = src.load(psf_file);
+        
+        if (err) {
+            FILE *src = g_fopen(psf_file.c_str(), "rb");
+            if (src) {
+                std::ostringstream data;
+                int c;
+                while (true) {
+                    c = fgetc(src);
+                    if (c != EOF) {
+                        data << static_cast<unsigned char>(c);
+                    } else {
+                        break;
+                    }
+                }
+                fclose(src);
+                std::string s = data.str();
+                jobj.reset(cJSON_Parse(s.c_str()));
+            }
+            err = !jobj;
+        }
+
+        if (err) {
+            if (plistener) {
+                plistener->error(Glib::ustring::compose(M("TP_SHARPENING_LABEL") + " - " + M("ERROR_MSG_FILE_READ"), psf_file.empty() ? "(" + M("GENERAL_NONE") + ")" : psf_file));
+            }
+            return;
+        }
+        
+        kernel_ptr = std::make_shared<array2D<float>>();
+
+        bool ok = false;
+        if (jobj) {
+            ok = import_kernel(jobj.get(), *kernel_ptr);
+        } else {
+            ImageIO *img = src.getImageIO();
+            if (Image8 *im8 = dynamic_cast<Image8 *>(img)) {
+                ok = import_kernel(im8, *kernel_ptr);
+            } else if (Image16 *im16 = dynamic_cast<Image16 *>(img)) {
+                ok = import_kernel(im16, *kernel_ptr);
+            } else if (Imagefloat *imf = dynamic_cast<Imagefloat *>(img)) {
+                ok = import_kernel(imf, *kernel_ptr);
+            } else {
+                ok = false;
+            }
+        }
+
+        if (!ok) {
+            if (plistener) {
+                plistener->error(Glib::ustring::compose(M("TP_SHARPENING_LABEL") + " - " + M("ERROR_MSG_INVALID_PSF"), psf_file));
+            }
+            return;
+        }
+
+        rl_kernel_cache.set(key, kernel_ptr);
+    }
+
+    float scale = data.scale;
+    int kw = int(kernel_ptr->width() / scale) | 1;
+    if (kw < 3) {
+        return;
+    }
+    
+    array2D<float> kernel(kw, kw);
+    rescale_kernel(*kernel_ptr, kernel);
+
+    array2D<float> lum(W, H);
+    array2D<float> tmp(W, H);
+    array2D<float> out(W, H);
+    
+#ifdef _OPENMP
+#       pragma omp parallel for if (data.multiThread)
+#endif
+    for (int y = 0; y < H; ++y) {
+        for (int x = 0; x < W; ++x) {
+            luminance[y][x] = std::max(luminance[y][x], 0.f);
+            lum[y][x] = luminance[y][x];
+            out[y][x] = RT_NAN;
+        }
+    }
+
+    Convolution conv(kernel, W, H, data.multiThread);
+    Convolution *flipconv = &conv;
+    std::unique_ptr<Convolution> flipconv_ptr;
+    if (flip_kernel(kernel)) {
+        flipconv_ptr.reset(new Convolution(kernel, W, H, data.multiThread));
+        flipconv = flipconv_ptr.get();
+    }
+
+    LUTf loglut(65536);
+    for (int i = 1; i < 65536; ++i) {
+        float x = float(i) / 65535.f;
+        loglut[i] = xlogf(x);
+    }
+    const auto get_log =
+        [&](float x) -> float
+        {
+            if (x > 1.f && x <= 65535.f) {
+                return loglut[x];
+            } else if (x > 1e-5f) {
+                return xlogf(x / 65535.f);
+            } else {
+                return -RT_INFINITY_F;
+            }
+        };
+
+    const auto get_output =
+        [&](int i, int j) -> float
+        {
+            if (UNLIKELY(std::isnan(lum[i][j]))) {
+                return luminance[i][j];
+            }
+            return intp(blend[i][j], std::max(lum[i][j], 0.0f), luminance[i][j]);
+        };
+
+    constexpr float delta_factor = 0.3f;
+    
+    const auto check_stop =
+        [&](int y, int x) -> void
+        {
+            if (LIKELY(std::isnan(out[y][x]))) {
+                float l = get_log(luminance[y][x]);
+                float l2 = get_log(lum[y][x]);
+                if (UNLIKELY(std::abs(l2 - l) > delta_factor)) {
+                    out[y][x] = get_output(y, x);
+                }
+            }
+        };
+
+    for (int i = 0; i < iterations; ++i) {
+        conv(lum, tmp);
+
+#ifdef _OPENMP
+#       pragma omp parallel for if (data.multiThread)
+#endif
+        for (int y = 0; y < H; ++y) {
+            for (int x = 0; x < W; ++x) {
+                if (tmp[y][x] > 1e-5f) {
+                    tmp[y][x] = luminance[y][x] / tmp[y][x];
+                    assert(std::isfinite(tmp[y][x]));
+                }
+            }
+        }
+
+        (*flipconv)(tmp, tmp);
+
+#ifdef _OPENMP
+#       pragma omp parallel for if (data.multiThread)
+#endif
+        for (int y = 0; y < H; ++y) {
+            for (int x = 0; x < W; ++x) {
+                lum[y][x] *= tmp[y][x];
+                assert(std::isfinite(tmp[y][x]));
+                assert(std::isfinite(lum[y][x]));
+
+                check_stop(y, x);
+            }
+        }
+    }
+
+#ifdef _OPENMP
+#   pragma omp parallel for if (data.multiThread)
+#endif
+    for (int y = 0; y < H; ++y) {
+        for (int x = 0; x < W; ++x) {
+            float l = out[y][x];
+            if (std::isnan(l)) {
+                l = get_output(y, x);
+            }
+            assert(std::isfinite(l));
+            luminance[y][x] = std::max(l, 0.f);
+        }
+    }
+}
+
 } // namespace
 
-namespace rtengine {
 
 bool ImProcFunctions::doSharpening(Imagefloat *rgb, const SharpeningParams &sharpenParam, bool showMask)
 {
@@ -357,22 +721,29 @@ bool ImProcFunctions::doSharpening(Imagefloat *rgb, const SharpeningParams &shar
         return false;
     }
 
-    rgb->setMode(Imagefloat::Mode::YUV, multiThread);
-    float **Y = rgb->g.ptrs;
+    rgb->setMode(Imagefloat::Mode::RGB, multiThread);
+    array2D<float> Y(ARRAY2D_ALIGNED);
+    TMatrix ws = ICCStore::getInstance()->workingSpaceMatrix(rgb->colorSpace());
+    get_luminance(rgb, Y, ws, multiThread);
+    
     float s_scale = std::sqrt(scale);
     float contrast = pow_F(sharpenParam.contrast / 100.f, 1.2f) * s_scale;
     JaggedArray<float> blend(W, H);
     buildBlendMask(Y, blend, W, H, contrast, 1.f, false, 2.f / s_scale);
     
     if (showMask) {
+        float **r = rgb->r.ptrs;
+        float **g = rgb->g.ptrs;
+        float **b = rgb->b.ptrs;
 #ifdef _OPENMP
 #       pragma omp parallel for if (multiThread)
 #endif
         for (int i = 0; i < H; ++i) {
             for (int j = 0; j < W; ++j) {
-                Y[i][j] = blend[i][j] * 65536.f;
+                r[i][j] = g[i][j] = b[i][j] = blend[i][j] * 65536.f;
             }
         }
+
         return true;
     }
 
@@ -382,46 +753,38 @@ bool ImProcFunctions::doSharpening(Imagefloat *rgb, const SharpeningParams &shar
         markImpulse(W, H, Y, *impulse, 2.f);
     }
     
+    array2D<float> YY(W, H, Y, ARRAY2D_ALIGNED);
     
     if (sharpenParam.method == "rld") {
         double sigma = sharpenParam.deconvradius / scale;
         float amount = sharpenParam.deconvamount / 100.f;
         float delta = sharpenParam.deconvCornerBoost / scale;
         if (delta > 0.01f) {
-            array2D<float> YY(W, H, Y, 0);
-            deconvsharpening(Y, blend, *impulse, W, H, sigma, amount, multiThread);
-            deconvsharpening(YY, blend, *impulse, W, H, sigma + delta, amount, multiThread);
+            array2D<float> YY2(W, H, Y, ARRAY2D_ALIGNED);
+            deconvsharpening(YY, blend, *impulse, W, H, sigma, amount, multiThread);
+            deconvsharpening(YY2, blend, *impulse, W, H, sigma + delta, amount, multiThread);
             int fw = full_width > 0 ? full_width : W;
             int fh = full_height > 0 ? full_height : H;
             CornerBoostMask mask(offset_x, offset_y, fw, fh, sharpenParam.deconvCornerLatitude);
-//             {
-//                 Imagefloat tmp(W, H);
-// #ifdef _OPENMP
-// #               pragma omp parallel for if (multiThread)
-// #endif
-//                 for (int y = 0; y < H; ++y) {
-//                     for (int x = 0; x < W; ++x) {
-//                         float b = mask(x, y);
-//                         tmp.r(y, x) = tmp.g(y, x) = tmp.b(y, x) = b * 65535.f;
-//                     }
-//                 }
-//                 tmp.saveTIFF("/tmp/mask.tif", 16);
-//             }
 #ifdef _OPENMP
 #           pragma omp parallel for if (multiThread)
 #endif
             for (int y = 0; y < H; ++y) {
                 for (int x = 0; x < W; ++x) {
                     float blend = mask(x, y);
-                    Y[y][x] = intp(blend, YY[y][x], Y[y][x]);
+                    YY[y][x] = intp(blend, YY2[y][x], YY[y][x]);
                 }
             }
         } else {
-            deconvsharpening(Y, blend, *impulse, W, H, sigma, amount, multiThread);
+            deconvsharpening(YY, blend, *impulse, W, H, sigma, amount, multiThread);
         }
+    } else if (sharpenParam.method == "psf") {
+        ImProcData data(params, scale, multiThread);
+        rl_deconvolution_psf(YY, blend, W, H, sharpenParam, data, plistener);
     } else {
-        unsharp_mask(Y, blend, W, H, sharpenParam, scale, multiThread);
+        unsharp_mask(YY, blend, W, H, sharpenParam, scale, multiThread);
     }
+    multiply(rgb, YY, Y, multiThread);
 
 
     return false;

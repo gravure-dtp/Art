@@ -12,12 +12,15 @@ Other developers:
 
 Other contributors (profiles, ideas, mockups, testing, forum activity, translations, etc.), in last name alphabetical order:
 
+  alvaro
   Felipe Bouabci Simões
   André Gauthier
   Sebastien Guyader
   Paul Matthijsse
   Serge Moreau
   mrleemon
+  Ohnishi, Yasuo
+  Eigil Skovgaard
   Barry Thomas
 
 RawTherapee

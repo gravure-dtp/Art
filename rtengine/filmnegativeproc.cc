@@ -46,7 +46,7 @@ bool channelsAvg(const rtengine::RawImage* ri, int width, int height, const floa
 {
     avgs = {}; // Channel averages
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         printf("Spot coord:  x=%d y=%d\n", spotPos.x, spotPos.y);
     }
 
@@ -110,7 +110,7 @@ bool channelsAvg(const rtengine::Imagefloat* img, int width, int height, rtengin
 {
     avgs = {}; // Channel averages
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         printf("Spot coord:  x=%d y=%d\n", spotPos.x, spotPos.y);
     }
 
@@ -208,7 +208,7 @@ void calcMedians(const rtengine::RawImage *ri, float **data, int x1, int y1, int
 
     t2.set();
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         printf("Median vector fill loop time us: %d\n", t2.etime(t1));
     }
 
@@ -223,7 +223,7 @@ void calcMedians(const rtengine::RawImage *ri, float **data, int x1, int y1, int
 
     t3.set();
 
-    if (settings->verbose) {
+    if (settings->verbose  > 1) {
         printf("Sample count: R=%zu, G=%zu, B=%zu\n", cvs[0].size(), cvs[1].size(), cvs[2].size());
         printf("Median calc time us: %d\n", t3.etime(t2));
     }
@@ -359,7 +359,7 @@ bool RawImageSource::getImageSpotValues(Coord2D spotCoord, int spotSize, int tra
     Coord spot;
     transformPosition(spotCoord.x, spotCoord.y, tran, spot.x, spot.y);
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         printf("Transformed coords: %d,%d\n", spot.x, spot.y);
     }
 
@@ -372,7 +372,7 @@ bool RawImageSource::getImageSpotValues(Coord2D spotCoord, int spotSize, int tra
         return false;
     }
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         printf("Raw spot values: R=%g, G=%g, B=%g\n", rawValues[0], rawValues[1], rawValues[2]);
     }
 
@@ -621,7 +621,7 @@ void RawImageSource::filmNegativeProcess(const procparams::FilmNegativeParams &p
 
     t2.set();
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         printf("Pow loop time us: %d\n", t2.etime(t1));
     }
 
@@ -670,7 +670,7 @@ void RawImageSource::filmNegativeProcess(const procparams::FilmNegativeParams &p
 
     t3.set();
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         printf("Bad pixels count: %d\n", totBP);
         printf("Bad pixels interpolation time us: %d\n", t3.etime(t2));
     }
@@ -692,7 +692,7 @@ bool StdImageSource::getImageSpotValues(Coord2D spotCoord, int spotSize, int tra
     Coord spot;
     imgCopy->transformPixel(spotCoord.x, spotCoord.y, tran, spot.x, spot.y);
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         printf("Transformed coords: %d,%d\n", spot.x, spot.y);
     }
 
@@ -710,7 +710,7 @@ bool StdImageSource::getImageSpotValues(Coord2D spotCoord, int spotSize, int tra
     //     v /= 65535.f;
     // }
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         printf("Image spot values: R=%g, G=%g, B=%g\n", out[0], out[1], out[2]);
     }
 

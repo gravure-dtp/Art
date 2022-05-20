@@ -28,6 +28,8 @@
 #include "../rtengine/rt_math.h"
 #include "../rtengine/improcfun.h"
 
+#include "../rtengine/threadpool.h"
+
 #ifdef _OPENMP
 # include <omp.h>
 #endif
@@ -122,14 +124,10 @@ CropHandler::CropHandler() :
     redraw_needed(false),
     initial(false)
 {
-    int nthreads = 1;
-#ifdef _OPENMP
-    nthreads = omp_get_num_procs();
-#endif
-    thread_pool_.reset(new Glib::ThreadPool(nthreads, false));
 }
 
-CropHandler::~CropHandler ()
+
+CropHandler::~CropHandler()
 {
     idle_register.destroy();
 
@@ -151,9 +149,9 @@ void CropHandler::setEditSubscriber (EditSubscriber* newSubscriber)
     (static_cast<rtengine::Crop *>(crop))->setEditSubscriber(newSubscriber);
 }
 
-void CropHandler::newImage (StagedImageProcessor* ipc_, bool isDetailWindow)
-{
 
+void CropHandler::newImage(std::shared_ptr<StagedImageProcessor> ipc_, bool isDetailWindow)
+{
     ipc = ipc_;
     cx = 0;
     cy = 0;
@@ -199,7 +197,6 @@ double CropHandler::getFitCropZoom ()
 
 double CropHandler::getFitZoom ()
 {
-
     if (ipc) {
         double z1 = (double) wh / ipc->getFullHeight ();
         double z2 = (double) ww / ipc->getFullWidth ();
@@ -211,7 +208,10 @@ double CropHandler::getFitZoom ()
 
 void CropHandler::setZoom (int z, int centerx, int centery)
 {
-    assert (ipc);
+    //assert (ipc);
+    if (!ipc) {
+        return;
+    }
 
     int oldZoom = zoom;
     float oldScale = zoom >= 1000 ? float(zoom / 1000) : 10.f / float(zoom);
@@ -264,22 +264,29 @@ void CropHandler::setZoom (int z, int centerx, int centery)
 
     if (needed) {
         const auto doit =
-            [&]() -> bool
+            [this,needsFullRefresh]() -> bool
             {
-                if (needsFullRefresh && !ipc->getHighQualComputed()) {
-                    cropPixbuf.clear ();
-                    ipc->startProcessing(M_HIGHQUAL);
-                    ipc->setHighQualComputed();
-                } else {
-                    update ();
+                if (ipc) {
+                    if (needsFullRefresh && !ipc->getHighQualComputed()) {
+                        ipc->startProcessing(M_HIGHQUAL);
+                        ipc->setHighQualComputed();
+                    } else {
+                        update ();
+                    }
                 }
                 return false;
             };
 
         if (zoom_conn_.connected()) {
             zoom_conn_.disconnect();
+        }
+        if (cropPixbuf) {
             cropPixbuf.clear();
         }
+        if (cropPixbuftrue) {
+            cropPixbuftrue.clear();
+        }
+
         zoom_conn_ = Glib::signal_timeout().connect(sigc::slot<bool>(doit), options.adjusterMaxDelay);
     }
     
@@ -438,6 +445,7 @@ void CropHandler::setDetailedCrop(
 
                     if (redraw_needed.exchange(false)) {
                         cropPixbuf.clear ();
+                        cropPixbuftrue.clear ();
 
                         if (!enabled) {
                             cropimg.clear();
@@ -527,16 +535,27 @@ void CropHandler::update ()
     if (crop && enabled) {
 //        crop->setWindow (cropX, cropY, cropW, cropH, zoom>=1000 ? 1 : zoom); --> we use the "getWindow" hook instead of setting the size before
         crop->setListener (this);
+        cimg.lock();
         cropPixbuf.clear ();
+        cropPixbuftrue.clear();
+        cimg.unlock();
 
         // To save threads, try to mark "needUpdate" without a thread first
         if (crop->tryUpdate()) {
-            thread_pool_->push(sigc::mem_fun(*crop, &DetailedCrop::fullUpdate));
+            auto i = ipc; // keep a reference around so that ipc doesn't get
+                          // destroyed
+            auto c = crop;
+            const auto upd =
+                [i, c]() -> void
+                {
+                    c->fullUpdate();
+                };
+            rtengine::ThreadPool::add_task(rtengine::ThreadPool::Priority::HIGH, upd);
         }
     }
 }
 
-void CropHandler::setEnabled (bool e)
+void CropHandler::setEnabled(bool e, bool do_update)
 {
 
     enabled = e;
@@ -551,8 +570,8 @@ void CropHandler::setEnabled (bool e)
         cropimgtrue.clear();
         cropPixbuf.clear();
         cimg.unlock();
-    } else {
-        update ();
+    } else if (do_update) {
+        update();
     }
 }
 
@@ -564,6 +583,8 @@ bool CropHandler::getEnabled ()
 
 void CropHandler::colorPick (const rtengine::Coord &pickerPos, float &r, float &g, float &b, float &rpreview, float &gpreview, float &bpreview, LockableColorPicker::Size size)
 {
+
+    //MyMutex::MyLock lock(cimg);
 
     if (!cropPixbuf || !cropPixbuftrue) {
         r = g = b = 0.f;

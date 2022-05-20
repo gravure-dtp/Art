@@ -176,7 +176,7 @@ std::string GainMap::to_str() const
 }
 
 
-void RawImageSource::apply_gain_map(unsigned short black[4], std::vector<GainMap> maps)
+void RawImageSource::apply_gain_map(unsigned short black[4], std::vector<GainMap> &&maps)
 {
     if (maps.size() != 4) {
         if (settings->verbose) {

@@ -1120,7 +1120,7 @@ void ToneMapFattal02(Imagefloat *rgb, ImProcFunctions *ipf, const ProcParams *pa
 
     float noise = alpha * 0.01f;
 
-    if (settings->verbose) {
+    if (settings->verbose > 1) {
         std::cout << "ToneMapFattal02: alpha = " << alpha << ", beta = " << beta
                   << ", detail_level = " << detail_level << std::endl;
     }

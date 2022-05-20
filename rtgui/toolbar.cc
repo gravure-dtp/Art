@@ -483,7 +483,7 @@ bool ToolBar::handleShortcutKey (GdkEventKey* event)
 
     if (!ctrl && !alt) {
         switch(event->keyval) {
-        case GDK_KEY_w:
+        // case GDK_KEY_w:
         case GDK_KEY_W:
             if(wbTool) {
                 wb_pressed();
@@ -492,12 +492,12 @@ bool ToolBar::handleShortcutKey (GdkEventKey* event)
 
             return false;
 
-        case GDK_KEY_c:
+        // case GDK_KEY_c:
         case GDK_KEY_C:
             crop_pressed();
             return true;
 
-        case GDK_KEY_s:
+        // case GDK_KEY_s:
         case GDK_KEY_S:
             stra_pressed();
             return true;
@@ -507,7 +507,7 @@ bool ToolBar::handleShortcutKey (GdkEventKey* event)
             hand_pressed();
             return true;
 
-        case GDK_KEY_p:
+        case GDK_KEY_P:
             perspTool->set_active(!perspTool->get_active());
             return true;
         }

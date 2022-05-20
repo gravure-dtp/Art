@@ -20,10 +20,10 @@
 #include <gtkmm.h>
 #include "filepanel.h"
 #include "editorpanel.h"
+#include "rtwindow.h"
 #include <set>
 
-class EditWindow : public Gtk::Window
-{
+class EditWindow: public MessageWindow {
 
 private:
     double resolution;
@@ -58,7 +58,10 @@ public:
     bool isProcessing();
 
     void toFront();
-    bool keyPressed (GdkEventKey* event);
+    bool keyPressed(GdkEventKey *event);
+    bool keyPressedBefore(GdkEventKey *event);
+    bool keyReleased(GdkEventKey *event);
+    bool scrollPressed(GdkEventScroll *event);
     bool on_configure_event(GdkEventConfigure* event) override;
     bool on_delete_event(GdkEventAny* event) override;
     //bool on_window_state_event(GdkEventWindowState* event);

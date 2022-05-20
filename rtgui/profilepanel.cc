@@ -776,7 +776,7 @@ void ProfilePanel::initProfile (const Glib::ustring& profileFullPath, ProcParams
         pse = ProfileStore::getInstance()->getInternalDefaultPSE();
     }
 
-    if (pse == ProfileStore::getInstance()->getInternalDefaultPSE() && profileFullPath == DEFPROFILE_DYNAMIC) {
+    if (pse == ProfileStore::getInstance()->getInternalDefaultPSE() && profileFullPath == Options::DEFPROFILE_DYNAMIC) {
         auto dyn = ProfileStore::getInstance()->loadDynamicProfile(metadata);
         defprofile = dyn.release();
     } else {

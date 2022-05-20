@@ -111,6 +111,7 @@ public:
     bool getHDR() const override { return isHDR; }
     std::string getImageType() const override { return isPixelShift ? "PS" : isHDR ? "HDR" : "STD"; }
     rtengine::IIOSampleFormat getSampleFormat() const override { return sampleFormat; }
+    std::string getSoftware() const override { return ""; }
     int getRating() const override { return rating; }
     std::vector<rtengine::GainMap> getGainMaps() const override
     { return std::vector<rtengine::GainMap>(); }

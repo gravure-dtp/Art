@@ -271,7 +271,7 @@ void UserCommandStore::init(const Glib::ustring &dirname)
             
                 commands_.push_back(cmd);
 
-                if (options.rtSettings.verbose) {
+                if (options.rtSettings.verbose > 1) {
                     std::cout << "Found user command \"" << S(cmd.label)
                               << "\": " << S(cmd.command) << std::endl;
                 }
@@ -308,9 +308,7 @@ namespace ExtProg {
 bool spawnCommandAsync(const Glib::ustring &cmd)
 {
     try {
-
-        const auto encodedCmd = Glib::filename_from_utf8 (cmd);
-        Glib::spawn_command_line_async (encodedCmd.c_str ());
+        Glib::spawn_async("", Glib::shell_parse_argv(cmd), rtengine::subprocess::get_env(), Glib::SPAWN_SEARCH_PATH_FROM_ENVP);
 
         return true;
 
@@ -331,9 +329,7 @@ bool spawnCommandSync(const Glib::ustring &cmd)
     auto exitStatus = -1;
 
     try {
-
-        Glib::spawn_command_line_sync (cmd, nullptr, nullptr, &exitStatus);
-
+        Glib::spawn_sync("", Glib::shell_parse_argv(cmd), rtengine::subprocess::get_env(), Glib::SPAWN_SEARCH_PATH_FROM_ENVP, {}, nullptr, nullptr, &exitStatus);
     } catch (const Glib::Exception& exception) {
 
         if (options.rtSettings.verbose) {
@@ -395,12 +391,12 @@ bool openInGimp(const Glib::ustring &fileName)
 #elif defined __APPLE__
 
     cmdLine = Glib::ustring("open -a GIMP-dev \'") + fileName + Glib::ustring("\'");
-    success = spawnCommandAsync (cmdLine);
+    success = spawnCommandAsync(cmdLine);
 
 #else
 
     cmdLine = Glib::ustring("gimp-remote \"") + fileName + Glib::ustring("\"");
-    success = spawnCommandAsync (cmdLine);
+    success = spawnCommandAsync(cmdLine);
 
 #endif
 

@@ -49,6 +49,7 @@ private:
     std::string make, model, serial;
     std::string orientation;
     std::string lens;
+    std::string software;
     IIOSampleFormat sampleFormat;
     bool isPixelShift;
     bool isHDR;
@@ -66,6 +67,7 @@ public:
     bool getPixelShift() const override;
     bool getHDR() const override;
     std::string getImageType() const override;
+    std::string getSoftware() const override;
     IIOSampleFormat getSampleFormat() const override;
     bool hasExif() const override;
     tm getDateTime() const override;

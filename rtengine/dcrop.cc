@@ -40,7 +40,7 @@ extern const Settings* settings;
 
 Crop::Crop(ImProcCoordinator* parent, EditDataProvider *editDataProvider, bool isDetailWindow)
     : PipetteBuffer(editDataProvider), origCrop(nullptr), spotCrop(nullptr),
-      //laboCrop(nullptr), labnCrop(nullptr),
+      denoiseCrop(nullptr),
       cropImg (nullptr), transCrop (nullptr), 
       updating(false), newUpdatePending(false), skip(10),
       cropx(0), cropy(0), cropw(-1), croph(-1),
@@ -74,12 +74,12 @@ Crop::~Crop()
     freeAll();
 }
 
-void Crop::destroy()
-{
-    MyMutex::MyLock lock(cropMutex);
-    MyMutex::MyLock processingLock(parent->mProcessing);
-    freeAll();
-}
+// void Crop::destroy()
+// {
+//     MyMutex::MyLock lock(cropMutex);
+//     MyMutex::MyLock processingLock(parent->mProcessing);
+//     freeAll();
+// }
 
 void Crop::setListener(DetailedCropListener* il)
 {
@@ -177,7 +177,7 @@ void Crop::update(int todo)
     bool needstransform  = parent->ipf.needsTransform();
     bool show_denoise = params.denoise.enabled && (skip == 1 || options.denoiseZoomedOut);
 
-    if (todo & (M_INIT | M_LINDENOISE | M_HDR)) {
+    if (todo & M_INIT) {
         MyMutex::MyLock lock(parent->minit);  // Also used in improccoord
 
         int tr = getCoarseBitMask(params.coarse);
@@ -188,32 +188,41 @@ void Crop::update(int todo)
 
         PreviewProps pp(trafx, trafy, trafw * skip, trafh * skip, skip);
         parent->imgsrc->getImage(parent->currWB, tr, origCrop, pp, params.exposure, params.raw);
-
-        if (show_denoise) {
-            parent->ipf.denoiseComputeParams(parent->imgsrc, parent->currWB, parent->denoiseInfoStore, params.denoise);
-        }
-
-        if ((!isDetailWindow) && parent->adnListener && show_denoise) {
-            parent->adnListener->chromaChanged(params.denoise.chrominance, params.denoise.chrominanceRedGreen, params.denoise.chrominanceBlueYellow);
-        }
-
         
-        if ((todo & M_SPOT) && params.spot.enabled && !params.spot.entries.empty()) {
-            spotsDone = true;
-            PreviewProps pp(trafx, trafy, trafw * skip, trafh * skip, skip);
-            //parent->imgsrc->getImage(parent->currWB, tr, origCrop, pp, params.toneCurve, params.raw);
-            parent->ipf.removeSpots(origCrop, parent->imgsrc, params.spot.entries, pp, parent->currWB, nullptr, tr);
-        }
+        // if ((todo & M_SPOT) && params.spot.enabled && !params.spot.entries.empty()) {
+        //     spotsDone = true;
+        //     PreviewProps pp(trafx, trafy, trafw * skip, trafh * skip, skip);
+        //     parent->ipf.removeSpots(origCrop, parent->imgsrc, params.spot.entries, pp, parent->currWB, nullptr, tr);
+        // }
 
         parent->imgsrc->convertColorSpace(origCrop, params.icm, parent->currWB);
+    }
 
-        if ((todo & M_LINDENOISE) && show_denoise) {
-            parent->ipf.denoise(parent->imgsrc, parent->currWB, origCrop, parent->denoiseInfoStore, params.denoise);
+    Imagefloat *hdr_base_crop = origCrop;
+    
+    if (todo & M_LINDENOISE) {
+        if (!denoiseCrop) {
+            denoiseCrop = new Imagefloat(origCrop->getWidth(), origCrop->getHeight());
+        }
+        origCrop->copyTo(denoiseCrop);
+        hdr_base_crop = denoiseCrop;
+        baseCrop = denoiseCrop;
+        
+        if (show_denoise) {
+            parent->ipf.denoiseComputeParams(parent->imgsrc, parent->currWB, parent->denoiseInfoStore, params.denoise);
+
+            if ((!isDetailWindow) && parent->adnListener) {
+                parent->adnListener->chromaChanged(params.denoise.chrominance, params.denoise.chrominanceRedGreen, params.denoise.chrominanceBlueYellow);
+            }
+
+            parent->ipf.denoise(parent->imgsrc, parent->currWB, denoiseCrop, parent->denoiseInfoStore, params.denoise);
 
             if (parent->adnListener && params.denoise.chrominanceMethod == DenoiseParams::ChrominanceMethod::AUTOMATIC) {
                 parent->adnListener->chromaChanged(params.denoise.chrominance, params.denoise.chrominanceRedGreen, params.denoise.chrominanceBlueYellow);
-            }                
+            }
         }
+    } else if (denoiseCrop) {
+        baseCrop = denoiseCrop;
     }
 
     // has to be called after setCropSizes! Tools prior to this point can't handle the Edit mechanism, but that shouldn't be a problem.
@@ -228,13 +237,13 @@ void Crop::update(int todo)
     // Apply Spot removal
     if ((todo & M_SPOT) && !spotsDone) {
         if (params.spot.enabled && !params.spot.entries.empty()) {
-            if(!spotCrop) {
-                spotCrop = new Imagefloat (cropw, croph);
+            if (!spotCrop) {
+                spotCrop = new Imagefloat(cropw, croph);
             }
             baseCrop->copyTo(spotCrop);
-            PreviewProps pp (trafx, trafy, trafw * skip, trafh * skip, skip);
+            PreviewProps pp(trafx, trafy, trafw * skip, trafh * skip, skip);
             int tr = getCoarseBitMask(params.coarse);
-            parent->ipf.removeSpots (spotCrop, parent->imgsrc, params.spot.entries, pp, parent->currWB, &params.icm, tr);
+            parent->ipf.removeSpots(spotCrop, parent->imgsrc, params.spot.entries, pp, parent->currWB, &params.icm, tr);
         } else {
             if (spotCrop) {
                 delete spotCrop;
@@ -245,13 +254,14 @@ void Crop::update(int todo)
 
     if (spotCrop) {
         baseCrop = spotCrop;
+        hdr_base_crop = spotCrop;
     }
 
     std::unique_ptr<Imagefloat> drCompCrop;
     bool stop = false;
 
     if ((todo & M_HDR) && (params.fattal.enabled || params.dehaze.enabled)) {
-        Imagefloat *f = origCrop;
+        Imagefloat *f = baseCrop;
         int fw = skips(parent->fw, skip);
         int fh = skips(parent->fh, skip);
         bool need_cropping = false;
@@ -268,7 +278,7 @@ void Crop::update(int todo)
                 need_drcomp = false;
                 pipeline_stop_[0] = parent->pipeline_stop_[0];
             } else {
-                f = new Imagefloat(fw, fh, origCrop);
+                f = new Imagefloat(fw, fh, hdr_base_crop);
                 drCompCrop.reset(f);
                 PreviewProps pp(0, 0, parent->fw, parent->fh, skip);
                 int tr = getCoarseBitMask(params.coarse);
@@ -306,29 +316,25 @@ void Crop::update(int todo)
         stop = pipeline_stop_[0];
 
         // crop back to the size expected by the rest of the pipeline
+        baseCrop = hdr_base_crop;
         if (need_cropping) {
-            Imagefloat *c = origCrop;
-
             int oy = trafy / skip;
             int ox = trafx / skip;
 #ifdef _OPENMP
-            #pragma omp parallel for
+#           pragma omp parallel for
 #endif
-
             for (int y = 0; y < trafh; ++y) {
                 int cy = y + oy;
 
                 for (int x = 0; x < trafw; ++x) {
                     int cx = x + ox;
-                    c->r(y, x) = f->r(cy, cx);
-                    c->g(y, x) = f->g(cy, cx);
-                    c->b(y, x) = f->b(cy, cx);
+                    baseCrop->r(y, x) = f->r(cy, cx);
+                    baseCrop->g(y, x) = f->g(cy, cx);
+                    baseCrop->b(y, x) = f->b(cy, cx);
                 }
             }
-
-            baseCrop = c;
         } else {
-            baseCrop = f;
+            f->copyTo(baseCrop);
         }
     }
 
@@ -356,12 +362,6 @@ void Crop::update(int todo)
 
         transCrop = nullptr;
     }
-
-    // int offset_x = cropx / skip;
-    // int offset_y = cropy / skip;
-    // int full_width = parent->getFullWidth() / skip;
-    // int full_height = parent->getFullHeight() / skip;
-    // parent->ipf.setViewport(offset_x, offset_y, full_width, full_height);
 
     if (todo & M_RGBCURVE) {
         Imagefloat *workingCrop = baseCrop;
@@ -391,12 +391,9 @@ void Crop::update(int todo)
     // all pipette buffer processing should be finished now
     PipetteBuffer::setReady();
 
-    // Computing the preview image, i.e. converting from lab->Monitor color space (soft-proofing disabled) or lab->Output profile->Monitor color space (soft-proofing enabled)
     parent->ipf.rgb2monitor(bufs_[2], cropImg);
 
     if (cropImageListener) {
-        // Computing the internal image for analysis, i.e. conversion from lab->Output profile (rtSettings.HistogramWorking disabled) or lab->WCS (rtSettings.HistogramWorking enabled)
-
         // internal image in output color space for analysis
         Image8 *cropImgtrue = parent->ipf.rgb2out(bufs_[2], 0, 0, cropImg->getWidth(), cropImg->getHeight(), params.icm);
 
@@ -429,6 +426,7 @@ void Crop::update(int todo)
     }
 }
 
+
 void Crop::freeAll()
 {
 
@@ -441,6 +439,16 @@ void Crop::freeAll()
         if (transCrop) {
             delete    transCrop;
             transCrop = nullptr;
+        }
+
+        if (spotCrop) {
+            delete spotCrop;
+            spotCrop = nullptr;
+        }
+
+        if (denoiseCrop) {
+            delete denoiseCrop;
+            denoiseCrop = nullptr;
         }
 
         for (int i = 3; i > 0; --i) {
@@ -598,9 +606,8 @@ bool Crop::setCropSizes(int rcx, int rcy, int rcw, int rch, int skip, bool inter
         trafh = orH;
 
         if (!origCrop) {
-            origCrop = new Imagefloat;
+            origCrop = new Imagefloat();
         }
-
         origCrop->allocate(trafw, trafh);  // Resizing the buffer (optimization)
 
         // if transCrop doesn't exist yet, it'll be created where necessary
@@ -608,17 +615,20 @@ bool Crop::setCropSizes(int rcx, int rcy, int rcw, int rch, int skip, bool inter
             transCrop->allocate(cropw, croph);
         }
 
+        if (denoiseCrop) {
+            denoiseCrop->allocate(cropw, croph);
+        }
+
         for (int i = 0; i < 3; ++i) {
-            if (bufs_[i]) {
-                delete bufs_[i];
+            if (!bufs_[i]) {
+                bufs_[i] = new Imagefloat();
             }
-            bufs_[i] = new Imagefloat(cropw, croph);
+            bufs_[i]->allocate(cropw, croph);
         }
 
         if (!cropImg) {
-            cropImg = new Image8;
+            cropImg = new Image8();
         }
-
         cropImg->allocate(cropw, croph);  // Resizing the buffer (optimization)
 
         if (editType == ET_PIPETTE) {
@@ -635,6 +645,9 @@ bool Crop::setCropSizes(int rcx, int rcy, int rcw, int rch, int skip, bool inter
     origCrop->assignColorSpace(parent->params.icm.workingProfile);
     if (transCrop) {
         transCrop->assignColorSpace(parent->params.icm.workingProfile);
+    }
+    if (denoiseCrop) {
+        denoiseCrop->assignColorSpace(parent->params.icm.workingProfile);
     }
     for (int i = 0; i < 3; ++i) {
         bufs_[i]->assignColorSpace(parent->params.icm.workingProfile);
@@ -663,9 +676,8 @@ bool Crop::tryUpdate()
         newUpdatePending = true;
         // no need for a new thread, the current one will do the job
         needsNewThread = false;
-    } else
+    } else {
         // the crop is now being updated ...well, when fullUpdate will be called
-    {
         updating = true;
     }
 
@@ -681,15 +693,17 @@ bool Crop::tryUpdate()
  */
 void Crop::fullUpdate()
 {
+    MyMutex::MyLock processingLock(parent->mProcessing);
+    // parent->updaterThreadStart.lock();
 
-    parent->updaterThreadStart.lock();
-
-    if (parent->updaterRunning && parent->thread) {
-        // Do NOT reset changes here, since in a long chain of events it will lead to chroma_scale not being updated,
-        // causing Color::lab2rgb to return a black image on some opens
-        //parent->changeSinceLast = 0;
-        parent->thread->join();
-    }
+    // parent->wait_not_running();
+    // parent->set_updater_running(true);
+    // if (parent->updaterRunning && parent->thread) {
+    //     // Do NOT reset changes here, since in a long chain of events it will lead to chroma_scale not being updated,
+    //     // causing Color::lab2rgb to return a black image on some opens
+    //     //parent->changeSinceLast = 0;
+    //     parent->thread->join();
+    // }
 
     if (parent->plistener) {
         parent->plistener->setProgressState(true);
@@ -717,7 +731,8 @@ void Crop::fullUpdate()
         parent->plistener->setProgressState(false);
     }
 
-    parent->updaterThreadStart.unlock();
+    // parent->set_updater_running(false);
+    // parent->updaterThreadStart.unlock();
 }
 
 int Crop::get_skip()

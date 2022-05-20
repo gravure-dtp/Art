@@ -24,6 +24,8 @@
 #include "cropwindow.h"
 #include "../rtengine/refreshmap.h"
 #include "options.h"
+#include "shortcutmanager.h"
+
 
 ImageArea::ImageArea(ImageAreaPanel* p):
     parent(p), fullImageWidth(0), fullImageHeight(0),
@@ -55,6 +57,8 @@ ImageArea::ImageArea(ImageAreaPanel* p):
     dirty = false;
     ipc = nullptr;
     iLinkedImageArea = nullptr;
+
+    shortcut_mgr_ = nullptr;
 }
 
 ImageArea::~ImageArea ()
@@ -113,12 +117,12 @@ void ImageArea::on_resized (Gtk::Allocation& req)
     }
 }
 
-rtengine::StagedImageProcessor* ImageArea::getImProcCoordinator() const
+std::shared_ptr<rtengine::StagedImageProcessor> ImageArea::getImProcCoordinator() const
 {
     return ipc;
 }
 
-void ImageArea::setImProcCoordinator(rtengine::StagedImageProcessor* ipc_)
+void ImageArea::setImProcCoordinator(std::shared_ptr<rtengine::StagedImageProcessor> ipc_)
 {
     if( !ipc_ ) {
         focusGrabber = nullptr;
@@ -321,9 +325,12 @@ bool ImageArea::on_button_press_event (GdkEventButton* event)
 
 bool ImageArea::on_scroll_event (GdkEventScroll* event)
 {
-
 //    printf("ImageArea::on_scroll_event / delta_x=%.5f, delta_y=%.5f, direction=%d, type=%d, send_event=%d\n",
 //            event->delta_x, event->delta_y, (int)event->direction, (int)event->type, event->send_event);
+
+    if (shortcut_mgr_ && shortcut_mgr_->shouldHandleScroll()) {
+        return true;
+    }
 
     CropWindow* cw = getCropWindow (event->x, event->y);
     if (cw) {
@@ -803,4 +810,10 @@ void ImageArea::setAreaDrawListenerProvider(AreaDrawListenerProvider *alp)
     if (mainCropWindow && alp_) {
         alp_->setAreaDrawListener(mainCropWindow);
     }
+}
+
+
+void ImageArea::setToolShortcutManager(ToolShortcutManager *mgr)
+{
+    shortcut_mgr_ = mgr;
 }

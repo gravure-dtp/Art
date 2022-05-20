@@ -14,8 +14,6 @@ set(LICENCEDIR . CACHE PATH "Licence file installation path")
 
 set(BUILD_SHARED OFF CACHE BOOL "Should RT generate shared libraries")
 set(OPTION_OMP ON CACHE BOOL "Use OpenMP to speedup the preview and batch processing")
-# set WITH_MYFILE_MMAP to OFF if you experience crash with thumbnail creation (it should be slower, but more reliable)
-set(WITH_MYFILE_MMAP ON CACHE BOOL "Use the MMAP mechanism to speedup thumbnail creations")
 
 set(CACHE_NAME_SUFFIX "" CACHE STRING "RawTherapee's cache folder suffix (leave empty to use the default suffix, i.e. latesttag)")
 
