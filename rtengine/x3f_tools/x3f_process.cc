@@ -45,7 +45,8 @@ static int sum_area(x3f_area16_t area, int colors, uint64_t *sum){
 
 static int sum_area_sqdev(x3f_area16_t area, int colors, double *mean, double *sum){
     int row, col, color;
-    for (color=0; color<colors; color++) sum[color] = 0.0;
+    for (color=0; color<colors; color++)
+    	sum[color] = 0.0;
     for (row = 0; row < area.rows; row++)
       for (col = 0; col < area.columns; col++)
         for (color = 0; color < colors; color++) {
@@ -83,9 +84,10 @@ extern int get_black_level(x3f_t *x3f, x3f_area16_t *image, int rescale,
      * is specified incorrectly and thus ignored. */
     {
         char *cammodel;
-        if (x3f_get_prop_entry(x3f, "CAMMODEL", &cammodel))
+        if (x3f_get_prop_entry(x3f, "CAMMODEL", &cammodel)){
             if (!strcmp(cammodel, "SIGMA DP2"))
                 use[BOTTOM] = 0;
+        }
     }
 
     /* Workaround for bug in sd Quattro H firmaware. 
@@ -135,8 +137,9 @@ extern int get_black_level(x3f_t *x3f, x3f_area16_t *image, int rescale,
     if (pixels_sum == 0) 
         return 0;
     
-    for (i=0; i<colors; i++)
+    for (i=0; i<colors; i++){
         black_level[i] = (double)black_sum[i] / pixels_sum;
+    }
 
     pixels_sum = 0;
     black_sqdev = static_cast<double*>(alloca(colors * sizeof(double)));
@@ -264,7 +267,7 @@ int get_max_intermediate(x3f_t *x3f, const char *wb,
                 double intermediate_bias, uint32_t *max_intermediate, int intermediate_depth){
     double gain[3], maxgain = 0.0;
     int i;
-    int INTERMEDIATE_UNIT = (1<<intermediate_depth) - 1;
+    int INTERMEDIATE_UNIT = (1 << intermediate_depth) - 1;
 
     if (!x3f_get_gain(x3f, wb, gain)) 
         return 0;
@@ -282,11 +285,14 @@ int get_max_intermediate(x3f_t *x3f, const char *wb,
 /* extern */
 int get_intermediate_bias(x3f_t *x3f, const char *wb, double *black_level,
                           double *black_dev, double *intermediate_bias, int intermediate_depth){
-    uint32_t max_raw[3], max_intermediate[3];
+    uint32_t max_raw[3], max_intermediate[3], raw_depth;
     int i;
 
-    if (intermediate_depth < MIN_DEPTH) intermediate_depth = MIN_DEPTH;
-    double INTERMEDIATE_BIAS_FACTOR = double(pow(2, intermediate_depth) / pow(2, MIN_DEPTH));
+    if(!x3f_get_camf_unsigned(x3f, "ImageDepth", &raw_depth))
+    	raw_depth = MIN_DEPTH;
+
+    if (intermediate_depth < raw_depth) intermediate_depth = raw_depth;
+    double INTERMEDIATE_BIAS_FACTOR = (double(1 << intermediate_depth)) / (1 << raw_depth);
 
     if (!x3f_get_max_raw(x3f, max_raw)) 
         return 0;

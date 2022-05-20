@@ -2242,6 +2242,20 @@ void RawImageSource::copyOriginalPixels(const RAWParams &raw, RawImage *src, Raw
     if (raw.enable_flatfield && raw.ff_embedded) {
         apply_gain_map(black, idata->getGainMaps());
     } else if(ri->isFoveon()){
+    	FoveonHelper *fv = ri->get_foveon_helper();
+    	std::array<std::array<float, 3>, 3> ccg;
+    	float r, g, b;
+    	fv->get_correct_color_gain(ccg);
+    	for (int row = 0; row < H; row++) {
+			for (int col = 0; col < W; col++) {
+//				r = rawData[row][3 * col + 0];
+//				g = rawData[row][3 * col + 1];
+//				b = rawData[row][3 * col + 2];
+//				rawData[row][3 * col + 0] = r * ccg[0][0] + g * ccg[0][1] + b * ccg[0][2];
+//				rawData[row][3 * col + 1] = r * ccg[1][0] + g * ccg[1][1] + b * ccg[1][2];
+//				rawData[row][3 * col + 2] = r * ccg[2][0] + g * ccg[2][1] + b * ccg[2][2];
+			}
+		}
         apply_foveon_spatial_gain(black, idata->getGainMaps());
     }
 }

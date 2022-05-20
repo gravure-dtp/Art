@@ -2609,15 +2609,15 @@ Camera constants:
         //"dcraw_matrix": [ 25194, -8190, -5286, 10303, 2367, -1984, 4455, 4151, 1483 ], // EXIV2 MATRIX
         //"dcraw_matrix": [ 20416, -5650, -3447, -9693, 18760, 416, 135, -1184, 10152 ], // EXIFTOOL MATRIX
         //"dcraw_matrix": [ 13049, -598, 8699, -14819, 12456, -33459, 11412, -1858, 33009 ], // DCAMPROF MATRIX
-        "raw_crop": [ 12, 0, -110, -62 ], // for small size all numbers/2
+        //"raw_crop": [ 12, 0, -110, -62 ], // for small size all numbers/2
         "ranges": { "black": 16, "white": 4070 } // BL is 16 or 31, should be measured at the horizontal black stripe at the bottom
     },
     
     { // Quality C, correction for frame width, color matrix measured on a DP1 sample ..
         "make_model": [ "Sigma DP1 Merrill", "Sigma DP3 Merrill" ],
         //"dcraw_matrix": [ 2149,1003,-530,-494,6073,344,-3935,10665,3608 ], // experimental, inverted icc DP1_Merrill_dpreview_daylight WP1.2
-        "dcraw_matrix": [ 2517,1175,-621,-587,7080,404,-4677,12402,4231 ], // experimental, inverted icc DP1_Merrill_dpreview_daylight WP1.4
-        //"ranges": { "black": 16, "white": 4070 }, // BL is 16 or 31, should be measured at the horizontal black stripe at the bottom
+        //"dcraw_matrix": [ 2517,1175,-621,-587,7080,404,-4677,12402,4231 ], // experimental, inverted icc DP1_Merrill_dpreview_daylight WP1.4
+        "ranges": { "black": 16, "white": 4070 }, // BL is 16 or 31, should be measured at the horizontal black stripe at the bottom
         "raw_crop": [ 12, 0, -110, -62 ] // for small size all numbers/2
     },
 

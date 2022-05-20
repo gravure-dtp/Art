@@ -36,10 +36,10 @@ typedef struct{
 
 
 extern int x3f_get_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag,
-					     x3f_spatial_gain_corr_t *corr);
+					     x3f_spatial_gain_corr_t *corr, bool useLV);
 
 extern int x3f_get_interp_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag,
-						    x3f_spatial_gain_corr_t *corr);
+						    x3f_spatial_gain_corr_t *corr, bool useLV);
 
 extern int x3f_get_classic_spatial_gain(x3f_t *x3f, const char *wb,
 					x3f_spatial_gain_corr_t *corr);

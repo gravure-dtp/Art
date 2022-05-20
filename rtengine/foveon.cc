@@ -45,7 +45,11 @@ FoveonHelper::FoveonHelper(RawImage const *ri):raw_image(ri),
 											   x3f(X3F::x3f_new_from_file(ri->get_file())),
 											   data_loaded(false),
 											   black({-1,-1,-1}),
-											   white({-1,-1,-1}){
+											   white({-1,-1,-1}),
+											   scale({1.0, 1.0, 1.0}),
+											   cam_wb(nullptr),
+											   is_quattro(false),
+											   crop_area({0,0,0,0}){
     debug({"FoveonHelper for raw ", raw_image->get_filename()});
 }
 
@@ -110,10 +114,32 @@ bool FoveonHelper::load_data(){
 
 
 bool FoveonHelper::get_BlackLevels(int* black_c4){
-	if (get_Levels()){
+	if (get_raw_property()){
 		for (size_t i=0; i<3; i++)
-		    black_c4[i] = black[i];
-		black_c4[3] = black[1];
+		    black_c4[i] = int(black[i]);
+		black_c4[3] = int(black[1]);
+		return true;
+	}
+	return false;
+}
+
+
+bool FoveonHelper::get_BlackDev(int* black){
+	if (get_raw_property()){
+		for (size_t i=0; i<3; i++)
+		    black[i] = int(black_dev[i]);
+		black[3] = int(black_dev[1]);
+		return true;
+	}
+	return false;
+}
+
+
+bool FoveonHelper::get_BlackBias(int* black){
+	if (get_raw_property()){
+		for (size_t i=0; i<3; i++)
+		    black[i] = int(black_bias[i]);
+		black[3] = int(black_bias[1]);
 		return true;
 	}
 	return false;
@@ -121,7 +147,7 @@ bool FoveonHelper::get_BlackLevels(int* black_c4){
 
 
 bool FoveonHelper::get_WhiteLevels(int* white_c4){
-	if (get_Levels()){
+	if (get_raw_property()){
 		for (size_t i=0; i<3; i++)
 			white_c4[i] = white[i];
 		white_c4[3] = white[1];
@@ -131,23 +157,33 @@ bool FoveonHelper::get_WhiteLevels(int* white_c4){
 }
 
 
+bool FoveonHelper::get_raw_to_xyz(const char *wb, double *matrix){
+	double bmt_to_xyz[9], gain[9], gain_mat[9];
+
+	if (get_gain(wb, gain) && X3F::x3f_get_bmt_to_xyz(x3f, wb, bmt_to_xyz)){
+		X3F::x3f_3x3_diag(gain, gain_mat);
+		X3F::x3f_3x3_3x3_mul(bmt_to_xyz, gain_mat, matrix);
+	} else
+    	debug({"FoveonHelper can not obtain raw_to_xyz."});
+	return false;
+}
+
+
 bool FoveonHelper::get_ccMatrix(double *matrix){
-    if (!load_data()){
+    if (!get_raw_property()){
 		debug({"FoveonHelper is not in a valid state."});
 		return false;
     } else {
-        const char *wb;
-        wb = X3F::x3f_get_wb(x3f);
         /*double bmt_xyz[9];
         double neutral_mat[9];
         double gain[3];
         double neutral[3];
-        if (X3F::x3f_get_bmt_to_xyz(x3f, wb, bmt_xyz) && get_asShotNeutral(gain)){
+        if (X3F::x3f_get_bmt_to_xyz(x3f, cam_wb, bmt_xyz) && get_asShotNeutral(gain)){
         	X3F::x3f_3x1_invert(gain, neutral);
         	X3F::x3f_3x3_diag(neutral, neutral_mat);
         	X3F::x3f_3x3_3x3_mul(bmt_xyz, neutral_mat, matrix);
         */
-        if (X3F::x3f_get_raw_to_xyz(x3f, wb, matrix)){
+        if (X3F::x3f_get_raw_to_xyz(x3f, cam_wb, matrix)){
         	debug({"FoveonHelper ccMatrix : [", std::to_string(matrix[0]), ", ",
 									  		    std::to_string(matrix[1]), ", ",
 											    std::to_string(matrix[2]),
@@ -162,11 +198,11 @@ bool FoveonHelper::get_ccMatrix(double *matrix){
         	debug({"FoveonHelper can not obtain ccMatrix."});
     }
     return false;
-}
+} // get_ccMatrix
 
 
 bool FoveonHelper::get_cam_xyz(double matrix[4][3]){
-    if (!load_data()){
+    if (!get_raw_property()){
 		debug({"FoveonHelper is not in a valid state."});
 		return false;
     } else {
@@ -196,40 +232,15 @@ bool FoveonHelper::get_cam_xyz(double matrix[4][3]){
         	debug({"FoveonHelper can not obtain cam_xyz."});
     }
     return false;
-}
+} // get_cam_xyz
 
 
-bool FoveonHelper::get_gain(double *gain){
+bool FoveonHelper::get_gain(const char *wb, double *gain){
 	double gain_fact[3];
-	int max;
-	if (get_wbGain(gain)){
-		if (X3F::x3f_get_camf_float_vector(x3f, "SensorAdjustmentGainFact", gain_fact))
-			X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
 
-		if (X3F::x3f_get_camf_float_vector(x3f, "TempGainFact", gain_fact))
-			X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
-
-		if (X3F::x3f_get_camf_float_vector(x3f, "FNumberGainFact", gain_fact))
-			X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
-
-		if (X3F::x3f_get_camf_float_vector(x3f, "CorrectColorGain_BR", gain_fact))
-			X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
-
-		if (X3F::x3f_get_camf_float_vector(x3f, "CorrectColorGain_GR", gain_fact))
-			X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
-
-		if (X3F::x3f_get_camf_float_vector(x3f, "CorrectColorGain_RR", gain_fact))
-			X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
-
-		if (X3F::x3f_get_camf_float_vector(x3f, "DespAdjust", gain_fact))
-			X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
-
-		max = 0;
-		for (int c=0; c<3; c++)
-			if (max < gain[c])
-				max = gain[c];
-		for (int c=0; c<3; c++)
-			gain[c] /= max;
+	if (get_wbgain(wb, gain)){
+		get_sensor_gain(gain_fact);
+		X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
 
 		debug({"FoveonHelper color gain corrections: [", std::to_string(gain[0]), ", ",
 							           	   	   	   	   	 std::to_string(gain[1]), ", ",
@@ -239,41 +250,20 @@ bool FoveonHelper::get_gain(double *gain){
 	    debug({"FoveonHelper can not get color gain corrections."});
 	}
 	return false;
+} // get_gain
+
+
+bool FoveonHelper::get_gain(double *gain){
+	return (get_gain(cam_wb, gain));
 }
 
 
-bool FoveonHelper::get_asShotNeutral(double *gain){
-	double total_gain[3];
-	double gain_inv[3];
-	if (!load_data()){
-		debug({"FoveonHelper is not in a valid state."});
-	    return false;
-	} else {
-		const char *wb;
-		wb = X3F::x3f_get_wb(x3f);
-		if(X3F::x3f_get_gain(x3f, wb, total_gain)){
-			//X3F::x3f_3x1_invert(total_gain, gain_inv);
-			gain[0] = (total_gain[0]);
-			gain[1] = (total_gain[1]);
-			gain[2] = (total_gain[2]);
-			debug({"FoveonHelper asShotNeutral: [", std::to_string(gain[0]), ", ",
-					std::to_string(gain[1]), ", ", std::to_string(gain[2]), "]"});
-			return true;
-		} else {
-    		debug({"FoveonHelper can not get asShotNeutral multipliers."});
-    	}
-	}
-	return false;
-}
-
-
-bool FoveonHelper::get_wbGain(double *gain){
+bool FoveonHelper::get_wbgain(const char *wb, double *gain){
     double cam_to_xyz[9], wb_correction[9], _gain[3];
-    if (!load_data()){
+    if (!get_raw_property()){
 		debug({"FoveonHelper is not in a valid state."});
 		return false;
     } else {
-    	const char *wb = X3F::x3f_get_wb(x3f);
 		if (X3F::x3f_get_camf_matrix_for_wb(x3f, "WhiteBalanceGains", wb, 3, 0, _gain) ||
 			X3F::x3f_get_camf_matrix_for_wb(x3f, "DP1_WhiteBalanceGains", wb, 3, 0, _gain)){
 			gain[0] = (_gain[0]);
@@ -301,24 +291,178 @@ bool FoveonHelper::get_wbGain(double *gain){
     	}
     }
     return false;
-}
+} // get_wbgain
 
 
-bool FoveonHelper::get_Levels(){
-    X3F::x3f_area16_t image, original_image, expanded, crop, image2;
-    double black_level[3], black_dev[3];
-    //int quattro = x3f_image_area_qtop(x3f, &qtop);
-    int colors_in = 3; //quattro ? 2 : 3;
-    uint32_t max_raw[3];
-    uint32_t white_levels[3];
+void FoveonHelper::get_sensor_gain(double *gain){
+	double gain_fact[3];
+	int i_gain_fact[3];
+	gain[0] = gain[1] = gain[2] = 1.0;
+
+	if (X3F::x3f_get_camf_float_vector(x3f, "SensorAdjustmentGainFact", gain_fact))
+		X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+	if (X3F::x3f_get_camf_float_vector(x3f, "TempGainFact", gain_fact))
+		X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+	if (X3F::x3f_get_camf_float_vector(x3f, "FNumberGainFact", gain_fact))
+		X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+	/*
+	if (X3F::x3f_get_camf_float_vector(x3f, "CorrectColorGain_BR", gain_fact))
+		X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+	if (X3F::x3f_get_camf_float_vector(x3f, "CorrectColorGain_GR", gain_fact))
+		X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+	if (X3F::x3f_get_camf_float_vector(x3f, "CorrectColorGain_RR", gain_fact))
+		X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+	*/
+	/*double maxd = 0;
+	if (X3F::x3f_get_camf_signed_vector(x3f, "DespAdjust", i_gain_fact)){
+		for (int i=0; i<3; i++){
+			gain_fact[i] = double(i_gain_fact[i]);
+			if (maxd < gain_fact[i])
+				maxd = gain_fact[i];
+		}
+		for (int i=0; i<3; i++)
+			gain_fact[i] = 1.0 / (gain_fact[i] / maxd);
+		X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+	}*/
+
+	debug({"FoveonHelper: sensor gain [", std::to_string(gain[0]), ", ",
+		                				  std::to_string(gain[1]), ", ",
+										  std::to_string(gain[2]), "]"});
+} // get_sensor_gain
+
+
+void FoveonHelper::get_correct_color_gain(std::array<std::array<float, 3>, 3> &gain_adj){
+	double gain_fact[9];
+	double gain[9];
+	gain[0] = gain[1] = gain[2] = 1.0;
+
+	(X3F::x3f_get_camf_float_vector(x3f, "CorrectColorGain_BR", gain_fact));
+		//X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+	(X3F::x3f_get_camf_float_vector(x3f, "CorrectColorGain_GR", &gain_fact[3]));
+		//X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+	(X3F::x3f_get_camf_float_vector(x3f, "CorrectColorGain_RR", &gain_fact[6]));
+		//X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+
+	for (int c=0; c<3; c++)
+		for(int r=0; r<3; r++)
+			gain_adj[c][r] = float(gain_fact[r + 3 * c]);
+	debug({"FoveonHelper: spatial color correct gain \n[", std::to_string(gain_adj[0][0]), ", ",
+	                							         std::to_string(gain_adj[0][1]), ", ",
+												         std::to_string(gain_adj[0][2]), "\n ",
+														 std::to_string(gain_adj[1][0]), ", ",
+														 std::to_string(gain_adj[1][1]), ", ",
+														 std::to_string(gain_adj[1][2]), "\n ",
+														 std::to_string(gain_adj[2][0]), ", ",
+														 std::to_string(gain_adj[2][1]), ", ",
+														 std::to_string(gain_adj[2][2]), "\n ",
+														 "]"});
+} // get_correct_color_gain
+
+
+void FoveonHelper::get_spatial_gain_adjust(float *adjust){
+	double gain_fact[3];
+	int i_gain_fact[3];
+	double gain[3] = {1.0, 1.0, 1.0}, sgain[3];
+
+	get_sensor_gain(sgain);
+//	(X3F::x3f_get_camf_float_vector(x3f, "CorrectColorGain_BR", gain_fact));
+//	X3F::x3f_3x1_comp_mul(gain_fact, sgain, sgain);
+//	(X3F::x3f_get_camf_float_vector(x3f, "CorrectColorGain_GR", gain_fact));
+//	X3F::x3f_3x1_comp_mul(gain_fact, sgain, sgain);
+//	(X3F::x3f_get_camf_float_vector(x3f, "CorrectColorGain_RR", gain_fact));
+//	X3F::x3f_3x1_comp_mul(gain_fact, sgain, sgain);
+
+	double maxd = 0;
+	if (get_raw_property()){
+		for (int c=0; c<3; c++){
+			//gain_fact[c] = black_dev[c] / black[c] ;
+			gain_fact[c] = (black_dev[c]) / (black[c]) ;
+			if (maxd < gain_fact[c])
+				maxd = gain_fact[c];
+		}
+		for (int c=0; c<3; c++)
+			gain_fact[c] = maxd / gain_fact[c];
+		X3F::x3f_3x1_comp_mul(gain_fact, gain, gain);
+	}
+
+	for (int c=0; c<3; c++) adjust[c] = gain[c];
+	debug({"FoveonHelper: spatial gain adujstement [", std::to_string(adjust[0]), ", ",
+		                							   std::to_string(adjust[1]), ", ",
+													   std::to_string(adjust[2]), "]"});
+} // get_spatial_gain_adjust
+
+
+bool FoveonHelper::get_lin_lut(){
+	int dim0=0;
+	int dim1=0;
+	uint32_t lut_depth;
+	uint16_t lin_lut[3][4096];
+	int32_t *matrix_RR, *matrix_GR, *matrix_BR;
+	double maxy, x, dx, tmp;
+	int ix, tx;
+
+
+	if(X3F::x3f_get_camf_unsigned(x3f, "LinLUTBitDepth", &lut_depth) &&
+	   X3F::x3f_get_camf_matrix_var(x3f, "LinLUTs_RR", &dim0, &dim1, nullptr, X3F::M_INT, (void **)&matrix_RR) &&
+	   X3F::x3f_get_camf_matrix_var(x3f, "LinLUTs_BR", &dim0, &dim1, nullptr, X3F::M_INT, (void **)&matrix_BR) &&
+	   X3F::x3f_get_camf_matrix_var(x3f, "LinLUTs_GR", &dim0, &dim1, nullptr, X3F::M_INT, (void **)&matrix_GR)){
+
+		maxy = (1 << lut_depth) - 1;
+
+		for (int d=0; d<4096; d++){
+			x = (d / 4095.0) * (dim1 - 1);
+			ix = int(x);
+			dx = x - ix;
+			//debug({std::to_string(x), ", ", std::to_string(ix), ", ", std::to_string(dx)});
+			for (int c=0; c<3; c++){
+				tx = ix + (dim1 * c);
+				if(x >= dim1 -1)
+					tmp = double(matrix_GR[tx]);
+				else
+					tmp = double(matrix_GR[tx]) * (1.0 - dx) + double(matrix_GR[tx + 1]) * dx;
+				lin_lut[c][d] = static_cast<uint16_t>(tmp / maxy * 4095);
+
+				/*if(c==0)
+					debug({std::to_string(tmp), "->", std::to_string(lin_lut[c][d]), "  ",
+					       std::to_string(matrix_RR[tx]), ", ", std::to_string(matrix_RR[tx+1])});
+				*/
+			}
+		}
+		/*
+		for (int i=0; i<4096; i++)
+			debug({"(", std::to_string(lin_lut[0][i]), ", ",
+			            std::to_string(lin_lut[1][i]), ", ",
+						std::to_string(lin_lut[2][i]), ")" });
+		*/
+		return true;
+	} else {
+    	debug({"FoveonHelper: could not get LinLut Matrix."});
+    }
+	return false;
+} // get_lin_lut
+
+
+bool FoveonHelper::get_raw_property(){
+    X3F::x3f_area16_t full_image, expanded, crop_image, qtop;
+    double black_level[3], _black_dev[3];
+    uint32_t max_raw[3], white_levels[3];
     double intermediate_bias;
     uint32_t depth;
-    const char *wb;
+    int channels;
+    bool crop = false;
+    uint32_t area[4];
+    const char *area_string[2] = {"ActiveImageArea", "KeepImageArea"};
+    int area_index = 1;
 
-    debug({"FoveonHelper->get_Levels()"});
-
-    if (black[0]!=-1)
-    	// we have already computed levels
+    if (black[0]!=-1) // we have already computed levels
     	return true;
 
     if (!load_data()){
@@ -326,8 +470,9 @@ bool FoveonHelper::get_Levels(){
         return false;
     }
 
-    wb = X3F::x3f_get_wb(x3f);
-    debug({"FoveonHelper: White Balance camera setup : ", wb});
+    // camera wb setup
+    cam_wb = X3F::x3f_get_wb(x3f);
+    debug({"FoveonHelper: White Balance camera setup : ", cam_wb});
 
     // Image depth
     if(!X3F::x3f_get_camf_unsigned(x3f, "ImageDepth", &depth)){
@@ -335,86 +480,150 @@ bool FoveonHelper::get_Levels(){
     	return false;
     }
 
-    // preprocess
-    if (!X3F::x3f_image_area(x3f, &image) || image.channels<3){
+    // getting image_areas
+    is_quattro = bool(x3f_image_area_qtop(x3f, &qtop));
+    channels = is_quattro ? 2 : 3;
+    if (is_quattro){ // TODO: support quattro files
+    	debug({"FoveonHelper: Doesn't support quattro camera."});
+    	return false;
+    }
+
+    if (!X3F::x3f_image_area(x3f, &full_image) || full_image.channels < 3){
         debug({"FoveonHelper: Could not get image area."});
         return false;
     }
+//    if (!crop || !X3F::x3f_crop_area_camf(x3f, "ActiveImageArea", &full_image, 1, &crop_image))
+//    	crop_image = full_image;
 
-    // TODO: reactivate quattro case
-    /*if (quattro && (qtop.channels<1 ||
-        qtop.rows<2*image_crop.rows || qtop.columns<2*image_crop.columns))
-        return false;
-    */
+//    if (quattro && (qtop.channels<1 ||
+//        qtop.rows<2*image_crop.rows || qtop.columns<2*image_crop.columns))
+//        return false;
 
-    if (!X3F::get_black_level(x3f, &image, 1, colors_in, black_level, black_dev)){
+    if(crop) area_index = 0;
+    if (!X3F::x3f_get_camf_rect(x3f, area_string[area_index], &full_image, 1, area)){
+    	debug({"FoveonHelper: Could not get camf rect."});
+		return false;
+    }
+    // Translate from Sigma's to Adobe's view on rectangles
+	crop_area[0] = area[1];
+	crop_area[1] = area[0];
+	crop_area[2] = area[3] + 1;
+	crop_area[3] = area[2] + 1;
+
+    // Raw Levels
+    if (!X3F::get_black_level(x3f, &full_image, 1, channels, black_level, _black_dev)){
         //|| (quattro && !get_black_level(x3f, &qtop, 0, 1, &black_level[2], &black_dev[2]))){
         debug({"FoveonHelper: x3f_tools could not get black level."});
         return false;
     }
 
-    if (!X3F::x3f_get_max_raw(x3f, max_raw) ||
-        !X3F::get_intermediate_bias(x3f, wb, black_level, black_dev, &intermediate_bias, depth) ||
-        !X3F::get_max_intermediate(x3f, wb, intermediate_bias, white_levels, depth)){
-    	debug({"FoveonHelper: x3f_tools could not get camera levels."});
+    double gain[3], max_intermediate[3], maxgain=0;
+    if (X3F::x3f_get_max_raw(x3f, max_raw)){
+    	get_sensor_gain(gain);
+    	for (int i=0; i<3; i++) if (gain[i] > maxgain) maxgain = gain[i];
+    	for (int i=0; i<3; i++)
+    		max_intermediate[i] = gain[i] * ((1 << depth) - 1) / maxgain;
+
+    	intermediate_bias = 0.0;
+		for (int i=0; i<3; i++){
+			double bias = _black_dev[i] * max_intermediate[i] / (max_raw[i] - black_level[i]);
+			if (bias > intermediate_bias) intermediate_bias = bias;
+		}
+
+		for (int i=0; i<3; i++)
+			max_intermediate[i] = gain[i] * (((1 << depth) - 1) - intermediate_bias) / maxgain + intermediate_bias;
+    } else{
+    	debug({"FoveonHelper: x3f_tools could not get white levels."});
     	return false;
     }
-    for (size_t i=0; i<3; i++)
-        	black[i] = int(intermediate_bias);
-        	//black[i] = int(black_level[i]);
-    for (size_t i=0; i<3; i++)
-        	white[i] = white_levels[i];
 
-    debug({"FoveonHelper: x3f_tools max raw[", std::to_string(max_raw[0]), ", ",
-                							   std::to_string(max_raw[1]), ", ",
-											   std::to_string(max_raw[2]), "]"});
-    debug({"FoveonHelper: x3f_tools black levels[", std::to_string(black_level[0]), ", ",
-            										std::to_string(black_level[1]), ", ",
-													std::to_string(black_level[2]), "]"});
-    debug({"FoveonHelper: x3f_tools white levels[", std::to_string(white[0]), ", ",
-                									std::to_string(white[1]), ", ",
-    												std::to_string(white[2]), "]"});
+    for (size_t i=0; i<3; i++){
+        black[i] = black_level[i];
+    	black_bias[i] = intermediate_bias;
+    	black_dev[i] = _black_dev[i];
+        white[i] = int(max_intermediate[i]);
+        scale[i] = (max_intermediate[i] - intermediate_bias) / (max_raw[i] - black_level[i]);
+    }
+
+    debug({"FoveonHelper: max raw[", std::to_string(max_raw[0]), ", ",
+                					 std::to_string(max_raw[1]), ", ",
+									 std::to_string(max_raw[2]), "]"});
+
+    debug({"FoveonHelper: black levels [", std::to_string(black[0]), ", ",
+            							  std::to_string(black[1]), ", ",
+										  std::to_string(black[2]), "]"});
+
+    debug({"FoveonHelper: black levels deviation [", std::to_string(black_dev[0]), ", ",
+                        				   	   	   	 std::to_string(black_dev[1]), ", ",
+													 std::to_string(black_dev[2]), "]"});
+
+    debug({"FoveonHelper: black bias [", std::to_string(black_bias[0]), ", ",
+                						std::to_string(black_bias[1]), ", ",
+    									std::to_string(black_bias[2]), "]"});
+
+    debug({"FoveonHelper: white levels [", std::to_string(white[0]), ", ",
+                						  std::to_string(white[1]), ", ",
+    									  std::to_string(white[2]), "]"});
+
+    debug({"FoveonHelper: scale [", std::to_string(scale[0]), ", ",
+                    				std::to_string(scale[1]), ", ",
+        							std::to_string(scale[2]), "]"});
+
     return true;
-} // get_BlackLevels
+} // get_raw_property
 
 
-bool FoveonHelper::get_camf_rect(uint32_t *crect) const{
-    CameraConstantsStore* ccs = CameraConstantsStore::getInstance();
+bool FoveonHelper::get_crop_area(uint32_t *rect) const{
+    /*CameraConstantsStore* ccs = CameraConstantsStore::getInstance();
     CameraConst *cc = ccs->get(raw_image->get_maker().c_str(), raw_image->get_model().c_str());
-    
+
     if(cc->has_rawCrop(raw_image->get_width(), raw_image->get_height())){
         int lm, tm, w, h;
         cc->get_rawCrop(raw_image->get_width(), raw_image->get_height(), lm, tm, w, h);
         //debug({"cc_crop[", std::to_string(lm), ", ", std::to_string(tm),
         //       ", ", std::to_string(w), ", ", std::to_string(h), "]"});
-        crect[0] = tm;
-        crect[1] = lm;
-        crect[2] = raw_image->get_height() + h;
-        crect[3] = raw_image->get_width() + w ; 
+        rect[0] = tm;
+        rect[1] = lm;
+        rect[2] = raw_image->get_height() + h;
+        rect[3] = raw_image->get_width() + w ;
+        debug({"FoveonHelper: Active Image Area II [", std::to_string(rect[0]), ", ",
+													  std::to_string(rect[1]), ", ",
+													  std::to_string(rect[2]), ", ",
+													  std::to_string(rect[3]), "]"});*/
+	if (crop_area[2]){
+		rect[0] = crop_area[0];
+		rect[1] = crop_area[1];
+		rect[2] = crop_area[2];
+		rect[3] = crop_area[3];
+		debug({"FoveonHelper: Active Image Area II [", std::to_string(crop_area[0]), ", ",
+													   std::to_string(crop_area[1]), ", ",
+													   std::to_string(crop_area[2]), ", ",
+													   std::to_string(crop_area[3]), "]"});
     } else {
-    	debug({"FoveonHelper: could not get camf_rect."});
+    	debug({"FoveonHelper: could not get crop area."});
     	return false;
     }
     return true;
-}
- 
- 
+} // get_crop_area
+
+
 std::vector<GainMap> FoveonHelper::read_foveon_spatial_gain(){
     debug({"FoveonHelper: reading foveon spatial gain correction."});
     std::vector<GainMap> gain_maps_vector;
 
-    if (!load_data()){
+    if (!get_raw_property()){
         debug({"FoveonHelper is not in a valid state."});
     } else {
         /* Quattro raws are already corrected for spatial gain. 
          * So it is disabled by default. */
-        if (x3f->header.version < X3F::X3F_VERSION_4_0){
+        if (x3f->header.version < X3F::X3F_VERSION_4_0 || !is_quattro){
             X3F::x3f_spatial_gain_corr_t corr[X3F::MAXCORR];
             int corr_num;
             uint32_t active_area[4];
             double originv, originh, scalev, scaleh;
-            
-            corr_num = X3F::x3f_get_spatial_gain(x3f, X3F::x3f_get_wb(x3f), corr);
+
+            corr_num = X3F::x3f_get_spatial_gain(x3f, cam_wb, corr);
+
             if (corr_num == 0){
                 debug({"FoveonHelper: no spatial gain correction found..."});
                 X3F::x3f_delete(x3f);
@@ -424,20 +633,16 @@ std::vector<GainMap> FoveonHelper::read_foveon_spatial_gain(){
             
             /* Spatial gain in X3F refers to the entire image, 
              * But correction will be applied after cropping to ActiveArea. */
-            if (!get_camf_rect(active_area)){
+            if (!get_crop_area(active_area)){
                 X3F::x3f_delete(x3f);
                 return gain_maps_vector;
             } 
-            debug({"FoveonHelper: camf rect ActiveArea[", std::to_string(active_area[0]), ", ",
-                    									  std::to_string(active_area[1]), ", ",
-														  std::to_string(active_area[2]), ", ",
-														  std::to_string(active_area[3]), "]"});
-            
+
             originv = -(double)active_area[0] / (active_area[2] - active_area[0]); // 0
             originh = -(double)active_area[1] / (active_area[3] - active_area[1]); // 0
             scalev = (double)raw_image->get_height() / (active_area[2] - active_area[0]); // 1.0
             scaleh = (double)raw_image->get_width() / (active_area[3] - active_area[1]); // 1.0
-            
+
             /* Compute GainMaps */            
             for (size_t i=0; i<(size_t)corr_num; i++){
                 GainMap gain_map;
@@ -461,7 +666,7 @@ std::vector<GainMap> FoveonHelper::read_foveon_spatial_gain(){
                 size_t n = gain_map.map_points_v * gain_map.map_points_h * gain_map.map_planes;
                 gain_map.map_gain.reserve(n);
                 for (size_t j = 0; j < n; ++j){
-                    gain_map.map_gain.push_back((float)c->gain[j]);
+                    gain_map.map_gain.push_back(float(c->gain[j]));
                 }
                 gain_maps_vector.push_back(gain_map);
             }

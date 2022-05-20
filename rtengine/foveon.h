@@ -40,19 +40,28 @@ protected:
     RawImage const *raw_image;
     x3ftools::x3f_t *x3f;
     bool data_loaded;
-    int black[3];
+    double black[3];
+    double black_dev[3];
+    double black_bias[3];
     int white[3];
+    double scale[3];
+    const char *cam_wb;
+    bool is_quattro;
+    uint32_t crop_area[4];
     
 public:
     std::vector<GainMap> read_foveon_spatial_gain();
-    bool get_camf_rect(uint32_t *crect) const;
+    bool get_crop_area(uint32_t *rect) const;
     bool get_BlackLevels(int* black_c4);
+    bool get_BlackDev(int* black);
+    bool get_BlackBias(int* black);
     bool get_WhiteLevels(int* white_c4);
     bool get_ccMatrix(double *matrix);
     bool get_cam_xyz(double matrix[4][3]);
     bool get_gain(double *gain);
-    bool get_asShotNeutral(double *gain);
-    bool get_wbGain(double *gain);
+    bool get_lin_lut();
+    void get_spatial_gain_adjust(float *adjust);
+    void get_correct_color_gain(std::array<std::array<float, 3>, 3> &gain_adj);
     
     static bool is_supported(const std::string& camera){
         static const std::vector<std::string> supported_cams = 
@@ -68,7 +77,13 @@ public:
 protected:
     void debug(std::vector<std::string> mess) const;
     bool load_data();
-    bool get_Levels();
+    bool get_raw_property();
+    bool get_raw_to_xyz(const char *wb, double *matrix);
+    bool get_gain(const char *wb, double *gain);
+    bool get_wbgain(const char *wb, double *gain);
+    void get_sensor_gain(double *gain);
+
+
 };
 
 

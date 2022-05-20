@@ -44,8 +44,7 @@ static double get_focal_length(x3f_t *x3f){
 }
 
 
-static double get_object_distance(x3f_t *x3f)
-{
+static double get_object_distance(x3f_t *x3f){
     double object_distance;
 
     if (x3f_get_camf_float(x3f, "ObjectDistance", &object_distance))
@@ -86,31 +85,47 @@ static double get_MOD(x3f_t *x3f){
 
 
 static int get_merrill_type_gains_table(x3f_t *x3f, const char *name, const char *chan,
-					uint32_t **mgain, int *rows, int *cols,
-					double *mingain, double *delta){
-    char table[32], *val;
+					uint32_t **mgain, int *rows, int *cols, double *mingain, double *delta, bool useLV){
+    char table[32];
     int rows_tmp, cols_tmp;
-    sprintf(table, "GainsTable%s", chan);
     
-    if (!x3f_get_camf_property(x3f, name, table, &val) ||
-        !x3f_get_camf_matrix_var(x3f, val, &rows_tmp, &cols_tmp, nullptr, M_UINT, (void **)mgain) ||
-        (*rows != -1 && *rows != rows_tmp) ||
-        (*cols != -1 && *cols != cols_tmp)){
-        return 0;
+    if(!useLV){
+    	char *val;
+		sprintf(table, "GainsTable%s", chan);
+
+		if (!x3f_get_camf_property(x3f, name, table, &val) ||
+			!x3f_get_camf_matrix_var(x3f, val, &rows_tmp, &cols_tmp, nullptr, M_UINT, (void **)mgain) ||
+			(*rows != -1 && *rows != rows_tmp) ||
+			(*cols != -1 && *cols != cols_tmp)){
+			return 0;
+		}
+
+		*rows = rows_tmp;
+		*cols = cols_tmp;
+
+		sprintf(table, "MinGains%s", chan);
+		if (!x3f_get_camf_property(x3f, name, table, &val))
+			return 0;
+		*mingain = atof(val);
+
+		sprintf(table, "Delta%s", chan);
+		if (!x3f_get_camf_property(x3f, name, table, &val))
+			return 0;
+		*delta = atof(val);
+    } else { // use SpatialGain#_LV table
+    	char val[50] = {0};
+    	strcpy(val, name);
+    	val[11] = chan[0];
+    	if (!x3f_get_camf_matrix_var(x3f, val, &rows_tmp, &cols_tmp, nullptr, M_UINT, (void **)mgain) ||
+    		(*rows != -1 && *rows != rows_tmp) ||
+    		(*cols != -1 && *cols != cols_tmp)){
+			return 0;
+		}
+		*rows = rows_tmp;
+		*cols = cols_tmp;
+		*mingain = 0;
+    	*delta = 1.0;
     }
-        
-    *rows = rows_tmp;
-    *cols = cols_tmp;
-
-    sprintf(table, "MinGains%s", chan);
-    if (!x3f_get_camf_property(x3f, name, table, &val)) 
-        return 0;
-    *mingain = atof(val);
-
-    sprintf(table, "Delta%s", chan);
-    if (!x3f_get_camf_property(x3f, name, table, &val)) 
-        return 0;
-    *delta = atof(val);
 
     return 1;
 }
@@ -123,7 +138,7 @@ typedef struct merrill_spatial_gain_s{
 }merrill_spatial_gain_t;
 
 
-int x3f_get_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag, x3f_spatial_gain_corr_t *corr){
+int x3f_get_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag, x3f_spatial_gain_corr_t *corr, bool useLV){
     char **include_blocks, **include_blocks_val;
     uint32_t include_blocks_num;
     double capture_aperture;
@@ -178,34 +193,63 @@ int x3f_get_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag, x3f_spatial_gain_
         y = 0.0;  /* unused */
     } else {  /* Merrill and Quattro */
         if (x3f_get_camf_matrix_var(x3f, "SpatialGain_Fstop",
-                    &num_fstop, nullptr, nullptr,
-                    M_FLOAT, (void **)&spatial_gain_fstop)){
-            for (i=0; i<include_blocks_num; i++){
-                char **names, **values;
-                uint32_t num, aperture_index;
-                char focus_distance[4], dummy;
+            &num_fstop, nullptr, nullptr, M_FLOAT, (void **)&spatial_gain_fstop)){
 
-                if (sscanf(include_blocks[i], "SpatialGainsProps_%d_%3s%c",
-                        &aperture_index, focus_distance, &dummy)==2 &&
-                        x3f_get_camf_property_list(x3f, include_blocks[i], &names, &values, &num) &&
-                        aperture_index>=0 && aperture_index<num_fstop){
-                    double lenspos;
+        	if (useLV){ // use SpatialGain#_LV table
+        		for (i=0; i<include_blocks_num; i++){
+					char **names, **values;
+					uint32_t num, aperture, focus_dist_index;
+					char dummy;
 
-                    if (!strcmp(focus_distance, "INF"))
-                        lenspos = lens_position(get_focal_length(x3f), INFINITY);
-                    else if (!strcmp(focus_distance, "MOD"))
-                        lenspos = lens_position(get_focal_length(x3f), get_MOD(x3f));
-                    else continue;
+					if (sscanf(include_blocks[i], "SpatialGainR_LV_%2d_%2d%c",
+							&aperture, &focus_dist_index, &dummy)==2){
+						double fstop, lenspos;
+						fstop = double(aperture) / 10.0;
 
-                    g = static_cast<merrill_spatial_gain_t*>(alloca(sizeof(merrill_spatial_gain_t)));
-                    g->name = include_blocks[i];
-                    //g->x = 1.0 / spatial_gain_fstop[aperture_index];
-                    g->x = get_focal_length(x3f) / spatial_gain_fstop[aperture_index];
-                    g->y = lenspos;
-                    g->next = gains;
-                    gains = g;
-                }
-            }
+						if (focus_dist_index==7)
+							lenspos = lens_position(get_focal_length(x3f), INFINITY);
+						else if (focus_dist_index==0)
+							lenspos = lens_position(get_focal_length(x3f), get_MOD(x3f));
+						else continue;
+
+						g = static_cast<merrill_spatial_gain_t*>(alloca(sizeof(merrill_spatial_gain_t)));
+						g->name = include_blocks[i];
+						g->x = get_focal_length(x3f) / fstop;
+						g->y = lenspos;
+						g->next = gains;
+						gains = g;
+						x3f_printf(DEBUG, "%s -> x(f/%f) = %fmm, y(lens_position) = %fmm\n",
+								include_blocks[i], fstop, g->x, lenspos);
+					}
+        		}
+        	} else {
+				for (i=0; i<include_blocks_num; i++){
+					char **names, **values;
+					uint32_t num, aperture_index;
+					char focus_distance[4], dummy;
+
+					if (sscanf(include_blocks[i], "SpatialGainsProps_%d_%3s%c",
+							&aperture_index, focus_distance, &dummy)==2 &&
+							x3f_get_camf_property_list(x3f, include_blocks[i], &names, &values, &num) &&
+							aperture_index>=0 && aperture_index<num_fstop){
+						double lenspos;
+
+						if (!strcmp(focus_distance, "INF"))
+							lenspos = lens_position(get_focal_length(x3f), INFINITY);
+						else if (!strcmp(focus_distance, "MOD"))
+							lenspos = lens_position(get_focal_length(x3f), get_MOD(x3f));
+						else continue;
+
+						g = static_cast<merrill_spatial_gain_t*>(alloca(sizeof(merrill_spatial_gain_t)));
+						g->name = include_blocks[i];
+						//g->x = 1.0 / spatial_gain_fstop[aperture_index];
+						g->x = get_focal_length(x3f) / spatial_gain_fstop[aperture_index];
+						g->y = lenspos;
+						g->next = gains;
+						gains = g;
+					}
+				}
+        	}
         } else {
             for (i=0; i<include_blocks_num; i++){
                 char **names, **values;
@@ -351,7 +395,7 @@ int x3f_get_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag, x3f_spatial_gain_
             m->weight_y = q_weight_y[i];
 
             if (!get_merrill_type_gains_table(x3f, name, channels[j],
-					&m->gain, &c->rows, &c->cols, &m->mingain, &m->delta))
+					&m->gain, &c->rows, &c->cols, &m->mingain, &m->delta, useLV))
                 return 0;
         }
     }
@@ -361,12 +405,12 @@ int x3f_get_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag, x3f_spatial_gain_
             return 0;
 
     return corr_num;
-}
+} // x3f_get_merrill_type_spatial_gain
 
 
 int x3f_get_interp_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag,
-					     x3f_spatial_gain_corr_t *corr){
-    int corr_num = x3f_get_merrill_type_spatial_gain(x3f, hp_flag, corr);
+					     x3f_spatial_gain_corr_t *corr, bool useLV){
+    int corr_num = x3f_get_merrill_type_spatial_gain(x3f, hp_flag, corr, useLV);
     int i;
     
     for (i=0; i<corr_num; i++){
@@ -376,20 +420,35 @@ int x3f_get_interp_merrill_type_spatial_gain(x3f_t *x3f, int hp_flag,
         c->malloc = 1;
 
         for (j=0; j<num; j++){
-            /*int g;
-            c->gain[j] = 0.0;
-            for (g=0; g<c->mgain_num; g++){
-                x3f_spatial_gain_corr_merrill_t *m = &c->mgain[g];
-                c->gain[j] += m->weight * (m->mingain + m->delta * m->gain[j]);
-            }*/
+        	c->gain[j] = 0.0;
+        	if (!useLV){
+				for (int g=0; g<c->mgain_num; g++){
+					x3f_spatial_gain_corr_merrill_t *m = &c->mgain[g];
+					c->gain[j] += m->weight * (m->mingain + m->delta * m->gain[j]);
+					//c->gain[j] += m->weight * (m->mingain + (m->gain[j] / 4096.0 / m->delta / 100));
+				}
+				//x3f_printf(DEBUG, "%f \n", c->gain[j]);
+        	} else {
+        		double dg;
+        		for (int g=0; g<c->mgain_num; g++){
+					x3f_spatial_gain_corr_merrill_t *m = &c->mgain[g];
+					dg = 1.0 / (double(m->gain[j]) / 1024);
+					c->gain[j] += m->weight * dg;
+        		}
+        		//x3f_printf(DEBUG, "%f \n", c->gain[j]);
+        	}
+
+        	/*
             x3f_spatial_gain_corr_merrill_t *m0 = &c->mgain[0];
             x3f_spatial_gain_corr_merrill_t *m1 = &c->mgain[1];
             x3f_spatial_gain_corr_merrill_t *m2 = &c->mgain[2];
             x3f_spatial_gain_corr_merrill_t *m3 = &c->mgain[3];
+
             c->gain[j] = ((m0->weight_x * (m0->mingain + m0->delta * m0->gain[j]) + 
                            m1->weight_x * (m1->mingain + m1->delta * m1->gain[j])) * m0->weight_y) + 
                          ((m2->weight_x * (m2->mingain + m2->delta * m2->gain[j]) + 
                            m3->weight_x * (m3->mingain + m3->delta * m3->gain[j])) * m2->weight_y); 
+            */
         }
     }
     
@@ -425,11 +484,13 @@ int x3f_get_classic_spatial_gain(x3f_t *x3f, const char *wb, x3f_spatial_gain_co
 
 int x3f_get_spatial_gain(x3f_t *x3f, const char *wb, x3f_spatial_gain_corr_t *corr){
     int corr_num = 0;
-    corr_num += x3f_get_interp_merrill_type_spatial_gain(x3f, 0, &corr[corr_num]);
+    bool useLv = false; //FIXME: testing LV table for merrill
+    corr_num += x3f_get_interp_merrill_type_spatial_gain(x3f, 0, &corr[corr_num], useLv);
     if (corr_num == 0)
         corr_num += x3f_get_classic_spatial_gain(x3f, wb, &corr[corr_num]);
     return corr_num;
 }
+
 
 void x3f_cleanup_spatial_gain(x3f_spatial_gain_corr_t *corr, int corr_num){
     int i;

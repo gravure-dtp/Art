@@ -771,8 +771,10 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
                 for (int c = 0; c < 4; c++) {
                     black_c4[c] = black + cblack[c];
                 }
-        } else if(isFoveon() && foveon_helper && foveon_helper->get_BlackLevels(black_c4)){
+        } else if(isFoveon() && foveon_helper && foveon_helper->get_BlackDev(black_c4)){
         	// compute black levels for foveon from raw
+        	// a bit confused about different black calculation
+        	// that x3f_tool does.
             black_from_cc = false;
         } else {
             black_from_cc = true;
@@ -781,11 +783,11 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
         if (maximum_c4[0] > 0) {
             white_from_cc = true;
         }
-        /*
+
         if(isFoveon() && foveon_helper && foveon_helper->get_WhiteLevels(maximum_c4)){
         	// compute white levels for foveon from raw
         	white_from_cc = false;
-        }*/
+        }
 
         for (int c = 0; c < 4; c++) {
             if (static_cast<int>(cblack[c]) < black_c4[c]) {
