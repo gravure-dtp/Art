@@ -944,6 +944,17 @@ int RawImage::loadRaw (bool loadData, unsigned int imageNum, bool closeFile, Pro
                 } else if (h > 0) {
                     height = min((int)height, h);
                 }
+            } else {
+                if (isFoveon() && foveon_helper){
+                    uint32_t crop_area[4];
+                    if (foveon_helper->get_crop_area(crop_area)) {
+                        raw_crop_cc = false;
+                        left_margin = crop_area[1];
+                        top_margin = crop_area[0];
+                        width = crop_area[3] - left_margin;
+                        height = crop_area[2] - top_margin;
+                    }
+                }
             }
         }
 

@@ -457,7 +457,7 @@ bool FoveonHelper::get_raw_property(){
     double intermediate_bias;
     uint32_t depth;
     int channels;
-    bool crop = false;
+    bool crop = true;
     uint32_t area[4];
     const char *area_string[2] = {"ActiveImageArea", "KeepImageArea"};
     int area_index = 1;

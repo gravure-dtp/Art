@@ -43,9 +43,9 @@ void RawImageSource::apply_foveon_spatial_gain(unsigned short black[4], std::vec
         fblack[i] = iblack[i];
     }
     fv->get_spatial_gain_adjust(adjust);
-//    adjust[0] = 1.1;
-//    adjust[1] = 1.3;
-//    adjust[2] = 1.0;
+    // adjust[0] = 1.1;
+    // adjust[1] = 1.3;
+    // adjust[2] = 1.0;
     for (int c=0; c<3; c++)
     	coef[c] = adjust[c] - 1.0;
     
@@ -72,7 +72,7 @@ void RawImageSource::apply_foveon_spatial_gain(unsigned short black[4], std::vec
                 float f = getBilinearValue(mvals, xs, ys);
 				int z = 3 * x + m.plane;
 
-				f = (f + coef[m.plane]) / adjust[m.plane]; //f *= adjust[m.plane];
+				f = (f + coef[m.plane]) / adjust[m.plane];  // f *= adjust[m.plane];
 				rawData[y][z] = CLIP((rawData[y][z]) * f);
 				// Gain with black removal
 				//rawData[y][z] = CLIP((rawData[y][z] - fblack[m.plane]) * f + fblack[m.plane]);
