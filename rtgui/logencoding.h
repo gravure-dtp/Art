@@ -25,30 +25,6 @@
 
 class LogEncoding: public ToolParamBlock, public AdjusterListener, public rtengine::AutoLogListener, public FoldableToolPanel
 {
-protected:
-    Gtk::ToggleButton *autocompute;
-    Adjuster *gain;
-    Adjuster *targetGray;
-    Adjuster *blackEv;
-    Adjuster *whiteEv;
-    Adjuster *regularization;
-
-    rtengine::ProcEvent EvEnabled;
-    rtengine::ProcEvent EvAuto;
-    rtengine::ProcEvent EvAutoGainOn;
-    rtengine::ProcEvent EvAutoGainOff;
-    rtengine::ProcEvent EvAutoBatch;
-    rtengine::ProcEvent EvGain;
-    rtengine::ProcEvent EvGainAuto;
-    rtengine::ProcEvent EvTargetGray;
-    rtengine::ProcEvent EvBlackEv;
-    rtengine::ProcEvent EvWhiteEv;
-    rtengine::ProcEvent EvRegularization;
-
-    sigc::connection autoconn;
-
-    rtengine::procparams::LogEncodingParams initial_params;
-    
 public:
     LogEncoding();
 
@@ -65,5 +41,35 @@ public:
 
     void toolReset(bool to_initial) override;
     void registerShortcuts(ToolShortcutManager *mgr) override;
+
+private:
+    void satcontrolChanged();
+
+    Gtk::ToggleButton *autocompute;
+    Adjuster *gain;
+    Adjuster *targetGray;
+    Adjuster *blackEv;
+    Adjuster *whiteEv;
+    Adjuster *regularization;
+    Gtk::CheckButton *satcontrol;
+    Adjuster *highlightCompression;
+
+    rtengine::ProcEvent EvEnabled;
+    rtengine::ProcEvent EvAuto;
+    rtengine::ProcEvent EvAutoGainOn;
+    rtengine::ProcEvent EvAutoGainOff;
+    rtengine::ProcEvent EvAutoBatch;
+    rtengine::ProcEvent EvGain;
+    rtengine::ProcEvent EvGainAuto;
+    rtengine::ProcEvent EvTargetGray;
+    rtengine::ProcEvent EvBlackEv;
+    rtengine::ProcEvent EvWhiteEv;
+    rtengine::ProcEvent EvRegularization;
+    rtengine::ProcEvent EvSatControl;
+    rtengine::ProcEvent EvHLCompression;
+
+    sigc::connection autoconn;
+
+    rtengine::procparams::LogEncodingParams initial_params;
 };
 

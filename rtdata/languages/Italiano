@@ -7,6 +7,10 @@
 #07 2022-03-28 - completed for 1.12.1 - alvaro
 #08 2022-04-20 alvaro
 #09 2022-05-18 alvaro
+#10 2022-06-12 alvaro
+#11 2022-07-14 v1.15 - alvaro
+#12 2022-07-25 alvaro
+#13 2022-08-22 alvaro
 # Translators please append a comment here with the current date and your name(s) as used in the RawTherapee/ART forum or Bitbucket page
 
 ABOUT_TAB_BUILD;Versione
@@ -224,6 +228,7 @@ FILECHOOSER_FILTER_LCP;Profili correzione obiettivi
 FILECHOOSER_FILTER_PP;Profili sviluppo
 FILECHOOSER_FILTER_SAME;Stesso formato come foto attuale
 FILECHOOSER_FILTER_TIFF;File TIFF
+FILECHOOSER_FILTER_LUT;File LUT supportati
 GENERAL_ABOUT;Informazioni
 GENERAL_AFTER;Dopo
 GENERAL_APPLY;Applica
@@ -516,6 +521,7 @@ HISTORY_MSG_COLORCORRECTION_INSATURATION;CC - saturazione ingresso
 HISTORY_MSG_COLORCORRECTION_LIGHTNESS;CC - luminosità
 HISTORY_MSG_COLORCORRECTION_LIGHTNESSMASK;CC - Maschera regione L
 HISTORY_MSG_COLORCORRECTION_LIST;CC - regioni
+HISTORY_MSG_COLORCORRECTION_LUT;CC - LUT
 HISTORY_MSG_COLORCORRECTION_MASKBLUR;CC - sfocatura maschera regioni
 HISTORY_MSG_COLORCORRECTION_MASK_POSTPROCESS;CC - post-elaborazione maschera
 HISTORY_MSG_COLORCORRECTION_MODE;CC - Modalità
@@ -602,6 +608,7 @@ HISTORY_MSG_LOGENC_BLACK_EV;Log - Ev nero
 HISTORY_MSG_LOGENC_ENABLED;Codifica Log
 HISTORY_MSG_LOGENC_GAIN;Log - Guadagno
 HISTORY_MSG_LOGENC_REGULARIZATION;Log - Regolarizzazione
+HISTORY_MSG_LOGENC_SATCONTROL;Log - Controllo saturazione
 HISTORY_MSG_LOGENC_TARGET_GRAY;Log - Grigio di riferimento
 HISTORY_MSG_LOGENC_WHITE_EV;Log - Ev bianco
 HISTORY_MSG_METADATA_MODE;Modalità copia metadati
@@ -843,7 +850,7 @@ MAIN_TOOLTIP_BACKCOLOR0;Colore di sfondo dell'anteprima: <b>Basato sul tema</b>\
 MAIN_TOOLTIP_BACKCOLOR1;Colore di sfondo dell'anteprima: <b>Nero</b>\nScorciatoia: <b>9</b>
 MAIN_TOOLTIP_BACKCOLOR2;Colore di sfondo dell'anteprima: <b>Bianco</b>\nScorciatoia: <b>9</b>
 MAIN_TOOLTIP_BACKCOLOR3;Colore di sfondo dell'anteprima: <b>Grigio medio</b>\nScorciatoia: <b>9</b>
-MAIN_TOOLTIP_BEFOREAFTERLOCK;<b>Blocca</b>/<b>Sblocca</b> la vista <b>Prima</b>\n\n<b>Blocca</b>: Conserva la vista <b>Prima</b>.\nUtile per valutare l'effetto cumulativo di diversi strumenti.\nIn più, possono essere confrontati diversi passi della cronologia.\n\n<b>Sblocca</b>: la vista <b>Prima</b> segue di un passo la vista <b>Dopo</b>, mostrando l'immagine prima dell'effetto dello strumento corrente.
+MAIN_TOOLTIP_BEFOREAFTERLOCK;<b>Blocca</b>/<b>Sblocca</b> la vista <b>Prima</b>\n\n<b>Blocca</b>: mantiene la vista <b>Prima</b>.\n<b>Sblocca</b>: la vista <b>Prima</b> viene sincronizzata con la vista <b>Dopo</b>.
 MAIN_TOOLTIP_FALSECOLORS;Imposta l'indicazione dell'esposizione usando falsi colori.\nScorciatoia: <b>Shift-e</b>\n\nColori (gamma IRE):\n%1
 MAIN_TOOLTIP_HIDEHP;Mostra/Nascondi il pannello sinistro (inclusa la cronologia)\nScorciatoia: <b>l</b>
 MAIN_TOOLTIP_INDCLIPPEDH;Indicazione delle alte luci bruciate.\nScorciatoia: <b>&gt;</b>
@@ -1168,7 +1175,7 @@ PROFILEPANEL_GLOBALPROFILES;Profili inclusi
 PROFILEPANEL_LABEL;Profili di sviluppo
 PROFILEPANEL_LOADDLGLABEL;Carico i parametri di sviluppo...
 PROFILEPANEL_LOADPPASTE;Parametri da caricare
-PROFILEPANEL_MODE_TIP;Modalità di completamento del Profilo di Sviluppo.\n\nPulsante premuto: i profili parziali vengono convertiti in profili completi; i valori mancanti sono sostituiti con i valori predefiniti.\n\nPulsante rilasciato: i profili vengono applicati così come sono, inserendo solo i valori presenti nel profilo.
+PROFILEPANEL_MODE_TIP;Modalità di aggiunta nel Profilo di Sviluppo per gli strumenti di modifica locale.\n\nPulsante premuto: i parametri di modifica locale nel profilo vengono aggiunti a quelli correnti.\n\nPulsante rilasciato: i parametri di modifica locale nel profilo sovrascriveranno quelli correnti.
 PROFILEPANEL_MYPROFILES;Miei profili
 PROFILEPANEL_PASTEPPASTE;Parametri da incollare
 PROFILEPANEL_PCUSTOM;Personalizzato
@@ -1261,8 +1268,8 @@ SAVEDLG_SUBSAMP_TOOLTIP;Migliore compressione:\nJ:a:b 4:2:0\nh/v 2/2\nCrominanza
 SAVEDLG_TIFFUNCOMPRESSED;TIFF non compresso
 SAVEDLG_WARNFILENAME;Il file verrà chiamato
 SHCSELECTOR_TOOLTIP;Click destro per ripristinare la posizione di questi tre cursori.
-SOFTPROOF_GAMUTCHECK_MONITOR_TOOLTIP;Evidenzia i pixel con colori fuori dal gamut rispetto a:\n- profilo soft-proofing, se impostato e se il soft-proofing è abilitato,\n- profilo monitor, se il soft-proofing è disabilitato.
-SOFTPROOF_GAMUTCHECK_TOOLTIP;Evidenzia i pixel con colori fuori del gamut rispetto al profilo di uscita.
+SOFTPROOF_GAMUTCHECK_MONITOR_TOOLTIP;Evidenzia i pixel con colori fuori dal gamut rispetto al profilo del monitor.
+SOFTPROOF_GAMUTCHECK_TOOLTIP;Evidenzia i pixel con colori fuori dal gamut rispetto a:\n- profilo soft-proofing, se impostato e se il soft-proofing è abilitato,\n- profilo di uscita, se il soft-proofing è disabilitato.
 SOFTPROOF_TOOLTIP;Il soft-proofing simula l'apparenza dell'immagine quando viene riprodotta da una specifica stampante o monitor, se un profilo corretto è impostato in Preferenze > Gestione Colore.\n(Premi <b>Ctrl</b> + click per cambiare i profili soft-proofing.)
 THRESHOLDSELECTOR_B;Basso
 THRESHOLDSELECTOR_BL;Basso-Sinistra
@@ -1347,6 +1354,8 @@ TP_COLORCORRECTION_IN;Ingresso
 TP_COLORCORRECTION_L;Luminosità
 TP_COLORCORRECTION_LABEL;Correzione Colore/Tono
 TP_COLORCORRECTION_LIST_TITLE;Correzione
+TP_COLORCORRECTION_LUT_FILENAME;File LUT
+TP_COLORCORRECTION_MODE_LUT;LUT
 TP_COLORCORRECTION_MODE;Modalità
 TP_COLORCORRECTION_MODE_COMBINED;Standard
 TP_COLORCORRECTION_MODE_HSL;Fattori HSL
@@ -1616,7 +1625,7 @@ TP_LABMASKS_DRAWNMASK;Maschera con pennello
 TP_LABMASKS_DRAWNMASK_ADD_BOUNDED_TOOLTIP;Aggiunge la maschera pennello sopra le altre maschere, ma solo entro l'area della maschera attiva
 TP_LABMASKS_DRAWNMASK_ADD_TOOLTIP;Aggiunge la maschera pennello sopra le altre maschere
 TP_LABMASKS_DRAWNMASK_ERASE;Modalità gomma
-TP_LABMASKS_DRAWNMASK_HARDNESS;Durezza
+TP_LABMASKS_DRAWNMASK_GLOBAL;Impostazioni globali
 TP_LABMASKS_DRAWNMASK_INFO;%1 tratto/i
 TP_LABMASKS_DRAWNMASK_INTERSECT_TOOLTIP;Interseca la maschera pennello con le altre maschere
 TP_LABMASKS_DRAWNMASK_PEN_SETTINGS;Impostazioni pennello
@@ -1624,7 +1633,7 @@ TP_LABMASKS_DRAWNMASK_RADIUS;Raggio
 TP_LABMASKS_DRAWNMASK_RESET_TIP;Cancella tutti i tratti
 TP_LABMASKS_DRAWNMASK_SMOOTHNESS;Morbidezza
 TP_LABMASKS_DRAWNMASK_TOGGLE_TIP;Abilita il disegno sull'immagine con il pennello.\n\n<i>Se usi il mouse:</i>\n- Premi <b>Alt</b> per azionare temporaneamente la "modalità gomma";\n- Premi <b>Shift</b> per disegnare una linea dritta;\n- Use <b>Ctrl+rotella</b> per cambiare il raggio del pennello;\n- <b>Ctrl+Shift+rotella</b> per cambiare la durezza del pennello;\n- <b>Ctrl+click</b> per iniziare un nuovo gruppo di tratti senza cambiare parametri\n(così tratti multipli sulla stessa area si sommano);\n- Usa il <b>terzo pulsante</b> per disattivare il disegno su area.\n\n<i>Quando si usa un dispositivo sensibile al tocco:</i>\n- Usa il <b>primo pulsante</b> per invertire la "modalità gomma";\n- Premi <b>Shift</b> per disegnare una linea dritta;\n- Usa <b>Alt+primo pulsante</b> per aumentare il raggio del pennello, e\n- <b>Alt+secondo pulsante</b> per decrementarlo;\n- Usa il <b>secondo pulsante</b> per cambiare le modalità di sensibilità al tocco disponibili: off, durezza, raggio (premi <b>Shift</b> per invertire la direzione);\n- Usa <b>Ctrl+secondo pulsante</b> per disattivare il disegno sull'area.
-TP_LABMASKS_DRAWNMASK_TRANSPARENCY;Trasparenza
+TP_LABMASKS_DRAWNMASK_OPACITY;Opacità
 TP_LABMASKS_DRAWNMASK_UNDO_TIP;Rimuovi l'ultimo gruppo di tratti
 TP_LABMASKS_HUE;H
 TP_LABMASKS_INVERTED;Invertita
@@ -1640,7 +1649,8 @@ TP_LABMASKS_POSTPROCESS_SMOOTHING;Morbidezza
 TP_LABMASKS_SHOW;Mostra maschera
 TP_LENSGEOM_AUTOCROP;Ritaglio automatico
 TP_LENSGEOM_FILL;Adattamento automatico
-TP_LENSGEOM_LABEL;Obiettivo/Geometria
+TP_GEOM_LABEL;Geometria
+TP_LENS_LABEL;Obiettivo
 TP_LENSPROFILE_CORRECTION_AUTOMATCH;Automatico dal database
 TP_LENSPROFILE_CORRECTION_EXIF;Incorporato nei metadati
 TP_LENSPROFILE_CORRECTION_LCPFILE;File LCP

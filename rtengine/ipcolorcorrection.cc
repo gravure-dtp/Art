@@ -30,6 +30,8 @@
 #include "coord.h"
 #include "gauss.h"
 #include "labmasks.h"
+#include "clutstore.hpp"
+#include "../rtgui/multilangmgr.h"
 
 
 namespace rtengine {
@@ -247,6 +249,8 @@ bool ImProcFunctions::colorCorrection(Imagefloat *rgb)
     bool jzazbz[n];
     bool hsl[n];
     float rhs[n];
+    std::unique_ptr<HaldCLUTApplication> lut[n] = {};
+    
     for (int i = 0; i < n; ++i) {
         auto &r = params->colorcorrection.regions[i];
         rgbmode[i] = int(r.mode != ColorCorrectionParams::Mode::YUV &&
@@ -333,6 +337,16 @@ bool ImProcFunctions::colorCorrection(Imagefloat *rgb)
         } else {
             rhs[i] = 0.f;
         }
+
+        if (r.mode == ColorCorrectionParams::Mode::LUT) {
+            lut[i].reset(new HaldCLUTApplication(r.lutFilename, params->icm.workingProfile, 1.f, false));
+            if (!(*lut[i])) {
+                lut[i].reset(nullptr);
+                if (plistener) {
+                    plistener->error(Glib::ustring::compose(M("TP_COLORCORRECTION_LABEL") + " - " + M("ERROR_MSG_FILE_READ"), r.lutFilename.empty() ? "(" + M("GENERAL_NONE") + ")" : r.lutFilename));
+                }
+            }
+        }
     }
 
     const float max_ws = max(ws[1][0], ws[1][1], ws[1][2]);
@@ -340,9 +354,23 @@ bool ImProcFunctions::colorCorrection(Imagefloat *rgb)
     const float fG = max_ws / ws[1][1];
     const float fB = max_ws / ws[1][2];
 
+    const auto apply_lut =
+        [&](int region, float &Y, float &u, float &v) -> void
+        {
+            float R, G, B;
+            Color::yuv2rgb(Y, u, v, R, G, B, ws);
+            lut[region]->apply_single(R, G, B);
+            Color::rgb2yuv(R, G, B, Y, u, v, ws);
+        };
+
     const auto CDL = 
         [&](int region, float &Y, float &u, float &v) -> void
         {
+            if (lut[region]) {
+                apply_lut(region, Y, u, v);
+                return;
+            }
+            
             const float *slope = rslope[region];
             const float *offset = roffset[region];
             const float *power = rpower[region];
@@ -526,9 +554,25 @@ bool ImProcFunctions::colorCorrection(Imagefloat *rgb)
     vfloat v65535 = F2V(65535.f);
     vfloat v1 = F2V(1.f);
     
+    const auto apply_lut_v =
+        [&](int region, vfloat &Y, vfloat &u, vfloat &v) -> void
+        {
+            vfloat R, G, B;
+            Color::yuv2rgb(Y, u, v, R, G, B, vws);
+            for (int k = 0; k < 4; ++k) {
+                lut[region]->apply_single(R[k], G[k], B[k]);
+            }
+            Color::rgb2yuv(R, G, B, Y, u, v, vws);
+        };
+    
     const auto CDL_v =
         [&](int region, vfloat &Y, vfloat &u, vfloat &v) -> void
         {
+            if (lut[region]) {
+                apply_lut_v(region, Y, u, v);
+                return;
+            }
+            
             const float *slope = rslope[region];
             const float *offset = roffset[region];
             const float *power = rpower[region];
@@ -696,7 +740,7 @@ bool ImProcFunctions::colorCorrection(Imagefloat *rgb)
                     if (!params->colorcorrection.labmasks[i].enabled) {
                         continue;
                     }
-                    
+
                     vfloat blendv = LVFU(abmask[i][y][x]);
                     vfloat lblendv = LVFU(Lmask[i][y][x]);
 

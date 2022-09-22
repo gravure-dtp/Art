@@ -96,7 +96,7 @@ int refreshmap[rtengine::NUMOFEVENTS] = {
     ALLNORAW,         // EvHRAmount,
     ALLNORAW|M_RAW,   // EvHRMethod,
     DEMOSAIC,         // EvWProfile,
-    OUTPUTPROFILE,    // EvOProfile,
+    LUMINANCECURVE/*OUTPUTPROFILE*/,    // EvOProfile,
     ALLNORAW,         // EvIProfile,
     TRANSFORM,        // EvVignettingAmount,
     RGBCURVE,         // EvChMixer,

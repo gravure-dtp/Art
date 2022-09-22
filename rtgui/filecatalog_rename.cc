@@ -56,9 +56,7 @@ public:
             res.tm_year = cd_->year - 1900;
             res.tm_mday = cd_->day;
             res.tm_mon = cd_->month - 1;
-            res.tm_isdst = -1;
-            time_t t = mktime(&res);
-            return *localtime(&t);
+            return res;
         } else {
             fd_.reset(FramesMetaData::fromFile(fname_));
             return fd_->getDateTime();

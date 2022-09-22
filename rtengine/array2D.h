@@ -238,6 +238,8 @@ public:
             delete [] ptr_;
             ptr_ = nullptr;
         }
+
+        width_ = height_ = 0;
     }
 
     // use with indices

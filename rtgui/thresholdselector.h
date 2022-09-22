@@ -100,6 +100,9 @@ protected:
     double positions[4];
     eUpdatePolicy updatePolicy;
 
+    bool active_top_;
+    bool active_bot_;
+
     constexpr static double sliderWidth = 11.; // constant must be an odd value
     constexpr static double verticalSliderPaddingFactor = 1.5 / 7.;
 
@@ -227,6 +230,8 @@ public:
     void set_tooltip_markup(const Glib::ustring& markup);
     // this set_tooltip_text method is to set_tooltip_markup, and text can contain markups
     void set_tooltip_text(const Glib::ustring& text);
+
+    void setActive(bool b, bool t);
 };
 
 template<>

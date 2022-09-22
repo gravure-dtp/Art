@@ -140,7 +140,7 @@ public:
     rtengine::IImage8 *upgradeThumbImage(const rtengine::procparams::ProcParams& pparams, int h, double& scale);
     void getThumbnailSize(int &w, int &h, const rtengine::procparams::ProcParams *pparams = nullptr);
     void getFinalSize(const rtengine::procparams::ProcParams& pparams, int& w, int& h);
-    void getOriginalSize(int& w, int& h);
+    void getOriginalSize(int &w, int &h, bool consider_coarse=false);
 
     const Glib::ustring &getExifString();
     const Glib::ustring &getDateTimeString();

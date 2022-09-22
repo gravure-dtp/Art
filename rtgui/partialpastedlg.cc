@@ -40,70 +40,75 @@ struct ToggleInfo {
     std::string label;
     bool *edited;
     int index;
+    unsigned *edited3;
 };
 
 std::vector<ToggleInfo> get_toggles(ParamsEdited &pedited)
 {
     return {
-        {"PARTIALPASTE_EXPOSURE", &pedited.exposure, 0},
-        {"PARTIALPASTE_TONE_EQUALIZER", &pedited.toneEqualizer, 0},
-        {"PARTIALPASTE_TONECURVE", &pedited.toneCurve, 0},
-        {"PARTIALPASTE_TM_FATTAL", &pedited.fattal, 0},
-        {"PARTIALPASTE_TM_LOG", &pedited.logenc, 0},
+        {"PARTIALPASTE_EXPOSURE", &pedited.exposure, 0, nullptr},
+        {"PARTIALPASTE_TONE_EQUALIZER", &pedited.toneEqualizer, 0, nullptr},
+        {"PARTIALPASTE_TONECURVE", &pedited.toneCurve, 0, nullptr},
+        {"PARTIALPASTE_TM_FATTAL", &pedited.fattal, 0, nullptr},
+        {"PARTIALPASTE_TM_LOG", &pedited.logenc, 0, nullptr},
 
-        {"PARTIALPASTE_SPOT", &pedited.spot, 1},
-        {"PARTIALPASTE_SHARPENING", &pedited.sharpening, 1},
-        {"PARTIALPASTE_DIRPYRDENOISE", &pedited.denoise, 1},
-        {"PARTIALPASTE_IMPULSEDENOISE", &pedited.impulseDenoise, 1},
-        {"PARTIALPASTE_DEFRINGE", &pedited.defringe, 1},
+        {"PARTIALPASTE_SPOT", &pedited.spot, 1, nullptr},
+        {"PARTIALPASTE_SHARPENING", &pedited.sharpening, 1, nullptr},
+        {"PARTIALPASTE_DIRPYRDENOISE", &pedited.denoise, 1, nullptr},
+        {"PARTIALPASTE_IMPULSEDENOISE", &pedited.impulseDenoise, 1, nullptr},
+        {"PARTIALPASTE_DEFRINGE", &pedited.defringe, 1, nullptr},
 
-        {"PARTIALPASTE_CHANNELMIXERBW", &pedited.blackwhite, 2},
-        {"PARTIALPASTE_FILMSIMULATION", &pedited.filmSimulation, 2},
-        {"PARTIALPASTE_SOFTLIGHT", &pedited.softlight, 2},
-        {"PARTIALPASTE_PCVIGNETTE", &pedited.pcvignette, 2},
-        {"PARTIALPASTE_GRADIENT", &pedited.gradient, 2},
-        {"PARTIALPASTE_DEHAZE", &pedited.dehaze, 2},
-        {"PARTIALPASTE_GRAIN", &pedited.grain, 2},
-        {"PARTIALPASTE_FILMNEGATIVE", &pedited.filmNegative, 2},
+        {"PARTIALPASTE_CHANNELMIXERBW", &pedited.blackwhite, 2, nullptr},
+        {"PARTIALPASTE_FILMSIMULATION", &pedited.filmSimulation, 2, nullptr},
+        {"PARTIALPASTE_SOFTLIGHT", &pedited.softlight, 2, nullptr},
+        {"PARTIALPASTE_PCVIGNETTE", &pedited.pcvignette, 2, nullptr},
+        {"PARTIALPASTE_GRADIENT", &pedited.gradient, 2, nullptr},
+        {"PARTIALPASTE_DEHAZE", &pedited.dehaze, 2, nullptr},
+        {"PARTIALPASTE_GRAIN", &pedited.grain, 2, nullptr},
+        {"PARTIALPASTE_FILMNEGATIVE", &pedited.filmNegative, 2, nullptr},
         
-        {"PARTIALPASTE_WHITEBALANCE", &pedited.wb, 3},
-        {"PARTIALPASTE_ICMSETTINGS", &pedited.icm, 3},
-        {"PARTIALPASTE_SATURATION", &pedited.saturation, 3},
-        {"PARTIALPASTE_CHANNELMIXER", &pedited.chmixer, 3},
-        {"PARTIALPASTE_HSLEQUALIZER", &pedited.hsl, 3},
-        {"PARTIALPASTE_RGBCURVES", &pedited.rgbCurves, 3},
-        {"PARTIALPASTE_LABCURVE", &pedited.labCurve, 3},
+        {"PARTIALPASTE_WHITEBALANCE", &pedited.wb, 3, nullptr},
+        {"PARTIALPASTE_ICMSETTINGS", &pedited.icm, 3, nullptr},
+        {"PARTIALPASTE_SATURATION", &pedited.saturation, 3, nullptr},
+        {"PARTIALPASTE_CHANNELMIXER", &pedited.chmixer, 3, nullptr},
+        {"PARTIALPASTE_HSLEQUALIZER", &pedited.hsl, 3, nullptr},
+        {"PARTIALPASTE_RGBCURVES", &pedited.rgbCurves, 3, nullptr},
+        {"PARTIALPASTE_LABCURVE", &pedited.labCurve, 3, nullptr},
 
-        {"PARTIALPASTE_DISTORTION", &pedited.distortion, 4},
-        {"PARTIALPASTE_CACORRECTION", &pedited.cacorrection, 4},
-        {"PARTIALPASTE_VIGNETTING", &pedited.vignetting, 4},
-        {"PARTIALPASTE_LENSPROFILE", &pedited.lensProf, 4},
+        {"PARTIALPASTE_DISTORTION", &pedited.distortion, 4, nullptr},
+        {"PARTIALPASTE_CACORRECTION", &pedited.cacorrection, 4, nullptr},
+        {"PARTIALPASTE_VIGNETTING", &pedited.vignetting, 4, nullptr},
+        {"PARTIALPASTE_LENSPROFILE", &pedited.lensProf, 4, nullptr},
 
-        {"PARTIALPASTE_COARSETRANS", &pedited.coarse, 5},
-        {"PARTIALPASTE_ROTATION", &pedited.rotate, 5},
-        {"PARTIALPASTE_CROP", &pedited.crop, 5},
-        {"PARTIALPASTE_RESIZE", &pedited.resize, 5},
-        {"PARTIALPASTE_PRSHARPENING", &pedited.prsharpening, 5},
-        {"PARTIALPASTE_PERSPECTIVE", &pedited.perspective, 5},
-        {"PARTIALPASTE_COMMONTRANSFORMPARAMS", &pedited.commonTrans, 5},
+        {"PARTIALPASTE_COARSETRANS", &pedited.coarse, 5, nullptr},
+        {"PARTIALPASTE_ROTATION", &pedited.rotate, 5, nullptr},
+        {"PARTIALPASTE_CROP", &pedited.crop, 5, nullptr},
+        {"PARTIALPASTE_RESIZE", &pedited.resize, 5, nullptr},
+        {"PARTIALPASTE_PRSHARPENING", &pedited.prsharpening, 5, nullptr},
+        {"PARTIALPASTE_PERSPECTIVE", &pedited.perspective, 5, nullptr},
+        {"PARTIALPASTE_COMMONTRANSFORMPARAMS", &pedited.commonTrans, 5, nullptr},
         
-        {"PARTIALPASTE_COLORCORRECTION", &pedited.colorcorrection, 6},
-        {"PARTIALPASTE_SMOOTHING", &pedited.smoothing, 6},
-        {"PARTIALPASTE_LOCALCONTRAST", &pedited.localContrast, 6},
-        {"PARTIALPASTE_TEXTUREBOOST", &pedited.textureBoost, 6},
+        // {"PARTIALPASTE_COLORCORRECTION", &pedited.colorcorrection, 6},
+        // {"PARTIALPASTE_SMOOTHING", &pedited.smoothing, 6},
+        // {"PARTIALPASTE_LOCALCONTRAST", &pedited.localContrast, 6},
+        // {"PARTIALPASTE_TEXTUREBOOST", &pedited.textureBoost, 6},
+        {"PARTIALPASTE_COLORCORRECTION", nullptr, 6, &pedited.colorcorrection},
+        {"PARTIALPASTE_SMOOTHING", nullptr, 6, &pedited.smoothing},
+        {"PARTIALPASTE_LOCALCONTRAST", nullptr, 6, &pedited.localContrast},
+        {"PARTIALPASTE_TEXTUREBOOST", nullptr, 6, &pedited.textureBoost},
 
-        {"PARTIALPASTE_RAW_DEMOSAIC", &pedited.demosaic, 7},
-        {"PARTIALPASTE_RAW_BLACK", &pedited.rawBlack, 7},
-        {"PARTIALPASTE_RAW_WHITE", &pedited.rawWhite, 7},
-        {"PARTIALPASTE_RAW_PREPROCESSING", &pedited.rawPreprocessing, 7},
-        {"PARTIALPASTE_RAWCA", &pedited.rawCA, 7},
-        {"PARTIALPASTE_HOT_DEAD_PIXEL_FILTER", &pedited.hotDeadPixelFilter, 7},
-        {"PARTIALPASTE_DARKFRAME", &pedited.darkframe, 7},
-        {"PARTIALPASTE_FLATFIELD", &pedited.flatfield, 7},
+        {"PARTIALPASTE_RAW_DEMOSAIC", &pedited.demosaic, 7, nullptr},
+        {"PARTIALPASTE_RAW_BLACK", &pedited.rawBlack, 7, nullptr},
+        {"PARTIALPASTE_RAW_WHITE", &pedited.rawWhite, 7, nullptr},
+        {"PARTIALPASTE_RAW_PREPROCESSING", &pedited.rawPreprocessing, 7, nullptr},
+        {"PARTIALPASTE_RAWCA", &pedited.rawCA, 7, nullptr},
+        {"PARTIALPASTE_HOT_DEAD_PIXEL_FILTER", &pedited.hotDeadPixelFilter, 7, nullptr},
+        {"PARTIALPASTE_DARKFRAME", &pedited.darkframe, 7, nullptr},
+        {"PARTIALPASTE_FLATFIELD", &pedited.flatfield, 7, nullptr},
 
-        {"PARTIALPASTE_METADATA", &pedited.metadata, 8},
-        {"PARTIALPASTE_EXIFCHANGES", &pedited.exif, 8},
-        {"PARTIALPASTE_IPTCINFO", &pedited.iptc, 8}
+        {"PARTIALPASTE_METADATA", &pedited.metadata, 8, nullptr},
+        {"PARTIALPASTE_EXIFCHANGES", &pedited.exif, 8, nullptr},
+        {"PARTIALPASTE_IPTCINFO", &pedited.iptc, 8, nullptr}
     };
 }
 
@@ -111,7 +116,8 @@ std::vector<ToggleInfo> get_toggles(ParamsEdited &pedited)
 
 
 PartialPasteDlg::PartialPasteDlg(const Glib::ustring &title, Gtk::Window *parent):
-    Gtk::Dialog(title, *parent, true)
+    Gtk::Dialog(title, *parent, true),
+    allow_3way_(false)
 {
     set_default_size(700, 600);
 
@@ -183,7 +189,7 @@ PartialPasteDlg::PartialPasteDlg(const Glib::ustring &title, Gtk::Window *parent
         ++i;
 
         auto conn = b->signal_toggled().connect(sigc::bind(sigc::mem_fun(*this, &PartialPasteDlg::toggled), b));
-        buttons_[b] = { conn, {}, true, nullptr };
+        buttons_[b] = { conn, {}, true, nullptr, nullptr };
     }
 
     for (const auto &t : get_toggles(pedited_)) {
@@ -191,7 +197,7 @@ PartialPasteDlg::PartialPasteDlg(const Glib::ustring &title, Gtk::Window *parent
         auto conn = b->signal_toggled().connect(sigc::bind(sigc::mem_fun(*this, &PartialPasteDlg::toggled), b));
         int i = t.index;
         auto master = gbtns[i];
-        buttons_[b] = {conn, {master}, false, t.edited};
+        buttons_[b] = {conn, {master}, false, t.edited, t.edited3};
         buttons_[master].related.push_back(b);
         vboxes[i]->pack_start(*b, Gtk::PACK_SHRINK, 2);
     }
@@ -209,9 +215,10 @@ PartialPasteDlg::PartialPasteDlg(const Glib::ustring &title, Gtk::Window *parent
 
 void PartialPasteDlg::toggled(Gtk::CheckButton *which)
 {
-    which->set_inconsistent(false);
+    //which->set_inconsistent(false);
     
     if (which == everything_) {
+        which->set_inconsistent(false);
         for (auto &p : buttons_) {
             auto b = p.first;
             ConnectionBlocker blocker(p.second.conn);
@@ -222,6 +229,16 @@ void PartialPasteDlg::toggled(Gtk::CheckButton *which)
         if (!which->get_active()) {
             ConnectionBlocker blocker(everything_conn_);
             everything_->set_active(false);
+        }
+        if (allow_3way_ && g.edited3) {
+            ConnectionBlocker blocker(g.conn);
+            if (which->get_inconsistent()) {
+                which->set_inconsistent(false);
+                which->set_active(false);
+            } else if (!which->get_active()) {
+                which->set_inconsistent(true);
+                which->set_active(true);
+            }
         }
         if (g.is_master || !which->get_active()) {
             for (auto c : g.related) {
@@ -239,6 +256,8 @@ ParamsEdited PartialPasteDlg::getParamsEdited()
     for (auto &p : buttons_) {
         if (p.second.edited) {
             *p.second.edited = p.first->get_active();
+        } else if (p.second.edited3) {
+            *p.second.edited3 = p.first->get_inconsistent() ? ParamsEdited::Undef : p.first->get_active();
         }
     }
     return pedited_;

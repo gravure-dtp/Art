@@ -34,24 +34,10 @@ void ImProcFunctions::filmSimulation(Imagefloat *img)
 
     img->setMode(Imagefloat::Mode::RGB, multiThread);
 
-    HaldCLUTApplication hald_clut(params->filmSimulation.clutFilename, params->icm.workingProfile);
-    constexpr int TS = 112;
-    hald_clut.init(float(params->filmSimulation.strength)/100.f, TS);
+    HaldCLUTApplication hald_clut(params->filmSimulation.clutFilename, params->icm.workingProfile, float(params->filmSimulation.strength)/100.f, multiThread);
 
     if (hald_clut) {
-#ifdef _OPENMP
-#       pragma omp parallel for if (multiThread)
-#endif
-        for (int y = 0; y < img->getHeight(); ++y) {
-            for (int jj = 0; jj < img->getWidth(); jj += TS) {
-                int jstart = jj;
-                float *r = img->r(y)+jstart;
-                float *g = img->g(y)+jstart;
-                float *b = img->b(y)+jstart;
-                int tW = min(jj + TS, img->getWidth());
-                hald_clut(r, g, b, 0, jstart, tW, 1);
-            }
-        }
+        hald_clut(img);
     } else if (plistener) {
         plistener->error(Glib::ustring::compose(M("TP_FILMSIMULATION_LABEL") + " - " + M("ERROR_MSG_FILE_READ"), params->filmSimulation.clutFilename.empty() ? "(" + M("GENERAL_NONE") + ")" : params->filmSimulation.clutFilename));
     }

@@ -38,9 +38,10 @@ Navigator::Navigator () : currentRGBUnit(options.navRGBUnit), currentLCHUnit(opt
     Gtk::VBox* mbox = Gtk::manage (new Gtk::VBox ());
     mbox->set_name("Navigator");
     previewWindow = Gtk::manage (new PreviewWindow ());
-    mbox->pack_start (*previewWindow, Gtk::PACK_SHRINK, 2);
-    dimension = Gtk::manage (new Gtk::Label ());
-    mbox->pack_start (*dimension, Gtk::PACK_SHRINK, 2);
+    mbox->pack_start(*previewWindow, Gtk::PACK_SHRINK, 2);
+    metaInfo = Gtk::manage(new Gtk::Label());
+    mbox->pack_start (*metaInfo, Gtk::PACK_SHRINK, 2);
+    
     position = Gtk::manage (new Gtk::Label ());
     mbox->pack_start (*position, Gtk::PACK_SHRINK, 2);
 
@@ -210,9 +211,9 @@ Navigator::Navigator () : currentRGBUnit(options.navRGBUnit), currentLCHUnit(opt
 void Navigator::setInvalid (int fullWidth, int fullHeight)
 {
     if (fullWidth > 0 && fullHeight > 0) {
-        dimension->set_text (Glib::ustring::compose (M("NAVIGATOR_XY_FULL"), fullWidth, fullHeight));
+        dimension = Glib::ustring::compose("%1 x %2", fullWidth, fullHeight);
     }
-    position->set_text (M("NAVIGATOR_XY_NA"));
+    position->set_text(Glib::ustring::compose("%1   (%2)", M("NAVIGATOR_XY_NA"), dimension));
 
     R->set_text (M("NAVIGATOR_NA"));
     G->set_text (M("NAVIGATOR_NA"));
@@ -223,6 +224,24 @@ void Navigator::setInvalid (int fullWidth, int fullHeight)
     LAB_A->set_text (M("NAVIGATOR_NA"));
     LAB_B->set_text (M("NAVIGATOR_NA"));
     LAB_L->set_text (M("NAVIGATOR_NA"));
+}
+
+void Navigator::setMetaInfo (const rtengine::FramesMetaData* idata)
+{
+    Glib::ustring infoString = Glib::ustring::compose("%1 %2   %3 sec   f/%4   %5 mm",
+                                                      M("QINFO_ISO"), idata->getISOSpeed(),
+                                                      Glib::ustring(idata->shutterToString(idata->getShutterSpeed())),
+                                                      Glib::ustring(idata->apertureToString(idata->getFNumber())),
+                                                      Glib::ustring::format(std::setw(3), std::fixed, std::setprecision(2), idata->getFocalLen()));
+
+    Glib::ustring expcomp = Glib::ustring(idata->expcompToString(idata->getExpComp(), true));
+
+    if (!expcomp.empty())
+    {
+        infoString = Glib::ustring::compose("%1   %2 ev", infoString, expcomp);
+    }
+
+    metaInfo->set_text(infoString);
 }
 
 void Navigator::getRGBText (int r, int g, int b, Glib::ustring &sR, Glib::ustring &sG, Glib::ustring &sB, bool isRaw)
@@ -289,7 +308,7 @@ void Navigator::pointerMoved (bool validPos, const Glib::ustring &profile, const
     } else {
         Glib::ustring s1, s2, s3;
 
-        position->set_text (Glib::ustring::compose ("x: %1, y: %2", x, y));
+        position->set_text (Glib::ustring::compose ("x: %1, y: %2   (%3)", x, y, dimension));
 
         getRGBText (r, g, b, s1, s2, s3, isRaw);
         R->set_text (s1);

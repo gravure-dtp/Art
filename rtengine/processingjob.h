@@ -34,9 +34,10 @@ public:
     InitialImage* initialImage;
     procparams::ProcParams pparams;
     bool fast;
+    bool use_batch_profile;
 
-    ProcessingJobImpl (const Glib::ustring& fn, bool iR, const procparams::ProcParams& pp, bool ff)
-        : fname(fn), isRaw(iR), initialImage(nullptr), pparams(pp), fast(ff) {}
+    ProcessingJobImpl (const Glib::ustring& fn, bool iR, const procparams::ProcParams& pp, bool ff, bool ubp=true)
+        : fname(fn), isRaw(iR), initialImage(nullptr), pparams(pp), fast(ff), use_batch_profile(ubp) {}
 
     ProcessingJobImpl (InitialImage* iImage, const procparams::ProcParams& pp, bool ff)
         : fname(""), isRaw(true), initialImage(iImage), pparams(pp), fast(ff)

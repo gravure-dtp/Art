@@ -648,7 +648,7 @@ void Thumbnail::getFinalSize (const rtengine::procparams::ProcParams& pparams, i
     }
 }
 
-void Thumbnail::getOriginalSize (int& w, int& h)
+void Thumbnail::getOriginalSize(int &w, int &h, bool consider_coarse)
 {
     if (cfs.width < 0) {
         try {
@@ -659,6 +659,11 @@ void Thumbnail::getOriginalSize (int& w, int& h)
     }
     w = cfs.width;
     h = cfs.height;
+    if (consider_coarse && pparamsValid) {
+        if (pparams.master.coarse.rotate == 90 || pparams.master.coarse.rotate == 270) {
+            std::swap(w, h);
+        }
+    }
 }
 
 rtengine::IImage8* Thumbnail::processThumbImage (const rtengine::procparams::ProcParams& pparams, int h, double& scale)
@@ -720,7 +725,6 @@ rtengine::IImage8* Thumbnail::upgradeThumbImage (const rtengine::procparams::Pro
 
 void Thumbnail::generateExifDateTimeStrings ()
 {
-
     exifString = "";
     dateTimeString = "";
 
@@ -730,45 +734,24 @@ void Thumbnail::generateExifDateTimeStrings ()
 
     exifString = Glib::ustring::compose ("f/%1 %2s %3%4 %5mm", Glib::ustring(rtengine::FramesData::apertureToString(cfs.fnumber)), Glib::ustring(rtengine::FramesData::shutterToString(cfs.shutter)), M("QINFO_ISO"), cfs.iso, Glib::ustring::format(std::setw(3), std::fixed, std::setprecision(2), cfs.focalLen));
 
-    if (options.fbShowExpComp && cfs.expcomp != "0.00" && cfs.expcomp != "") { // don't show exposure compensation if it is 0.00EV;old cache iles do not have ExpComp, so value will not be displayed.
-        exifString = Glib::ustring::compose ("%1 %2EV", exifString, cfs.expcomp);    // append exposure compensation to exifString
+    if (options.fbShowExpComp && cfs.expcomp != "0.00" && cfs.expcomp != "") {
+        exifString = Glib::ustring::compose ("%1 %2EV", exifString, cfs.expcomp);
     }
 
     std::ostringstream ostr;
-    // std::string dateFormat = options.dateFormat;
-    // bool spec = false;
-
-    // for (size_t i = 0; i < dateFormat.size(); i++)
-    //     if (spec && dateFormat[i] == 'y') {
-    //         ostr << cfs.year;
-    //         spec = false;
-    //     } else if (spec && dateFormat[i] == 'm') {
-    //         ostr << (int)cfs.month;
-    //         spec = false;
-    //     } else if (spec && dateFormat[i] == 'd') {
-    //         ostr << (int)cfs.day;
-    //         spec = false;
-    //     } else if (dateFormat[i] == '%') {
-    //         spec = true;
-    //     } else {
-    //         ostr << (char)dateFormat[i];
-    //         spec = false;
-    //     }
 
     if (g_date_valid_dmy(int(cfs.day), GDateMonth(cfs.month), cfs.year)) {
         Glib::Date d(cfs.day, Glib::Date::Month(cfs.month), cfs.year);
-        ostr << std::string(d.format_string(options.dateFormat));
-    
-        ostr << " " << (int)cfs.hour;
-        ostr << ":" << std::setw(2) << std::setfill('0') << (int)cfs.min;
-        ostr << ":" << std::setw(2) << std::setfill('0') << (int)cfs.sec;
+        ostr << std::string(d.format_string(options.dateFormat));    
+        ostr << " " << std::setw(2) << std::setfill('0') << int(cfs.hour);
+        ostr << ":" << std::setw(2) << std::setfill('0') << int(cfs.min);
+        ostr << ":" << std::setw(2) << std::setfill('0') << int(cfs.sec);
     }
-    dateTimeString = ostr.str ();
+    dateTimeString = ostr.str();
 }
 
-const Glib::ustring& Thumbnail::getExifString ()
+const Glib::ustring& Thumbnail::getExifString()
 {
-
     return exifString;
 }
 

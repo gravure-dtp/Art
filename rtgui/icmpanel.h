@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _ICMPANEL_
-#define _ICMPANEL_
+#pragma once
 
 #include <memory>
 #include <gtkmm.h>
@@ -81,6 +80,8 @@ private:
     MyComboBoxText* wProfNames;
     sigc::connection wprofnamesconn;
 
+    std::vector<Glib::ustring> out_profiles_;
+
     MyComboBoxText* oProfNames;
     sigc::connection oprofnamesconn;
     std::unique_ptr<PopUpButton> oRendIntent;
@@ -135,4 +136,3 @@ public:
     void toolReset(bool to_initial) override;
 };
 
-#endif

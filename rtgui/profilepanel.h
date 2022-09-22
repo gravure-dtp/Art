@@ -39,19 +39,19 @@ private:
     Glib::ustring storedValue;
     Glib::ustring lastFilename;
     Glib::ustring imagePath;
-    RTImage *profileFillModeOnImage;
-    RTImage *profileFillModeOffImage;
-    Gtk::ToggleButton* fillMode;
+    RTImage *append_mode_on_image_;
+    RTImage *append_mode_off_image_;
+    Gtk::ToggleButton *append_mode_;
     Gtk::TreeIter currRow;
     ProfileStoreEntry *lastSavedPSE;
     ProfileStoreEntry *customPSE;
     ProfileStoreEntry *defaultPSE;
 
-    void          profileFillModeToggled ();
-    bool          isCustomSelected ();
-    bool          isLastSavedSelected ();
+    void appendModeToggled();
+    bool isCustomSelected();
+    bool isLastSavedSelected();
     bool isDefaultSelected();
-    Gtk::TreeIter getCustomRow ();
+    Gtk::TreeIter getCustomRow();
     Gtk::TreeIter getLastSavedRow ();
     Gtk::TreeIter addCustomRow ();
     Gtk::TreeIter addLastSavedRow ();

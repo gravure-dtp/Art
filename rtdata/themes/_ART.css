@@ -2679,3 +2679,9 @@ switch > :nth-child(3) {
     background-color: @ART-bgDark01;
     color: @ART-hl;
 }
+
+#ThresholdSelector {
+    background-color: @ART-bg;
+    background-image: linear-gradient(@ART-bg, @ART-bgDark025);
+    border-color: @ART-bgDark06;
+}

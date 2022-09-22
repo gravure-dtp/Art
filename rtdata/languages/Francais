@@ -217,6 +217,7 @@ FILECHOOSER_FILTER_LCP;Profils de correction d'objectif
 FILECHOOSER_FILTER_PP;Profils de traitement
 FILECHOOSER_FILTER_SAME;Même format que la photo courante
 FILECHOOSER_FILTER_TIFF;Fichiers TIFF
+FILECHOOSER_FILTER_LUT;Fichiers LUT pris en charge
 GENERAL_ABOUT;À propos
 GENERAL_AFTER;Après
 GENERAL_APPLY;Appliquer
@@ -527,6 +528,7 @@ HISTORY_MSG_COLORCORRECTION_DELTAEMASK;CC - Masque similarités de couleurs
 HISTORY_MSG_COLORCORRECTION_DRAWNMASK;CC - Masque au pinceau
 HISTORY_MSG_COLORCORRECTION_PARAMETRICMASK;CC - Masque paramétrique
 HISTORY_MSG_COLORCORRECTION_MASK_POSTPROCESS;CC - Post-traitement du masque
+HISTORY_MSG_COLORCORRECTION_LUT;CC - LUT
 HISTORY_MSG_COLORTONING_LABGRID_VALUE;CC - Correction de Couleur
 HISTORY_MSG_DENOISE_CHROMINANCE_AUTO_FACTOR;RdB - Force Chroma auto.
 HISTORY_MSG_DENOISE_GUIDED_CHROMA_RADIUS;NR - Lissage final C
@@ -597,6 +599,8 @@ HISTORY_MSG_LOGENC_BLACK_EV;Log - EV Noir
 HISTORY_MSG_LOGENC_GAIN;Log - Gain
 HISTORY_MSG_LOGENC_WHITE_EV;Log - EV Blanc
 HISTORY_MSG_LOGENC_TARGET_GRAY;Log - Point gris cible
+HISTORY_MSG_LOGENC_SATCONTROL;Log - Contrôle de saturation
+HISTORY_MSG_LOGENC_HLCOMPRESSION;Log - Précompression des hautes lumières
 HISTORY_MSG_METADATA_MODE;Mode de copie des métadonnées
 HISTORY_MSG_MICROCONTRAST_CONTRAST;Microcontraste - Seuil de contraste
 HISTORY_MSG_PCVIGNETTE_CENTER;VF - Centre
@@ -659,6 +663,7 @@ HISTORY_MSG_TONE_EQUALIZER_ENABLED;Égaliseur Tonal
 HISTORY_MSG_TONE_EQUALIZER_BANDS;Égaliseur Tonal - Bandes
 HISTORY_MSG_TONE_EQUALIZER_REGULARIZATION;Égaliseur Tonal - Régularisation
 HISTORY_MSG_TONE_EQUALIZER_SHOW_COLOR_MAP;Égaliseur Tonal - Carte tonale
+HISTORY_MSG_TONE_EQUALIZER_PIVOT;Égaliseur Tonal - Pivot
 HISTORY_MSG_TONECURVE_SATCURVE;Courbe tonale - Saturation
 HISTORY_MSG_TONECURVE_PERCEPTUAL_STRENGTH;Courbe tonale - Force perceptuelle 
 HISTORY_MSG_TONECURVE_CONTRAST_LEGACY;Courbe tonale - Contraste mode hérité
@@ -766,6 +771,7 @@ IPTCPANEL_TITLE;Titre
 IPTCPANEL_TITLEHINT;Entrez un nom court et humainement lisible pour l'image, cela peut être le nom du fichier
 IPTCPANEL_TRANSREFERENCE;Identifiant du travail
 IPTCPANEL_TRANSREFERENCEHINT;Entrez un nombre ou identifiant servant au contrôle du flux de travail ou au suivi
+LABMASKS_AREA_MASK_EMPTY_WARNING;Warning: the current combination of area shapes results in an empty mask
 MAIN_BUTTON_FULLSCREEN;Plein écran
 MAIN_BUTTON_ICCPROFCREATOR;Créateur de Profil ICC
 MAIN_BUTTON_NAVNEXT_TOOLTIP;Naviguer à l'image Suivante relativement à l'image ouverte dans l'Éditeur.\nRaccourci : <b>Shift-F4</b>\n\nPour naviguer à l'image suivante relativement à la vignette sélectionnée dans le Navigateur de fichiers ou la Pellicule :\nRaccourci : <b>F4</b>
@@ -834,7 +840,7 @@ MAIN_TOOLTIP_BACKCOLOR0;Couleur de fond de l'aperçu: <b>Selon le thème</b>\nRa
 MAIN_TOOLTIP_BACKCOLOR1;Couleur de fond de l'aperçu: <b>Noir</b>\nRaccourci : <b>9</b>
 MAIN_TOOLTIP_BACKCOLOR2;Couleur de fond de l'aperçu: <b>Blanc</b>\nRaccourci : <b>9</b>
 MAIN_TOOLTIP_BACKCOLOR3;Couleur de fond de l'aperçu: <b>Gris moyen</b>\nRaccourci : <b>9</b>
-MAIN_TOOLTIP_BEFOREAFTERLOCK;<b>Vérouiller</b> / <b>Déverouiller</b> la vue <b>Avant</b>\n\n<b>Vérouiller</b>: garder la vue <b>Avant</b> inchangée - \nutile pour évaluer l'effet cumulatif de plusieurs outils.\nDe plus, une comparaison peut être faite à partir de n'importe quelle étape de l'historique\n\n<b>Déverouiller</b>: la vue <b>Avant</b> représentera l'étape précédant la vue <b>Après</b>, montrant l'effet qui vient d'être modifié
+MAIN_TOOLTIP_BEFOREAFTERLOCK;<b>Vérouiller</b> / <b>Déverouiller</b> la vue <b>Avant</b>\n\n<b>Vérouiller</b>: garder la vue <b>Avant</b> inchangée.\n<b>Déverouiller</b>: la vue <b>avant</b> est conservée en synchronisation avec la vue après <b>After</b>.
 MAIN_TOOLTIP_FALSECOLORS;Indicateur d'expositions utilisant de fausses couleurs.\nRaccourci : <b>Shift-e</b>\n\nClés (Plage IRE) : \n%1
 MAIN_TOOLTIP_HIDEHP;Montrer/Cacher le panneau gauche (incluant l'historique)\nRaccourci : <b>l</b>
 MAIN_TOOLTIP_INDCLIPPEDH;Indication des zones Hautes Lumières écrêtées\nRaccourci : <b>&gt;</b>
@@ -847,7 +853,7 @@ MAIN_TOOLTIP_PREVIEWR;Affichage du <b>canal Rouge</b>\nRaccourci : <b>Shift-r</b
 MAIN_TOOLTIP_PREVIEWSHARPMASK;Prévisualiser le <b>masque de contraste de netteté</b>.\nRaccourci : <b>Shift-o</b>\n\nNe fonctionne que si l'outil Netteté est activé et pour un zoom >= 100%.
 MAIN_TOOLTIP_QINFO;Informations rapides sur l'image\nRaccourci : <b>Shift-i</b>
 MAIN_TOOLTIP_SHOWHIDELP1;Montrer/Cacher le panneau gauche\nRaccourci : <b>l</b>
-MAIN_TOOLTIP_SHOWHIDERP1;Afficher/Cacher le panneau droit\nRaccourci : <b>Ctrl-l</b>
+MAIN_TOOLTIP_SHOWHIDERP1;Show/cacher le panneau droit.\nRaccourci : <b>Ctrl-l</b>
 MAIN_TOOLTIP_SHOWHIDETP1;Afficher/Cacher le panneau supérieur\nRaccourci : <b>Shift-L</b>
 MAIN_TOOLTIP_THRESHOLD;Seuil
 MAIN_TOOLTIP_TOGGLE;Comparer Avant/Après\nRaccourci : <b>Shift-a</b>
@@ -1116,7 +1122,7 @@ PREFERENCES_SHOWEXPOSURECOMPENSATION;Ajouter la compensation d'exposition
 PREFERENCES_SHOWFILMSTRIPTOOLBAR;Montrer la barre d'outil Pellicule ("filmstrip")
 PREFERENCES_SHTHRESHOLD;Seuil pour l'écrêtage des ombres
 PREFERENCES_SINGLETAB;Mode Onglet Éditeur Unique
-PREFERENCES_SINGLETABVERTAB;Mode Onglet Éditeur Unique, Onglets Verticaux
+PREFERENCES_SINGLETABBOTTOM;Mode Onglet Éditeur Unique, Éditeur Filmstrip ci-dessous
 PREFERENCES_SND_HELP;Saisissez un chemin pour indiquer un fichier son, ou laisser vide pour aucun son. Pour les sons système sous Windows,\nsaisissez "SystemDefault", "SystemAsterisk", etc., et pour Linux saisissez "complete", "widow-attention", etc.
 PREFERENCES_SND_LNGEDITPROCDONE;Traitement de la Prévisualisation terminé
 PREFERENCES_SND_BATCHQUEUEDONE;File de traitement terminée
@@ -1159,7 +1165,7 @@ PROFILEPANEL_GLOBALPROFILES;Profils de traitement fournis
 PROFILEPANEL_LABEL;Profils de traitement
 PROFILEPANEL_LOADDLGLABEL;Charger les paramètres de traitement...
 PROFILEPANEL_LOADPPASTE;Paramètres à charger
-PROFILEPANEL_MODE_TIP;Mode de remplissage des profils de traitement.\n\nBouton pressé : les profils partiels seront convertis en profils complets ; les valeurs manquantes seront remplacées par les valeurs programme par défaut\n\nBouton relevé : les profils seront appliqués tels quels, altérant uniquement les paramètres qu'ils contiennent
+PROFILEPANEL_MODE_TIP;Traitement du mode d'ajout de profil pour les outils d'édition locaux.\n\nBouton pressé : les paramètres d'édition locaux dans le profil seront ajoutés aux paramètres actuels.\n\nBouton relevé : les paramètres d'édition locaux dans le profil écraseront les paramètres actuels.
 PROFILEPANEL_MYPROFILES;Mes profils
 PROFILEPANEL_PASTEPPASTE;Paramètres à coller
 PROFILEPANEL_PCUSTOM;Personnalisé
@@ -1252,8 +1258,8 @@ SAVEDLG_SUBSAMP_TOOLTIP;Meilleure compression:\nJ:a:b 4:2:0\nh/v 2/2\nChroma div
 SAVEDLG_TIFFUNCOMPRESSED;TIFF non compressé
 SAVEDLG_WARNFILENAME;Le fichier sera nommé
 SHCSELECTOR_TOOLTIP;Cliquez le bouton droit de la souris\npour réinitialiser la position de ces 3 curseurs
-SOFTPROOF_GAMUTCHECK_TOOLTIP;Visualiser les pixels dont la couleur est hors gamut en fonction du profil de sortie 
-SOFTPROOF_GAMUTCHECK_MONITOR_TOOLTIP;Visualiser les pixels dont la couleur est hors gamut en fonction :\n- du profil d'Épreuvage à l'écran s'il y en a un de sélectionné et si "Épreuve numérique" est activé,\n- du profil de l'écran si "Épreuve numérique" est désactivé
+SOFTPROOF_GAMUTCHECK_TOOLTIP;Visualiser les pixels dont la couleur est hors gamut en fonction du profil de sortie de l'écran.
+SOFTPROOF_GAMUTCHECK_MONITOR_TOOLTIP;Visualiser les pixels dont la couleur est hors gamut en fonction :\n- du profil d'Épreuvage à l'écran s'il y en a un de sélectionné et si "Épreuve numérique" est activé,\n- du profil de sortie l'écran si "Épreuve numérique" est désactivé
 SOFTPROOF_TOOLTIP;L'épreuve numérique simule l'apparence de l'image quand elle est reproduite par une imprimante ou un moniteur spécifique si un profil adapté est sélectionné dans Préférences > Gestions des couleurs.\n(Maintenir <b>Ctrl</b> en cliquant pour modifier le profil d'épreuvage à l'écran)
 THRESHOLDSELECTOR_B;Bas
 THRESHOLDSELECTOR_BL;Bas-gauche
@@ -1355,6 +1361,8 @@ TP_COLORCORRECTION_H;Teinte
 TP_COLORCORRECTION_S;Saturation
 TP_COLORCORRECTION_HUESAT;Teinte/Saturation
 TP_COLORCORRECTION_HUESHIFT;Modification de la teinte
+TP_COLORCORRECTION_LUT_FILENAME;Fichier LUT
+TP_COLORCORRECTION_MODE_LUT;LUT
 TP_CROP_FIXRATIO;Rapport fixé
 TP_CROP_GTDIAGONALS;Règle des diagonales
 TP_CROP_GTEPASSPORT;Passeport biométrique
@@ -1583,14 +1591,14 @@ TP_LABMASKS_AREA_MASK_DRAW_POLYGON_ADD_TOOLTIP;Ajouter une zone polygonale en aj
 TP_LABMASKS_AREA_MASK_TOGGLE_TOOLTIP;Afficher la forme de la zone courante dans l'image
 TP_LABMASKS_AREA_MASK_PASTE_TOOLTIP;Coller une zone depuis le presse-papier
 TP_LABMASKS_AREA_SHAPE;Forme
-TP_LABMASKS_AREA_STRENGTH_START;Force de départ
-TP_LABMASKS_AREA_STRENGTH_END;Force de fin
 TP_LABMASKS_AREA_SHAPE_MODE;Mode
 TP_LABMASKS_AREA_SHAPE_MODE_ADD;Ajout
 TP_LABMASKS_AREA_SHAPE_MODE_SUBTRACT;Soustraction
 TP_LABMASKS_AREA_SHAPE_MODE_INTERSECT;Intersection
 TP_LABMASKS_AREA_SHAPE_POLY_NONEMPTY;%1 point(s)
 TP_LABMASKS_AREA_SHAPES;Formes des zones
+TP_LABMASKS_AREA_STRENGTH_START;Force de départ
+TP_LABMASKS_AREA_STRENGTH_END;Force de fin
 TP_LABMASKS_AREA_WIDTH;Largeur
 TP_LABMASKS_AREA_X;Centre X
 TP_LABMASKS_AREA_Y;Centre Y
@@ -1618,10 +1626,10 @@ TP_LABMASKS_DRAWNMASK_PEN_SETTINGS;Paramètres du pinceau
 TP_LABMASKS_DRAWNMASK_RESET_TIP;Effacer tous les tracés
 TP_LABMASKS_DRAWNMASK_UNDO_TIP;Eliminer le dernier groupe de tracés
 TP_LABMASKS_DRAWNMASK_RADIUS;Rayon
-TP_LABMASKS_DRAWNMASK_TRANSPARENCY;Transparence
+TP_LABMASKS_DRAWNMASK_OPACITY;Opacité
 TP_LABMASKS_DRAWNMASK_SMOOTHNESS;Lissage
 TP_LABMASKS_DRAWNMASK_ERASE;Mode effacement
-TP_LABMASKS_DRAWNMASK_HARDNESS;Dureté
+TP_LABMASKS_DRAWNMASK_GLOBAL;Paramètres globaux
 TP_LABMASKS_DRAWNMASK_INFO;%1 trait(s)
 TP_LABMASKS_DRAWNMASK_INTERSECT_TOOLTIP;Intersection du masque au pinceau avec les autres masques
 TP_LABMASKS_DRAWNMASK_ADD_TOOLTIP;Ajouter le masque au pinceau au dessus des autres masques
@@ -1633,7 +1641,8 @@ TP_LABMASKS_POSTPROCESS_POSTERIZATION;Postérisation
 TP_LABMASKS_POSTPROCESS_SMOOTHING;Lissage
 TP_LENSGEOM_AUTOCROP;Rognage auto
 TP_LENSGEOM_FILL;Remplir automatiquement
-TP_LENSGEOM_LABEL;Objectif / Géométrie
+TP_GEOM_LABEL;Geométrie
+TP_LENS_LABEL;Objectif
 TP_LENSPROFILE_CORRECTION_AUTOMATCH;Automatique d'après la base de données
 TP_LENSPROFILE_CORRECTION_EXIF;D'après les métadonnées
 TP_LENSPROFILE_CORRECTION_LCPFILE;Profil LCP
@@ -1656,6 +1665,7 @@ TP_LOGENC_WHITE_EV;Blanc exposition relative (Ev)
 TP_LOGENC_TARGET_GRAY;Point gris cible (luminosité)
 TP_LOGENC_LABEL;Mappage de tonalité Log
 TP_LOGENC_REGULARIZATION;Régularisation
+TP_LOGENC_HLCOMPRESSION;Précompression des hautes lumières
 TP_METADATA_EDIT;Appliquer les modifications
 TP_METADATA_MODE;Mode de copie des métadonnées
 TP_METADATA_STRIP;Effacer toutes les métadonnées
@@ -1903,6 +1913,7 @@ TP_TONE_EQUALIZER_BAND_4;Blancs
 TP_TONE_EQUALIZER_DETAIL;Régularisation
 TP_TONE_EQUALIZER_LABEL;Égaliseur Tonal
 TP_TONE_EQUALIZER_SHOW_COLOR_MAP;Montrer la carte tonale
+TP_TONE_EQUALIZER_PIVOT;Pivot (EV)
 TP_VIGNETTING_AMOUNT;Quantité
 TP_VIGNETTING_CENTER_X;Centre X
 TP_VIGNETTING_CENTER_Y;Centre Y

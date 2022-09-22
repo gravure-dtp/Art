@@ -30,6 +30,9 @@
 #29 2021-12-18 update to ART v1.12 by pm
 #30 2022-01-28 update to ART v1.12.1 by pm
 #31 2022-04-01 update to ART v1.13 by pm
+#32 27-05-2022 update to ART v1.14 by pm
+#33 13-07-2022 update to ART v1.15 by pm
+#34 24-08-2022 update to ART v1.16 by pm
 
 ABOUT_TAB_BUILD;Versie
 ABOUT_TAB_CREDITS;Credits
@@ -246,6 +249,7 @@ FILECHOOSER_FILTER_LCP;Lenscorrectieprofielen
 FILECHOOSER_FILTER_PP;Verwerkingsprofielen
 FILECHOOSER_FILTER_SAME;Zelfde formaat als huidige foto
 FILECHOOSER_FILTER_TIFF;TIFF-bestanden
+FILECHOOSER_FILTER_LUT;Ondersteunde LUT-bestanden
 GENERAL_ABOUT;Over ART
 GENERAL_AFTER;Na
 GENERAL_APPLY;Toepassen
@@ -541,6 +545,7 @@ HISTORY_MSG_COLORCORRECTION_OFFSET;K/Tc - schaduwen/ophelderen
 HISTORY_MSG_COLORCORRECTION_OUTSATURATION;K/Tc - verzadiging uitvoer
 HISTORY_MSG_COLORCORRECTION_PARAMETRICMASK;K/Tc - parametrisch masker
 HISTORY_MSG_COLORCORRECTION_MASK_POSTPROCESS;K/Tc - nabewerking masker
+HISTORY_MSG_COLORCORRECTION_LUT;K/Tc - LUT
 HISTORY_MSG_COLORCORRECTION_PIVOT;K/Tc - kantelpunt
 HISTORY_MSG_COLORCORRECTION_POWER;K/Tc - middentonen/gamma
 HISTORY_MSG_COLORCORRECTION_COMPRESSION;K/Tc - compressie
@@ -618,6 +623,8 @@ HISTORY_MSG_LOGENC_BLACK_EV;Log - Zwart EV
 HISTORY_MSG_LOGENC_GAIN;Log - Versterking
 HISTORY_MSG_LOGENC_WHITE_EV;Log - Wit EV
 HISTORY_MSG_LOGENC_TARGET_GRAY;Log - Bestemming grijspunt
+HISTORY_MSG_LOGENC_SATCONTROL;Log - Beperk verzadiging
+HISTORY_MSG_LOGENC_HLCOMPRESSION;Log - Voorcompressie hoge lichten
 HISTORY_MSG_METADATA_MODE;Metadata kopieermodus
 HISTORY_MSG_MICROCONTRAST_CONTRAST;Microcontrast - Contrastdrempel
 HISTORY_MSG_PCVIGNETTE_CENTER;VF - Centrum
@@ -685,6 +692,7 @@ HISTORY_MSG_TONE_EQUALIZER_BANDS;Banden
 HISTORY_MSG_TONE_EQUALIZER_ENABLED;Toonequalizer
 HISTORY_MSG_TONE_EQUALIZER_REGULARIZATION;Fijnafstemming
 HISTORY_MSG_TONE_EQUALIZER_SHOW_COLOR_MAP;Kleurenkaart
+HISTORY_MSG_TONE_EQUALIZER_PIVOT;Toonequalizer - Kantelpunt
 HISTORY_MSG_WBALANCE_MULT;WB - versterkers
 HISTORY_NEWSNAPSHOT_TOOLTIP;Sneltoets: <b>Alt-s</b>
 HISTORY_NEWSNAPSHOT;Voeg toe
@@ -853,7 +861,7 @@ MAIN_TOOLTIP_BACKCOLOR0;Achtergrondkleur van het voorbeeld: <b>themagebaseerd</b
 MAIN_TOOLTIP_BACKCOLOR1;Achtergrondkleur van het voorbeeld: <b>Zwart</b>\nSneltoets: <b>9</b>
 MAIN_TOOLTIP_BACKCOLOR2;Achtergrondkleur van het voorbeeld: <b>Wit</b>\nSneltoets: <b>9</b>
 MAIN_TOOLTIP_BACKCOLOR3;Achtergrondkleur van het voorbeeld: <b>middelgrijs</b>\nSneltoets: <b>9</b>
-MAIN_TOOLTIP_BEFOREAFTERLOCK;<b>Vergrendel</b>/<b>ontgrendel</b> de <b>Voor</b>-afbeelding.\n\n<b>Vergrendel</b>: laat de <b>Voor</b>-afbeelding ongewijzigd.\nDit is handig om het cumulatieve effect van meerdere gereedschappen te beoordelen.\nBovendien kan er worden vergeleken met elke stap in de geschiedenislijst.\n\n<b>Ontgrendel</b>: de <b>Voor</b>-afbeelding volgt een stap achter de <b>Na</b>-afbeelding en laat de afbeelding zien zonder het effect van het huidige gereedschap.
+MAIN_TOOLTIP_BEFOREAFTERLOCK;<b>Vergrendel</b>/<b>ontgrendel</b> de <b>Voor</b>-afbeelding.\n\n<b>Vergrendeld</b>: laat de <b>Voor</b>-afbeelding ongewijzigd.\n<b>Ontgrendeld</b>: de <b>Voor</b>-afbeelding is gelijk aan de  <b>Na</b>-afbeelding.
 MAIN_TOOLTIP_FALSECOLORS;Toon belichtingsindicatie op basis van valse kleuren.\nSneltoets: <b>Shift+e</b>\n\nSleutel (IRE-reeks):\n%1
 MAIN_TOOLTIP_HIDEHP;Toon/verberg linkerpaneel (incl. geschiedenis)\nSneltoets: <b>l</b>
 MAIN_TOOLTIP_INDCLIPPEDH;Overbelichtingsindicatie.\nSneltoets: <b>&gt;</b>
@@ -867,7 +875,7 @@ MAIN_TOOLTIP_PREVIEWSHARPMASK;Bekijk het <b>scherptecontrastmasker</b>.\nSneltoe
 MAIN_TOOLTIP_QINFO;Beknopte fotogegevens\nSneltoets: <b>Shift+i</b>
 MAIN_TOOLTIP_SHOWHIDELP1;Toon/verberg linkerpaneel.\nSneltoets: <b>l</b>
 MAIN_TOOLTIP_SHOWHIDERP1;Toon/verberg rechterpaneel\nSneltoets: <b>Ctrl+l</b>
-MAIN_TOOLTIP_SHOWHIDETP1;Toon/verberg bovenste paneel\nSneltoets: <b>Shift+l</b>
+MAIN_TOOLTIP_SHOWHIDETP1;Toon/verberg filmstrip\nSneltoets: <b>Shift+l</b>
 MAIN_TOOLTIP_THRESHOLD;Drempel
 MAIN_TOOLTIP_TOGGLE;Schakel tussen <b>Voor</b>/<b>Na</b>-beeld\nSneltoets: <b>Shift+a</b>
 METADATA_LOAD_ERROR;Fout tijdens laden metadata van %1: %2
@@ -1130,6 +1138,7 @@ PREFERENCES_SHOWEXPOSURECOMPENSATION;Toon belichtingscompensatie
 PREFERENCES_SHOWFILMSTRIPTOOLBAR;Toon filmstripwerkbalk
 PREFERENCES_SHTHRESHOLD;Grenswaarde onderbelichting
 PREFERENCES_SINGLETAB;Enkel-tab modus
+PREFERENCES_SINGLETABBOTTOM;Enkel-tab modus, Filmstrip onder Fotobewerker
 PREFERENCES_SINGLETABVERTAB;Enkel-tab modus, verticale tabs
 PREFERENCES_SND_BATCHQUEUEDONE;Verwerkingsrij klaar
 PREFERENCES_SND_HELP;Typ volledig pad naar geluidsbestanden, laat leeg voor geen geluid.\nWindows: gebruik 'SystemDefault', 'SystemAsterisk', etc., en op Linux gebruik 'complete', 'window-attention' etc.
@@ -1173,7 +1182,7 @@ PROFILEPANEL_GLOBALPROFILES;Gebundelde profielen
 PROFILEPANEL_LABEL;Profielen
 PROFILEPANEL_LOADDLGLABEL;Kies profiel...
 PROFILEPANEL_LOADPPASTE;Te laden parameters
-PROFILEPANEL_MODE_TIP;Profiel aanvullen.\n\nKnop ingedrukt: gedeeltelijke profielen worden omgezet naar volledige profielen. De ontbrekende waarden worden vervangen door hardgecodeerde standaardwaarden.\n\nKnop losgelaten: profielen worden toegepast zo als ze zijn, alleen de aanwezige waarden worden gewijzigd.
+PROFILEPANEL_MODE_TIP;Verwerkingsprofielen - toevoegmodus voor gereedschappen uit de Lokaal bewerken-groep.\n\nKnop ingedrukt: Lokale bewerkingsparameters in het profiel worden toegevoegd aan de huidige parameters. \n\nKnop losgelaten: Lokale bewerkingsparameters overschrijven de bestaande parameters.
 PROFILEPANEL_MYPROFILES;Mijn profielen
 PROFILEPANEL_PASTEPPASTE;Te plakken parameters
 PROFILEPANEL_PCUSTOM;Handmatig
@@ -1266,8 +1275,9 @@ SAVEDLG_SUBSAMP_TOOLTIP;Beste compressie:\nJ:a:b 4:2:0\nh/v 2/2\nChroma horizont
 SAVEDLG_TIFFUNCOMPRESSED;Geen TIFF-compressie
 SAVEDLG_WARNFILENAME;Bestandsnaam wordt
 SHCSELECTOR_TOOLTIP;Rechtsklik om de drie schuiven terug te zetten naar hun standaardpositie
-SOFTPROOF_GAMUTCHECK_TOOLTIP;Markeer pixels waarvan de kleuren buiten het kleurgamma vallen met het gekozen uitvoerprofiel. 
-SOFTPROOF_GAMUTCHECK_MONITOR_TOOLTIP;Markeer pixels waarvan de kleuren buiten het kleurgamma vallen bij het gekozen:\n- profiel voor afdruksimulatie indien opgegeven en met soft-proofing ingeschakeld,\n- het monitorprofiel als afdruksimulatie is uitgeschakeld.
+SOFTPROOF_GAMUTCHECK_TOOLTIP;Highlight pixels with out-of-gamut colors with respect to:\n- the soft-proofing profile, if one is set and soft-proofing is enabled,\n- the output profile, if soft-proofing is disabled.
+SOFTPROOF_GAMUTCHECK_TOOLTIP;Markeer pixels waarvan de kleuren buiten het kleurgamma vallen met:\nhet opgegeven soft-proofing profiel en soft-proofing is ingeschakeld,\n of met het uitvoerprofiel en soft-proofing is uitgeschakeld. 
+SOFTPROOF_GAMUTCHECK_MONITOR_TOOLTIP;Markeer pixels waarvan de kleuren buiten het kleurgamma vallen bij het gekozen monitorprofiel.
 SOFTPROOF_TOOLTIP;Soft-proofing simuleert hoe een foto wordt getoond als deze wordt weergegeven op een beeldscherm of afgedrukt op een specifieke printer, als het overeenkomstige profiel is opgegeven in Voorkeuren > Kleurbeheer.\n(Met <b>Ctrl + linksklik</b> kan een ander profiel worden gekozen. 
 THRESHOLDSELECTOR_BL;Onderkant-links
 THRESHOLDSELECTOR_B;Onderkant
@@ -1364,6 +1374,8 @@ TP_COLORCORRECTION_SATURATION;Verzadiging
 TP_COLORCORRECTION_SLOPE;Hoge lichten/++
 TP_COLORCORRECTION_S;Verzadiging
 TP_COLORCORRECTION_HUESHIFT;Kleurverschuiving
+TP_COLORCORRECTION_LUT_FILENAME;LUT-bestand
+TP_COLORCORRECTION_MODE_LUT;LUT
 TP_COLORCORRECTION_SYNC_SLIDERS;Koppel corresponderende schuiven
 TP_CROP_DONE;Gereed
 TP_CROP_FIXRATIO;Verhouding:
@@ -1620,12 +1632,14 @@ TP_LABMASKS_DELTAE_TOOLTIP;Kies gebieden van gelijke kleur\n(volgens de CIELAB Î
 TP_LABMASKS_DRAWNMASK_ADD_BOUNDED_TOOLTIP;Plaats penseelmasker boven de andere maskers, maar alleen binnen het actieve gebiedsmasker
 TP_LABMASKS_DRAWNMASK_ADD_TOOLTIP;Plaats penseelmasker bovenop de andere maskers
 TP_LABMASKS_DRAWNMASK_ERASE;Gum-modus
+TP_LABMASKS_DRAWNMASK_GLOBAL;Globale instellingen
 TP_LABMASKS_DRAWNMASK_HARDNESS;Hardheid
 TP_LABMASKS_DRAWNMASK_INFO;%1 penseelstreken
 TP_LABMASKS_DRAWNMASK_INTERSECT_TOOLTIP;Doorsnij penseelmasker met de andere maskers
 TP_LABMASKS_DRAWNMASK;Penseelmasker
 TP_LABMASKS_DRAWNMASK_PEN_SETTINGS;Penseelinstellingen
 TP_LABMASKS_DRAWNMASK_RADIUS;Straal
+TP_LABMASKS_DRAWNMASK_OPACITY;Opaciteit
 TP_LABMASKS_DRAWNMASK_RESET_TIP;Wis alle penseelstreken
 TP_LABMASKS_DRAWNMASK_SMOOTHNESS;Gladheid
 TP_LABMASKS_DRAWNMASK_TOGGLE_TIP;Schakelt het tekenen met het penseel in of uit.\n\n<i>Bij muisgebruik:</i>\n- Houd de <b>Alt</b>-toets ingedrukt om tijdelijk naar de Gummodus om te schakelen;\n-Houd <b>Shift</b> ingedrukt om een rechte lijn te trekken;\n- Gebruik <b>Ctrl+muiswiel</b> om de kwastgrootte te veranderen, \n- <b>Ctrl+Shift+muiswiel</b> om de hardheid van de kwast te wijzigen,\n- en <b>Ctrl+klik</b> om een nieuwe penseelgroep te starten zonder de parameters te veranderen (zodat meerdere kwaststreken in hetzelfde gebied bij elkaar worden opgeteld);\n- Gebruik de <b>derde knop</b> om het kwastgereedschap uit te schakelen.\n\n<i>Bij gebruik van een drukgevoelig apparaat:</i>\n- Gebruik de <b>eerste knop</b> om naar de Gummodus om te schakelen;\n- Houd <b>Shift</b> ingedrukt om een rechte lijn te trekken;- Gebruik <b>Alt+eerste knop</b> om de kwaststraal te vergroten, en\n- <b>Alt+tweede knop</b> om deze te verkleinen;\n- Gebruik de <b>tweede knop</b> om te wisselen tussen de beschikbare modi voor drukgevoeligheid: uit, hardheid, straal (houd <b>Shift</b> ingedrukt om de richting om te keren);\n- gebruik <b>Ctrl+tweede knop</b> om het kwastgereedschap uit te schakelen.
@@ -1646,7 +1660,8 @@ TP_LABMASKS_POSTPROCESS_SMOOTHING;Verzachten
 TP_LABMASKS_SHOW;Toon masker
 TP_LENSGEOM_AUTOCROP;Automatisch bijsnijden
 TP_LENSGEOM_FILL;Automatisch uitvullen
-TP_LENSGEOM_LABEL;Objectief / Geometrie
+TP_GEOM_LABEL;Geometrie
+TP_LENS_LABEL;Objectief
 TP_LENSPROFILE_CORRECTION_AUTOMATCH;Automatisch via database
 TP_LENSPROFILE_CORRECTION_EXIF;Ingebed in metadata
 TP_LENSPROFILE_CORRECTION_LCPFILE;LCP-bestand
@@ -1673,6 +1688,7 @@ TP_LOGENC_BLACK_EV;Zwart EV
 TP_LOGENC_EV_LEVELS;Relatieve belichtingsniveaus
 TP_LOGENC_LABEL;Log Toonmappen
 TP_LOGENC_REGULARIZATION;Fijnafstemming
+TP_LOGENC_HLCOMPRESSION;Voorcompressie hoge lichten
 TP_LOGENC_SOURCE_GRAY;Grijspunt bron
 TP_LOGENC_TARGET_GRAY;Grijspunt doel
 TP_LOGENC_WHITE_EV;Wit EV
@@ -1928,6 +1944,7 @@ TP_TONE_EQUALIZER_BAND_4;Witten
 TP_TONE_EQUALIZER_DETAIL;Fijnafstemming
 TP_TONE_EQUALIZER_LABEL;Toonequalizer
 TP_TONE_EQUALIZER_SHOW_COLOR_MAP;Toon kleurenkaart
+TP_TONE_EQUALIZER_PIVOT;Kantelpunt (Ev)
 TP_VIGNETTING_AMOUNT;Hoeveelheid
 TP_VIGNETTING_CENTER;Centrum
 TP_VIGNETTING_CENTER_X;Centrum X

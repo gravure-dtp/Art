@@ -143,6 +143,10 @@ void log_encode(Imagefloat *rgb, const ProcParams *params, float scale, int full
     const float linbase = max(b, 0.f);
     TMatrix ws = ICCStore::getInstance()->workingSpaceMatrix(params->icm.workingProfile);
 
+    const bool satcontrol = params->logenc.satcontrol;
+    const bool hlcompr = params->logenc.highlightCompression > 0;
+    const float hlcompr_factor = LIM01(float(params->logenc.highlightCompression) / 100.f);
+
     const auto apply =
         [=](float x, bool scale=true) -> float
         {
@@ -151,6 +155,9 @@ void log_encode(Imagefloat *rgb, const ProcParams *params, float scale, int full
             }
             x = max(x, noise);
             x = max(x / gray, noise);
+            if (hlcompr && x >= 1.f) {
+                x = intp(hlcompr_factor, std::tanh(x-1.f)+1.f, x);
+            }
             x = max((xlogf(x)/log2 - shadows_range) / dynamic_range, noise);
             assert(x == x);
             if (linbase > 0.f) {
@@ -161,6 +168,29 @@ void log_encode(Imagefloat *rgb, const ProcParams *params, float scale, int full
             } else {
                 return x;
             }
+        };
+
+    const auto sf =
+        [=](float s, float c) -> float
+        {
+            if (c > noise) {
+                return 1.f - min(std::abs(s) / c, 1.f);
+            } else {
+                return 0.f;
+            }
+        };
+
+    const auto apply_sat =
+        [&](float &r, float &g, float &b, float f) -> void
+        {
+            float ll = Color::rgbLuminance(r, g, b, ws);
+            float rl = r - ll;
+            float gl = g - ll;
+            float bl = b - ll;
+            float s = intp(max(sf(rl, r), sf(gl, g), sf(bl, b)), pow_F(f, 0.3f) * 0.6f + 0.4f, 1.f);
+            r = ll + s * rl;
+            g = ll + s * gl;
+            b = ll + s * bl;
         };
 
     const int W = rgb->getWidth(), H = rgb->getHeight();
@@ -181,6 +211,10 @@ void log_encode(Imagefloat *rgb, const ProcParams *params, float scale, int full
                     r *= f;
                     b *= f;
                     g *= f;
+
+                    if (satcontrol && f < 1.f) {
+                        apply_sat(r, g, b, f);
+                    }                    
                 }
             
                 assert(r == r);
@@ -241,7 +275,11 @@ void log_encode(Imagefloat *rgb, const ProcParams *params, float scale, int full
                     b *= f;
                     assert(std::isfinite(r));
                     assert(std::isfinite(g));
-                    assert(std::isfinite(b));                    
+                    assert(std::isfinite(b));
+
+                    if (satcontrol && f < 1.f) {
+                        apply_sat(r, g, b, f);
+                    }
                 }
             }
         }

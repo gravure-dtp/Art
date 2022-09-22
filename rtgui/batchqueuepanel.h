@@ -57,6 +57,8 @@ class BatchQueuePanel : public Gtk::VBox,
 
     Gtk::CheckButton *apply_batch_profile_;
     ProfileStoreComboBox *profiles_cb_;
+    sigc::connection apply_batch_profile_conn_;
+    sigc::connection profiles_cb_conn_;
 
     std::atomic<bool> queueShouldRun;
 
@@ -76,6 +78,8 @@ public:
     // batchqueuelistener interface
     void queueSizeChanged(int qsize, bool queueRunning, bool queueError, const Glib::ustring& queueErrorMessage) override;
     bool canStartNext() override;
+
+    void refreshProfiles();
 
 private:
     void startBatchProc ();

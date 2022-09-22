@@ -34,7 +34,7 @@
 
 namespace rtengine {
 
-typedef std::array<double, 7> GammaValues;
+typedef std::array<double, 7> LMCSToneCurveParams;
 
 #ifdef _DEBUG
 
@@ -170,12 +170,6 @@ public:
 
     static LUTf igammatab_24_17;
     static LUTf gammatab_24_17a;
-    static LUTf gammatab_13_2;
-    static LUTf igammatab_13_2;
-    static LUTf gammatab_115_2;
-    static LUTf igammatab_115_2;
-    static LUTf gammatab_145_3;
-    static LUTf igammatab_145_3;
 
     // look-up tables for the simple exponential gamma
     static LUTf gammatab;
@@ -1104,22 +1098,18 @@ public:
         return h;
     }
 
-    /**
-    * @brief Get the gamma curves' parameters used by LCMS2
-    * @param pwr gamma value [>1]
-    * @param ts slope [0 ; 20]
-    * @param mode [always 0]
-    * @imax imax [always 0]
-    * @param gamma a pointer to an array of 6 double gamma values:
-    *        gamma0 used in ip2Lab2rgb [0 ; 1], usually near 0.5 (return value)
-    *        gamma1 used in ip2Lab2rgb [0 ; 20], can be superior to 20, but it's quite unusual(return value)
-    *        gamma2 used in ip2Lab2rgb [0 ; 1], usually near 0.03(return value)
-    *        gamma3 used in ip2Lab2rgb [0 ; 1], usually near 0.003(return value)
-    *        gamma4 used in ip2Lab2rgb [0 ; 1], usually near 0.03(return value)
-    *        gamma5 used in ip2Lab2rgb [0 ; 1], usually near 0.5 (return value)
-    */
-    static void calcGamma (double pwr, double ts, int mode, GammaValues &gamma);
+    // @brief Get the gamma curves' parameters used by LCMS2
+    static void compute_LCMS_tone_curve_params(double gamma, double slope, LMCSToneCurveParams &params);
 
+    // Rec.2100 PQ curve
+    // https://www.itu.int/dms_pubrec/itu-r/rec/bt/R-REC-BT.2100-2-201807-I!!PDF-F.pdf
+    // Perceptual Quantization / SMPTE standard ST.2084
+    static float eval_PQ_curve(float x, bool oetf);
+
+    // Hybrid-log gamma curve
+    // https://www.itu.int/dms_pubrec/itu-r/rec/bt/R-REC-BT.2100-2-201807-I!!PDF-F.pdf
+    static float eval_HLG_curve(float x, bool oetf);
+    
     // standard srgb gamma and its inverse
 
     /**
@@ -1128,7 +1118,7 @@ public:
     * @param x red, green or blue channel's value [0 ; 1]
     * @return the gamma modified's value [0 ; 1]
     */
-    static inline double gamma2     (double x)      //  g3                  1+g4
+    static inline double gamma2(double x)      //  g3                  1+g4
     {
       //  return x <= 0.003041 ? x * 12.92310 : 1.055 * exp(log(x) / 2.39990) - 0.055;//calculate with calcgamma
         //return x <= 0.0031308 ? x * 12.92310 : 1.055 * exp(log(x) / sRGBGammaCurve) - 0.055;//standard discontinuous
@@ -1145,7 +1135,7 @@ public:
     * @param x red, green or blue channel's value [0 ; 1]
     * @return the inverse gamma modified's value [0 ; 1]
     */
-    static inline double igamma2    (double x)      //g2
+    static inline double igamma2(double x)      //g2
     {
        // return x <= 0.039289 ? x / 12.92310 : exp(log((x + 0.055) / 1.055) * 2.39990);//calculate with calcgamma
        // return x <= 0.04045 ? x / 12.92310 : exp(log((x + 0.055) / 1.055) * sRGBGammaCurve);//standard discontinuous
@@ -1161,7 +1151,7 @@ public:
     * @param x red, green or blue channel's value [0 ; 1]
     * @return the gamma modified's value [0 ; 1]
     */
-    static inline double gamma55     (double x)     //  g3                  1+g4
+    static inline double gamma55(double x)     //  g3                  1+g4
     {
         return x <= 0.013189 ? x * 10.0 : 1.593503 * exp(log(x) / 5.5) - 0.593503; // 5.5 10
     }
@@ -1172,52 +1162,10 @@ public:
     * @param x red, green or blue channel's value [0 ; 1]
     * @return the inverse gamma modified's value [0 ; 1]
     */
-    static inline double igamma55    (double x)     //g2
+    static inline double igamma55(double x)     //g2
     {
         return x <= 0.131889 ? x / 10.0 : exp(log((x + 0.593503) / 1.593503) * 5.5); // 5.5 10
     }
-
-
-    /**
-    * @brief Get the gamma value for Gamma=4 Slope=5
-    * @param x red, green or blue channel's value [0 ; 1]
-    * @return the gamma modified's value [0 ; 1]
-    */
-    static inline double gamma4     (double x)      //  g3                  1+g4
-    {
-        return x <= 0.03089 ? x * 5.0 : 1.478793 * exp(log(x) / 4.1) - 0.478793; // 4  5
-    }
-
-
-    /**
-    * @brief Get the inverse gamma value for Gamma=4 Slope=5
-    * @param x red, green or blue channel's value [0 ; 1]
-    * @return the inverse gamma modified's value [0 ; 1]
-    */
-    static inline double igamma4    (double x)      //g2
-    {
-        return x <= 0.154449 ? x / 5.0 : exp(log((x + 0.478793) / 1.478793) * 4.1); // 4 5
-    }
-
-
-    /*
-    * @brief Get the gamma value for Gamma=2.2 Slope=4.5
-    * @param x red, green or blue channel's value [0 ; 1]
-    * @return the gamma modified's value [0 ; 1]
-    *
-    static inline double gamma709     (double x) {
-                                            return x <= 0.0176 ? x*4.5 : 1.0954*exp(log(x)/2.2)-0.0954;
-                                    }
-
-    * @brief Get the inverse gamma value for Gamma=2.2 Slope=4.5
-    * @param x red, green or blue channel's value [0 ; 1]
-    * @return the inverse gamma modified's value [0 ; 1]
-    *
-    static inline double igamma709    (double x) {
-                                        return x <= 0.0795 ? x/4.5 : exp(log((x+0.0954)/1.0954)*2.2);
-                                    }
-    */
-
 
 
     /**
@@ -1225,7 +1173,7 @@ public:
     * @param x red, green or blue channel's value [0 ; 1]
     * @return the gamma modified's value [0 ; 1]
     */
-    static inline double gamma24_17     (double x)
+    static inline double gamma24_17(double x)
     {
         return x <= 0.001867 ? x * 17.0 : 1.044445 * exp(log(x) / 2.4) - 0.044445;
     }
@@ -1236,77 +1184,10 @@ public:
     * @param x red, green or blue channel's value [0 ; 1]
     * @return the inverse gamma modified's value [0 ; 1]
     */
-    static inline double igamma24_17    (double x)
+    static inline double igamma24_17(double x)
     {
         return x <= 0.031746 ? x / 17.0 : exp(log((x + 0.044445) / 1.044445) * 2.4);
     }
-
-
-    /**
-    * @brief Get the gamma value for Gamma=2.6 Slope=11
-    * @param x red, green or blue channel's value [0 ; 1]
-    * @return the gamma modified's value [0 ; 1]
-    */
-    static inline double gamma26_11     (double x)
-    {
-        return x <= 0.004921 ? x * 11.0 : 1.086603 * exp(log(x) / 2.6) - 0.086603;
-    }
-
-
-    /**
-    * @brief Get the inverse gamma value for Gamma=2.6 Slope=11
-    * @param x red, green or blue channel's value [0 ; 1]
-    * @return the inverse gamma modified's value [0 ; 1]
-    */
-    static inline double igamma26_11    (double x)
-    {
-        return x <= 0.054127 ? x / 11.0 : exp(log((x + 0.086603) / 1.086603) * 2.6);
-    }
-    /**
-    * @brief Get the gamma value for Gamma=1.3 Slope=2
-    * @param x red, green or blue channel's value [0 ; 1]
-    * @return the gamma modified's value [0 ; 1]
-    */
-    static inline double gamma13_2     (double x)
-    {
-        return x <= 0.016613 ? x * 2.0 : 1.009968 * exp(log(x) / 1.3) - 0.009968;
-    }
-
-    static inline double igamma13_2    (double x)
-    {
-        return x <= 0.033226 ? x / 2.0 : exp(log((x + 0.009968) / 1.009968) * 1.3);
-    }
-
-    static inline double gamma115_2     (double x)
-    {
-        return x <= 0.001692 ? x * 2.0 : 1.000508 * exp(log(x) / 1.15) - 0.000508;
-    }
-
-    static inline double igamma115_2    (double x)
-    {
-        return x <= 0.003384 ? x / 2.0 : exp(log((x + 0.000508) / 1.000508) * 1.15);
-    }
-
-    static inline double gamma145_3     (double x)
-    {
-        return x <= 0.009115 ? x * 3.0 : 1.012305 * exp(log(x) / 1.45) - 0.012305;
-    }
-
-    static inline double igamma145_3    (double x)
-    {
-        return x <= 0.027345 ? x / 3.0 : exp(log((x + 0.012305) / 1.012305) * 1.45);
-    }
-
-//gamma for Retinex
-    static inline double gammareti      (double x, double gamma, double start, double slope, double mul, double add)
-    {
-        return (x <= start ? x*slope : exp(log(x) / gamma) * mul - add);
-    }
-    static inline double igammareti     (double x, double gamma, double start, double slope, double mul, double add)
-    {
-        return (x <= start * slope ? x / slope : exp(log((x + add) / mul) * gamma) );
-    }
-
 
 
     // gamma function with adjustable parameters
@@ -1903,6 +1784,57 @@ public:
     static void jzch2jzazbz(float c, float h, float &az, float &bz)
     {
         hsl2yuv(h, c, bz, az);
+    }
+
+    template <class T>
+    static void rgb2jzczhz(float R, float G, float B, float &Jz, float &cz, float &hz, const T ws[3][3])
+    {
+        float az, bz;
+        rgb2jzazbz(R, G, B, Jz, az, bz, ws);
+        jzazbz2jzch(az, bz, cz, hz);
+    }
+
+    template <class T>
+    static void jzczhz2rgb(float Jz, float cz, float hz, float &R, float &G, float &B, const T iws[3][3])
+    {
+        float az, bz;
+        jzch2jzazbz(cz, hz, az, bz);
+        jzazbz2rgb(Jz, az, bz, R, G, B, iws);
+    }
+    
+    static void xyz2oklab(float X, float Y, float Z, float &L, float &a, float &b);
+    static void oklab2xyz(float L, float a, float b, float &X, float &Y, float &Z);
+
+    template <class T>
+    static void rgb2oklab(float R, float G, float B, float &L, float &a, float &b, const T ws[3][3])
+    {
+        float X, Y, Z;
+        rgbxyz(R, G, B, X, Y, Z, ws);
+        xyz2oklab(X, Y, Z, L, a, b);
+    }
+
+    template <class T>
+    static void oklab2rgb(float L, float a, float b, float &R, float &G, float &B, const T iws[3][3])
+    {
+        float X, Y, Z;
+        oklab2xyz(L, a, b, X, Y, Z);
+        xyz2rgb(X, Y, Z, R, G, B, iws);
+    }
+
+    template <class T>
+    static void rgb2oklch(float R, float G, float B, float &L, float &c, float &h, const T ws[3][3])
+    {
+        float a, b;
+        rgb2oklab(R, G, B, L, a, b, ws);
+        jzazbz2jzch(a, b, c, h);
+    }
+
+    template <class T>
+    static void oklch2rgb(float L, float c, float h, float &R, float &G, float &B, const T iws[3][3])
+    {
+        float a, b;
+        jzch2jzazbz(c, h, a, b);
+        oklab2rgb(L, a, b, R, G, B, iws);
     }
 };
 

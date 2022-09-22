@@ -52,6 +52,20 @@ Glib::ustring versionString = RTVERSION;
 Glib::ustring paramFileExtension = ".arp";
 
 
+Glib::ustring SaveFormat::getKey() const
+{
+    if (format == "jpg") {
+        return format;
+    } else if (format == "png") {
+        return format + std::to_string(pngBits);
+    } else if (format == "tif") {
+        return format + std::to_string(tiffBits) + (tiffFloat ? "f" : "");
+    } else {
+        return format;
+    }
+}
+
+
 Options::RenameOptions::RenameOptions()
 {
     pattern = "%f.%e";
@@ -420,8 +434,8 @@ void Options::setDefaults()
     showFileNames = true;
     filmStripShowFileNames = false;
     tabbedUI = false;
-    mainNBVertical = true;
     multiDisplayMode = 0;
+    filmstripBottom = false;
     histogramPosition = 1;
     histogramRed = true;
     histogramGreen = true;
@@ -446,7 +460,7 @@ void Options::setDefaults()
 #endif
     thumb_delay_update = false;
     thumb_lazy_caching = true;
-    filledProfile = false;
+    profile_append_mode = false;
     maxInspectorBuffers = 2; //  a rather conservative value for low specced systems...
     inspectorDelay = 0;
     serializeTiffRead = true;
@@ -596,8 +610,8 @@ void Options::setDefaults()
 
     browser_width_for_inspector = 0;
 
-    batch_queue_use_profile = false;
-    batch_queue_profile_path = "";
+    // batch_queue_use_profile = false;
+    // batch_queue_profile_path = "";
 
     toolpanels_disable = false;
     adjuster_force_linear = false;
@@ -898,13 +912,13 @@ void Options::readFromFile(Glib::ustring fname)
                     overwriteOutputFile = keyFile.get_boolean("Output", "OverwriteOutputFile");
                 }
 
-                if (keyFile.has_key("Output", "BatchQueueUseProfile")) {
-                    batch_queue_use_profile = keyFile.get_boolean("Output", "BatchQueueUseProfile");
-                }
+                // if (keyFile.has_key("Output", "BatchQueueUseProfile")) {
+                //     batch_queue_use_profile = keyFile.get_boolean("Output", "BatchQueueUseProfile");
+                // }
                     
-                if (keyFile.has_key("Output", "BatchQueueProfile")) {
-                    batch_queue_profile_path = keyFile.get_string("Output", "BatchQueueProfile");
-                }
+                // if (keyFile.has_key("Output", "BatchQueueProfile")) {
+                //     batch_queue_profile_path = keyFile.get_string("Output", "BatchQueueProfile");
+                // }
 
                 if (keyFile.has_key("Output", "ProcParamsAutosaveInterval")) {
                     sidecar_autosave_interval = keyFile.get_integer("Output", "ProcParamsAutosaveInterval");
@@ -932,8 +946,8 @@ void Options::readFromFile(Glib::ustring fname)
                     defProfImg = keyFile.get_string("Profiles", "ImgDefault");
                 }
 
-                if (keyFile.has_key("Profiles", "FilledProfile")) {
-                    filledProfile = keyFile.get_boolean("Profiles", "FilledProfile");
+                if (keyFile.has_key("Profiles", "AppendMode")) {
+                    profile_append_mode = keyFile.get_boolean("Profiles", "AppendMode");
                 }
 
                 if (keyFile.has_key("Profiles", "SaveParamsWithFile")) {
@@ -1364,8 +1378,8 @@ void Options::readFromFile(Glib::ustring fname)
                     showInfo = keyFile.get_boolean("GUI", "ShowInfo");
                 }
 
-                if (keyFile.has_key("GUI", "MainNBVertical")) {
-                    mainNBVertical = keyFile.get_boolean("GUI", "MainNBVertical");
+                if (keyFile.has_key("GUI", "FilmStripBottom")) {
+                    filmstripBottom = keyFile.get_boolean("GUI", "FilmStripBottom");
                 }
 
                 if (keyFile.has_key("GUI", "ShowClippedHighlights")) {
@@ -1752,6 +1766,30 @@ void Options::readFromFile(Glib::ustring fname)
                 theme_hl_color.resize(3);
             }
 
+            ExportProfileInfo default_export_profile_info;
+            if (keyFile.has_key("Output", "BatchQueueUseProfile")) {
+                default_export_profile_info.enabled = keyFile.get_boolean("Output", "BatchQueueUseProfile");
+            }
+                    
+            if (keyFile.has_key("Output", "BatchQueueProfile")) {
+                default_export_profile_info.profile = keyFile.get_string("Output", "BatchQueueProfile");
+            }
+            
+            for (auto group : keyFile.get_groups()) {
+                if (group.find("Export Profile ") != 0) {
+                    continue;
+                }
+                auto key = group.substr(15);
+                auto &info = export_profile_map[key];
+                info = default_export_profile_info;
+                if (keyFile.has_key(group, "Profile")) {
+                    info.profile = keyFile.get_string(group, "Profile");
+                }
+                if (keyFile.has_key(group, "Enabled")) {
+                    info.enabled = keyFile.get_boolean(group, "Enabled");
+                }
+            }
+
 // --------------------------------------------------------------------------------------------------------
 
             filterOutParsedExtensions();
@@ -1941,8 +1979,8 @@ void Options::saveToFile(Glib::ustring fname)
         keyFile.set_boolean("Output", "UsePathTemplate", saveUsePathTemplate);
         keyFile.set_string("Output", "LastSaveAsPath", lastSaveAsPath);
         keyFile.set_boolean("Output", "OverwriteOutputFile", overwriteOutputFile);
-        keyFile.set_boolean("Output", "BatchQueueUseProfile", batch_queue_use_profile);
-        keyFile.set_string("Output", "BatchQueueProfile", batch_queue_profile_path);
+        // keyFile.set_boolean("Output", "BatchQueueUseProfile", batch_queue_use_profile);
+        // keyFile.set_string("Output", "BatchQueueProfile", batch_queue_profile_path);
         keyFile.set_integer("Output", "ProcParamsAutosaveInterval", sidecar_autosave_interval);
 
         keyFile.set_string("Profiles", "Directory", profilePath);
@@ -1950,7 +1988,7 @@ void Options::saveToFile(Glib::ustring fname)
         keyFile.set_string("Profiles", "LoadSaveProfilePath", loadSaveProfilePath);
         keyFile.set_string("Profiles", "RawDefault", defProfRaw);
         keyFile.set_string("Profiles", "ImgDefault", defProfImg);
-        keyFile.set_boolean("Profiles", "FilledProfile", filledProfile);
+        keyFile.set_boolean("Profiles", "AppendMode", profile_append_mode);
         keyFile.set_boolean("Profiles", "SaveParamsWithFile", saveParamsFile);
         keyFile.set_boolean("Profiles", "SaveParamsToCache", saveParamsCache);
         keyFile.set_integer("Profiles", "LoadParamsFromLocation", paramsLoadLocation);
@@ -2001,7 +2039,7 @@ void Options::saveToFile(Glib::ustring fname)
         keyFile.set_boolean("GUI", "RememberZoomAndPan", rememberZoomAndPan);
         keyFile.set_boolean("GUI", "ShowHistory", showHistory);
         keyFile.set_boolean("GUI", "ShowInfo", showInfo);
-        keyFile.set_boolean("GUI", "MainNBVertical", mainNBVertical);
+        keyFile.set_boolean("GUI", "FilmStripBottom", filmstripBottom);
         keyFile.set_boolean("GUI", "ShowClippedHighlights", showClippedHighlights);
         keyFile.set_boolean("GUI", "ShowClippedShadows", showClippedShadows);
         keyFile.set_integer("GUI", "FrameColor", bgcolor);
@@ -2136,6 +2174,11 @@ void Options::saveToFile(Glib::ustring fname)
         keyFile.set_integer_list("Theme Colors", "Background", theme_bg_color);
         keyFile.set_integer_list("Theme Colors", "Foreground", theme_fg_color);
         keyFile.set_integer_list("Theme Colors", "Highlight", theme_hl_color);
+
+        for (auto &p : export_profile_map) {
+            keyFile.set_string("Export Profile " + p.first, "Profile", p.second.profile);
+            keyFile.set_boolean("Export Profile " + p.first, "Enabled", p.second.enabled);
+        }
 
         keyData = keyFile.to_data();
 

@@ -75,7 +75,11 @@ int init (const Settings* s, Glib::ustring baseDir, Glib::ustring userSettingsDi
 #pragma omp section
 #endif
 {
-    if (s->lensfunDbDirectory.empty() || Glib::path_is_absolute(s->lensfunDbDirectory)) {
+    if (s->lensfunDbDirectory.empty()) {
+        if (!LFDatabase::init(s->lensfunDbDirectory)) {
+            LFDatabase::init(Glib::build_filename(baseDir, "share", "lensfun"));
+        }
+    } else if (Glib::path_is_absolute(s->lensfunDbDirectory)) {
         LFDatabase::init(s->lensfunDbDirectory);
     } else {
         LFDatabase::init(Glib::build_filename(baseDir, s->lensfunDbDirectory));

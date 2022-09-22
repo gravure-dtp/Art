@@ -151,6 +151,11 @@ public:
         tSelector.setUpdatePolicy(policy);
     }
 
+    void setActive(bool b, bool t)
+    {
+        tSelector.setActive(b, t);
+    }
+
     //void spinChanged ();
     void selectorChanged ();
     bool notifyListener ();

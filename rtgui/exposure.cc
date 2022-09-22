@@ -183,4 +183,5 @@ void Exposure::showHRBlur()
 void Exposure::registerShortcuts(ToolShortcutManager *mgr)
 {
     mgr->addShortcut(GDK_KEY_e, this, expcomp);
+    mgr->addShortcut(GDK_KEY_q, this, black);
 }

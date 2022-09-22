@@ -438,7 +438,7 @@ public:
     {
         int idx = (int)index;  // don't use floor! The difference in negative space is no problems here
 
-        if (index < 0.f) {
+        if (index < 0.f || !(index == index) /* check for NaN */) {
             if (clip & LUT_CLIP_BELOW) {
                 return data[0];
             }

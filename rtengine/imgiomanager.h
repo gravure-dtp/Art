@@ -37,7 +37,16 @@ public:
         FMT_PNG,
         FMT_PNG16,
         FMT_TIFF,
-        FMT_TIFF_FLOAT
+        FMT_TIFF_FLOAT,
+        FMT_TIFF_FLOAT16
+    };
+
+    struct SaveFormatInfo {
+        std::string extension;
+        Glib::ustring label;
+
+        SaveFormatInfo(const std::string &ext="", const Glib::ustring &lbl=""):
+            extension(ext), label(lbl) {}
     };
 
     static ImageIOManager *getInstance();
@@ -45,7 +54,7 @@ public:
     void init(const Glib::ustring &dir);
     bool load(const Glib::ustring &fileName, ProgressListener *plistener, ImageIO *&img, int maxw_hint, int maxh_hint);
     bool save(IImagefloat *img, const std::string &ext, const Glib::ustring &fileName, ProgressListener *plistener);
-    std::vector<std::pair<std::string, Glib::ustring>> getSaveFormats() const;
+    std::vector<std::pair<std::string, SaveFormatInfo>> getSaveFormats() const;
 
     bool canLoad(const std::string &ext) const
     {
@@ -60,7 +69,7 @@ private:
     std::unordered_map<std::string, Glib::ustring> loaders_;
     std::unordered_map<std::string, Glib::ustring> savers_;
     std::unordered_map<std::string, Format> fmts_;
-    std::map<std::string, Glib::ustring> savelbls_;
+    std::map<std::string, SaveFormatInfo> savelbls_;
     
     Glib::ustring dir_;
 };

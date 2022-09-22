@@ -608,3 +608,16 @@ bool History::confirmBookmarkUpdate()
 
     return result == 1;
 }
+
+
+void History::setBeforeAfterLock(bool yes)
+{
+    blistenerLock = yes;
+    if (blistener && !blistenerLock) {
+        Glib::RefPtr<Gtk::TreeSelection> selection = hTreeView->get_selection();
+        Gtk::TreeModel::iterator iter = selection->get_selected();
+        if (iter) {
+            blistener->historyBeforeAfterChanged(iter->get_value(historyColumns.params));
+        }
+    }
+}

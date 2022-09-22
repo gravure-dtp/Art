@@ -28,6 +28,7 @@ enum EditUniqueID {
     EUID_ToneCurve1,
     EUID_ToneCurve2,
     EUID_ToneCurveSaturation,
+    EUID_ToneCurveSaturation2,
     EUID_Lab_LCurve,
     EUID_Lab_aCurve,
     EUID_Lab_bCurve,

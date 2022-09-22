@@ -16,6 +16,9 @@
 #15 2021-12-18 mrleemon, update for 1.12
 #16 2022-01-28 mrleemon, update for 1.12.1
 #17 2022-04-01 mrleemon, update for 1.13
+#18 2022-05-27 mrleemon, update for 1.14
+#19 2022-07-12 mrleemon, update for 1.15
+#20 2022-08-24 mrleemon, update for 1.16
 
 ABOUT_TAB_BUILD;Versión
 ABOUT_TAB_CREDITS;Créditos
@@ -231,7 +234,8 @@ FILECHOOSER_FILTER_CURVE;Archivos de curva
 FILECHOOSER_FILTER_LCP;Perfiles de corrección de lentes
 FILECHOOSER_FILTER_PP;Perfiles de procesamiento
 FILECHOOSER_FILTER_SAME;El mismo formato que la foto actual
-FILECHOOSER_FILTER_TIFF;Archivos TIFF 
+FILECHOOSER_FILTER_TIFF;Archivos TIFF
+FILECHOOSER_FILTER_LUT;Archivos LUT compatibles
 GENERAL_ABOUT;Acerca de
 GENERAL_AFTER;Después
 GENERAL_APPLY;Aplicar
@@ -542,6 +546,7 @@ HISTORY_MSG_COLORCORRECTION_DELTAEMASK;CC - máscara de similitud de color
 HISTORY_MSG_COLORCORRECTION_DRAWNMASK;CC - máscara de pincel
 HISTORY_MSG_COLORCORRECTION_PARAMETRICMASK;CC - máscara paramétrica
 HISTORY_MSG_COLORCORRECTION_MASK_POSTPROCESS;CC - post-procesamiento de máscara
+HISTORY_MSG_COLORCORRECTION_LUT;CC - LUT
 HISTORY_MSG_COLORTONING_LABGRID_VALUE;CC - Corrección de color
 HISTORY_MSG_DENOISE_CHROMINANCE_AUTO_FACTOR;RR - intensidad de crominancia automática
 HISTORY_MSG_DENOISE_GUIDED_CHROMA_RADIUS;RR - Suavizado final C
@@ -617,6 +622,8 @@ HISTORY_MSG_LOGENC_BLACK_EV;Log - Ev negro
 HISTORY_MSG_LOGENC_GAIN;Log - Ganancia
 HISTORY_MSG_LOGENC_WHITE_EV;Log - Ev blanco
 HISTORY_MSG_LOGENC_TARGET_GRAY;Log - Punto gris destino
+HISTORY_MSG_LOGENC_SATCONTROL;Log - Control de saturación
+HISTORY_MSG_LOGENC_HLCOMPRESSION;Log - Precompresión de altas luces
 HISTORY_MSG_METADATA_MODE;Modo de copia de metadatos
 HISTORY_MSG_MICROCONTRAST_CONTRAST;Microcontraste - Umbral de contraste
 HISTORY_MSG_PCVIGNETTE_CENTER;FV - Centro
@@ -679,6 +686,7 @@ HISTORY_MSG_TONE_EQUALIZER_ENABLED;Ecualizador tonal
 HISTORY_MSG_TONE_EQUALIZER_BANDS;Ecualizador tonal - Bandas
 HISTORY_MSG_TONE_EQUALIZER_REGULARIZATION;Ecualizador tonal - Regularización
 HISTORY_MSG_TONE_EQUALIZER_SHOW_COLOR_MAP;Ecualizador tonal - Mapa tonal
+HISTORY_MSG_TONE_EQUALIZER_PIVOT;Ecualizador tonal - Pivote
 HISTORY_MSG_TONECURVE_SATCURVE;Curva tonal - Saturación
 HISTORY_MSG_TONECURVE_PERCEPTUAL_STRENGTH;Curva tonal - Intensidad perceptual
 HISTORY_MSG_TONECURVE_CONTRAST_LEGACY;Curva tonal - Modo antiguo de contraste
@@ -854,7 +862,7 @@ MAIN_TOOLTIP_BACKCOLOR0;Color de fondo de la vista previa: <b>basado en el tema<
 MAIN_TOOLTIP_BACKCOLOR1;Color de fondo de la vista previa: <b>negro</b>\nAtajo: <b>9</b>
 MAIN_TOOLTIP_BACKCOLOR2;Color de fondo de la vista previa: <b>blanco</b>\nAtajo: <b>9</b>
 MAIN_TOOLTIP_BACKCOLOR3;Color de fondo de la vista previa: <b>gris medio</b>\nAtajo: <b>9</b>
-MAIN_TOOLTIP_BEFOREAFTERLOCK;<b>Bloquear</b> / <b>Desbloquear</b> la vista <b>Antes</b>\n\n<b>Bloquear</b>: mantiene la vista <b>Antes</b> inalterada.\nÚtil para evaluar el efecto acumulativo de varias herramientas.\nAdemás, se puede hacer una comparación con cualquier estado en el historial.\n\n<b>Desbloquear</b>: la vista <b>Antes</b> seguirá a la vista <b>Después</b> un paso por detrás, mostrando la imagen antes del efecto de la herramienta que se está usando.
+MAIN_TOOLTIP_BEFOREAFTERLOCK;<b>Bloquear</b> / <b>Desbloquear</b> la vista <b>Antes</b>\n\n<b>Bloquear</b>: mantiene la vista <b>Antes</b> inalterada.\n<b>Desbloquear</b>: la vista <b>Antes</b> se mantiene sincronizada con la vista <b>Después</b>.
 MAIN_TOOLTIP_FALSECOLORS;Alternar la indicación de la exposición mediante color falso.\nAtajo: <b>Mayús-e</b>\n\nClave (Rango IRE):\n%1
 MAIN_TOOLTIP_HIDEHP;Mostrar/Ocultar el panel izquierdo (incluyendo la historia).\nAtajo: <b>l</b>
 MAIN_TOOLTIP_INDCLIPPEDH;Indicación de altas luces recortadas.\nAtajo: <b>&gt;</b>
@@ -868,7 +876,7 @@ MAIN_TOOLTIP_PREVIEWSHARPMASK;Vista previa de la <b>máscara de contraste de enf
 MAIN_TOOLTIP_QINFO;Información breve sobre la imagen.\nAtajo: <b>Mayús-i</b>
 MAIN_TOOLTIP_SHOWHIDELP1;Mostrar/Ocultar el panel izquierdo.\nAtajo: <b>l</b>
 MAIN_TOOLTIP_SHOWHIDERP1;Mostrar/Ocultar el panel derecho.\nAtajo: <b>Ctrl-l</b>
-MAIN_TOOLTIP_SHOWHIDETP1;Mostrar/Ocultar el panel superior.\nAtajo: <b>Mayús-l</b>
+MAIN_TOOLTIP_SHOWHIDETP1;Mostrar/Ocultar el panel de tira de película.\nAtajo: <b>Mayús-l</b>
 MAIN_TOOLTIP_THRESHOLD;Umbral
 MAIN_TOOLTIP_TOGGLE;Cambiar la vista <b>antes</b>/<b>después</b>.\nAtajo: <b>Mayús-a</b>
 METADATA_LOAD_ERROR;Error al cargar los metadatos de %1: %2
@@ -1136,7 +1144,7 @@ PREFERENCES_SHOWEXPOSURECOMPENSATION;Anexar la compensación de exposición
 PREFERENCES_SHOWFILMSTRIPTOOLBAR;Mostrar barra de herramientas estilo tira de película
 PREFERENCES_SHTHRESHOLD;Umbral para las sombras cortadas
 PREFERENCES_SINGLETAB;Modo de pestañas de un solo editor
-PREFERENCES_SINGLETABVERTAB;Modo de pestañas de un solo editor, pestañas verticales
+PREFERENCES_SINGLETABBOTTOM;Modo de pestañas de un solo editor, tira de película debajo del editor
 PREFERENCES_SND_HELP;Introduzca una ruta de archivo completa para establecer un sonido, o deje en blanco si no desea ningún sonido.\nPara los sonidos de sistema en Windows, use "SystemDefault", "SystemAsterisk", etc., y en Linux use "complete", "window-attention", etc.
 PREFERENCES_SND_LNGEDITPROCDONE;El procesamiento del editor ha finalizado
 PREFERENCES_SND_BATCHQUEUEDONE;Trabajos en cola finalizados
@@ -1179,7 +1187,7 @@ PROFILEPANEL_GLOBALPROFILES;Perfiles proporcionados
 PROFILEPANEL_LABEL;Perfiles de procesamiento
 PROFILEPANEL_LOADDLGLABEL;Cargar parámetros de procesamiento...
 PROFILEPANEL_LOADPPASTE;Parámetros a cargar
-PROFILEPANEL_MODE_TIP;Modo de relleno de perfiles de procesamiento.\n\nBotón pulsado: los perfiles parciales se convertirán en perfiles completos; los valores que faltan se completarán con valores predeterminados de fábrica.\n\nBotón soltado: los perfiles se aplicarán tal como están, alterando solo los valores que contienen.
+PROFILEPANEL_MODE_TIP;Modo de agregación del perfil de procesamiento para las herramientas de edición local.\n\nBotón pulsado: los parámetros de edición local en el perfil se agregarán a los actuales.\n\nBotón soltado: los parámetros de edición local en el perfil sobrescribirán los actuales.
 PROFILEPANEL_MYPROFILES;Mis perfiles
 PROFILEPANEL_PASTEPPASTE;Parámetros a pegar
 PROFILEPANEL_PCUSTOM;Personalizado
@@ -1272,8 +1280,8 @@ SAVEDLG_SUBSAMP_TOOLTIP;Mejor compresión:\nJ:a:b 4:2:0\nh/v 2/2\nCroma dividida
 SAVEDLG_TIFFUNCOMPRESSED;TIFF sin compresión
 SAVEDLG_WARNFILENAME;Se asignará nombre al archivo
 SHCSELECTOR_TOOLTIP;Haga clic con el botón derecho del ratón para restablecer la posición de esos 3 controles deslizantes.
-SOFTPROOF_GAMUTCHECK_TOOLTIP;Resaltar los píxeles con colores fuera de rango con respecto al perfil de salida.
-SOFTPROOF_GAMUTCHECK_MONITOR_TOOLTIP;Resaltar los píxeles con colores fuera de rango con respecto a:\n- el perfil de la prueba en pantalla, si se ha establecido uno y la prueba en pantalla está activada,\n- el perfil del monitor, si la prueba en pantalla está desactivada.
+SOFTPROOF_GAMUTCHECK_MONITOR_TOOLTIP;Resaltar los píxeles con colores fuera de rango con respecto al perfil del monitor.
+SOFTPROOF_GAMUTCHECK_TOOLTIP;Resaltar los píxeles con colores fuera de rango con respecto a:\n- el perfil de prueba en pantalla, si se ha establecido uno y la prueba en pantalla está activada,\n- el perfil de salida, si la prueba en pantalla está desactivada.
 SOFTPROOF_TOOLTIP;La prueba en pantalla simula la apariencia de la imagen cuando la reproduce una impresora o monitor específico, si se ha establecido un perfil adecuado en Preferencias > Gestión de color.\n(Mantenga pulsada la tecla <b>Ctrl</b> mientras hace clic para cambiar el perfil de prueba en pantalla).
 THRESHOLDSELECTOR_B;Inferior
 THRESHOLDSELECTOR_BL;Inferior izquierdo
@@ -1375,6 +1383,8 @@ TP_COLORCORRECTION_H;Tono
 TP_COLORCORRECTION_S;Saturación
 TP_COLORCORRECTION_HUESAT;Tono/Saturación
 TP_COLORCORRECTION_HUESHIFT;Alteración de tono
+TP_COLORCORRECTION_LUT_FILENAME;Archivo LUT
+TP_COLORCORRECTION_MODE_LUT;LUT
 TP_CROP_FIXRATIO;Bloquear aspecto
 TP_CROP_GTDIAGONALS;Regla de diagonales
 TP_CROP_GTEPASSPORT;Pasaporte biométrico
@@ -1638,10 +1648,10 @@ TP_LABMASKS_DRAWNMASK_PEN_SETTINGS;Ajustes de pincel
 TP_LABMASKS_DRAWNMASK_RESET_TIP;Borrar todos los trazos
 TP_LABMASKS_DRAWNMASK_UNDO_TIP;Borrar el último grupo de trazos
 TP_LABMASKS_DRAWNMASK_RADIUS;Radio
-TP_LABMASKS_DRAWNMASK_TRANSPARENCY;Transparencia
+TP_LABMASKS_DRAWNMASK_OPACITY;Opacidad
 TP_LABMASKS_DRAWNMASK_SMOOTHNESS;Suavizado
 TP_LABMASKS_DRAWNMASK_ERASE;Modo borrador
-TP_LABMASKS_DRAWNMASK_HARDNESS;Dureza
+TP_LABMASKS_DRAWNMASK_GLOBAL;Opciones globales
 TP_LABMASKS_DRAWNMASK_INFO;%1 trazo(s)
 TP_LABMASKS_DRAWNMASK_INTERSECT_TOOLTIP;Interseca la máscara de pincel con las otras máscaras
 TP_LABMASKS_DRAWNMASK_ADD_TOOLTIP;Añade la máscara de pincel encima de las otras máscaras
@@ -1653,7 +1663,8 @@ TP_LABMASKS_POSTPROCESS_POSTERIZATION;Posterización
 TP_LABMASKS_POSTPROCESS_SMOOTHING;Suavizado
 TP_LENSGEOM_AUTOCROP;Recorte automático
 TP_LENSGEOM_FILL;Relleno automático
-TP_LENSGEOM_LABEL;Lente / Geometría
+TP_GEOM_LABEL;Geometría
+TP_LENS_LABEL;Lente
 TP_LENSPROFILE_CORRECTION_AUTOMATCH;Automático desde la base de datos
 TP_LENSPROFILE_CORRECTION_EXIF;Incrustado en los metadatos
 TP_LENSPROFILE_CORRECTION_LCPFILE;Archivo LCP
@@ -1676,6 +1687,7 @@ TP_LOGENC_WHITE_EV;Exposición relativa al blanco (Ev)
 TP_LOGENC_TARGET_GRAY;Punto gris destino (brillo)
 TP_LOGENC_LABEL;Mapeo de tonos logarítmico
 TP_LOGENC_REGULARIZATION;Regularización
+TP_LOGENC_HLCOMPRESSION;Precompresión de altas luces
 TP_METADATA_EDIT;Aplicar modificaciones
 TP_METADATA_MODE;Modo de copia de metadatos
 TP_METADATA_STRIP;Eliminar todos los metadatos
@@ -1923,6 +1935,7 @@ TP_TONE_EQUALIZER_BAND_4;Blancos
 TP_TONE_EQUALIZER_DETAIL;Regularización
 TP_TONE_EQUALIZER_LABEL;Ecualizador tonal
 TP_TONE_EQUALIZER_SHOW_COLOR_MAP;Mostrar mapa tonal
+TP_TONE_EQUALIZER_PIVOT;Pivote (Ev)
 TP_VIGNETTING_AMOUNT;Cantidad
 TP_VIGNETTING_CENTER_X;Centro X
 TP_VIGNETTING_CENTER_Y;Centro Y

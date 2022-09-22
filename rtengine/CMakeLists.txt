@@ -31,6 +31,11 @@ if(LIBRAW_FOUND)
     link_directories(${LIBRAW_LIBRARY_DIRS})
 endif()
 
+if(OCIO_FOUND)
+    include_directories(${OCIO_INCLUDE_DIRS})
+    link_directories(${OCIO_LIBRARY_DIRS})
+endif()
+
 set(CAMCONSTSFILE "camconst.json")
 
 set(RTENGINESOURCEFILES
@@ -238,5 +243,8 @@ endif()
 if(LIBRAW_FOUND)
     target_link_libraries(rtengine ${LIBRAW_LIBRARIES})
 endif()
+if(OCIO_FOUND)
+    target_link_libraries(rtengine ${OCIO_LIBRARIES})
+endif()    
 
 install(FILES ${CAMCONSTSFILE} DESTINATION "${DATADIR}" PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ)

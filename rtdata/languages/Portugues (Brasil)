@@ -1818,7 +1818,8 @@ TP_LABMASKS_DRAWNMASK_ADD_BOUNDED_TOOLTIP;Adicionar a máscara de pincel acima d
 TP_LABMASKS_PARAMETRIC;Máscara paramétrica
 TP_LENSGEOM_AUTOCROP;Corte automático
 TP_LENSGEOM_FILL;Preenchimento automático
-TP_LENSGEOM_LABEL;Lente / Geometria
+TP_GEOM_LABEL;Geometria
+TP_LENS_LABEL;Lente
 TP_LENSPROFILE_CORRECTION_AUTOMATCH;Automaticamente da base de dados
 TP_LENSPROFILE_CORRECTION_EXIF;Embutido nos metadados
 TP_LENSPROFILE_CORRECTION_LCPFILE;Ficheiro LCP

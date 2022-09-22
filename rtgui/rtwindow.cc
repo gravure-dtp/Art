@@ -22,7 +22,6 @@
 #include "version.h"
 #include "options.h"
 #include "preferences.h"
-#include "iccprofilecreator.h"
 #include "cursormanager.h"
 #include "rtimage.h"
 #include "whitebalance.h"
@@ -520,7 +519,7 @@ RTWindow::RTWindow():
         setExpandAlignProperties (fpanelLabelGrid, false, false, Gtk::ALIGN_CENTER, Gtk::ALIGN_CENTER);
         Gtk::Label* fpl = Gtk::manage (new Gtk::Label ( Glib::ustring (" ") + M ("MAIN_FRAME_EDITOR") ));
 
-        if (options.mainNBVertical) {
+        if (!options.tabbedUI) {
             mainNB->set_tab_pos (Gtk::POS_LEFT);
             fpl->set_angle (90);
             RTImage* folderIcon = Gtk::manage (new RTImage ("folder-closed.png"));
@@ -543,10 +542,9 @@ RTWindow::RTWindow():
         // decorate tab, the label is unimportant since its updated in batchqueuepanel anyway
         Gtk::Label* lbq = Gtk::manage ( new Gtk::Label (M ("MAIN_FRAME_QUEUE")) );
 
-        if (options.mainNBVertical) {
-            lbq->set_angle (90);
+        if (!options.tabbedUI) {
+            lbq->set_angle(90);
         }
-
         mainNB->append_page (*bpanel, *lbq);
 
 
@@ -559,13 +557,6 @@ RTWindow::RTWindow():
         // filling bottom box
         iFullscreen = new RTImage ("fullscreen-enter.png");
         iFullscreen_exit = new RTImage ("fullscreen-leave.png");
-
-        Gtk::Button* iccProfileCreator = Gtk::manage (new Gtk::Button ());
-        setExpandAlignProperties (iccProfileCreator, false, false, Gtk::ALIGN_CENTER, Gtk::ALIGN_CENTER);
-        iccProfileCreator->set_relief(Gtk::RELIEF_NONE);
-        iccProfileCreator->set_image (*Gtk::manage (new RTImage ("gamut-plus.png")));
-        iccProfileCreator->set_tooltip_markup (M ("MAIN_BUTTON_ICCPROFCREATOR"));
-        iccProfileCreator->signal_clicked().connect ( sigc::mem_fun (*this, &RTWindow::showICCProfileCreator) );
 
         Gtk::Button* preferences = Gtk::manage (new Gtk::Button ());
         setExpandAlignProperties (preferences, false, false, Gtk::ALIGN_CENTER, Gtk::ALIGN_CENTER);
@@ -589,12 +580,11 @@ RTWindow::RTWindow():
 
         setExpandAlignProperties (actionGrid, false, false, Gtk::ALIGN_CENTER, Gtk::ALIGN_CENTER);
 
-        if (options.mainNBVertical) {
+        if (!options.tabbedUI) {
             prProgBar.set_orientation (Gtk::ORIENTATION_VERTICAL);
             prProgBar.set_inverted (true);
             actionGrid->set_orientation (Gtk::ORIENTATION_VERTICAL);
             actionGrid->attach_next_to (prProgBar, Gtk::POS_BOTTOM, 1, 1);
-            actionGrid->attach_next_to (*iccProfileCreator, Gtk::POS_BOTTOM, 1, 1);
             actionGrid->attach_next_to (*preferences, Gtk::POS_BOTTOM, 1, 1);
             actionGrid->attach_next_to (*btn_fullscreen, Gtk::POS_BOTTOM, 1, 1);
             mainNB->set_action_widget (actionGrid, Gtk::PACK_END);
@@ -602,7 +592,6 @@ RTWindow::RTWindow():
             prProgBar.set_orientation (Gtk::ORIENTATION_HORIZONTAL);
             actionGrid->set_orientation (Gtk::ORIENTATION_HORIZONTAL);
             actionGrid->attach_next_to (prProgBar, Gtk::POS_RIGHT, 1, 1);
-            actionGrid->attach_next_to (*iccProfileCreator, Gtk::POS_RIGHT, 1, 1);
             actionGrid->attach_next_to (*preferences, Gtk::POS_RIGHT, 1, 1);
             actionGrid->attach_next_to (*btn_fullscreen, Gtk::POS_RIGHT, 1, 1);
             mainNB->set_action_widget (actionGrid, Gtk::PACK_END);
@@ -794,6 +783,10 @@ void RTWindow::on_mainNB_switch_page (Gtk::Widget* widget, guint page_num)
                 }
             }
         } else {
+            if (mainNB->get_nth_page(page_num) == bpanel) {
+                bpanel->refreshProfiles();
+            }
+            
             // in single tab mode with command line filename epanel does not exist yet
             if (isSingleTabMode() && epanel) {
                 // Save profile on leaving the editor panel
@@ -1195,23 +1188,6 @@ void RTWindow::writeToolExpandedStatus (std::vector<int> &tpOpen)
 }
 
 
-void RTWindow::showICCProfileCreator ()
-{
-    ICCProfileCreator *iccpc = new ICCProfileCreator (this);
-    iccpc->run ();
-    delete iccpc;
-
-    fpanel->optionsChanged ();
-
-    if (epanel) {
-        epanel->defaultMonitorProfileChanged (options.rtSettings.monitorProfile, options.rtSettings.autoMonitorProfile);
-    }
-
-    for (const auto &p : epanels) {
-        p.second->defaultMonitorProfileChanged (options.rtSettings.monitorProfile, options.rtSettings.autoMonitorProfile);
-    }
-}
-
 void RTWindow::showPreferences ()
 {
     Preferences *pref = new Preferences (this);
@@ -1236,7 +1212,7 @@ void RTWindow::setProgress(double p)
 
 void RTWindow::setProgressStr(const Glib::ustring& str)
 {
-    if (!options.mainNBVertical) {
+    if (options.tabbedUI) {
         prProgBar.set_text(str);
     }
 }
@@ -1454,10 +1430,9 @@ void RTWindow::createSetmEditor()
     setExpandAlignProperties (editorLabelGrid, false, false, Gtk::ALIGN_CENTER, Gtk::ALIGN_CENTER);
     Gtk::Label* const el = Gtk::manage (new Gtk::Label ( Glib::ustring (" ") + M ("MAIN_FRAME_EDITOR") ));
 
-    const auto pos = options.mainNBVertical ? Gtk::POS_TOP : Gtk::POS_RIGHT;
-
-    if (options.mainNBVertical) {
-        el->set_angle (90);
+    const auto pos = !options.tabbedUI ? Gtk::POS_TOP : Gtk::POS_RIGHT;
+    if (!options.tabbedUI) {
+        el->set_angle(90);
     }
 
     editorLabelGrid->attach_next_to (*Gtk::manage (new RTImage ("aperture.png")), pos, 1, 1);

@@ -149,6 +149,9 @@ public:
                 };
             return Glib::ustring::compose("HSL S=%4 So=%5 h=%6\nH=%1\nS=%2\nL=%3", lbl(r.hue), lbl(r.sat), lbl(r.factor), r.inSaturation, r.outSaturation, r.hueshift);
         }   break;
+        case rtengine::procparams::ColorCorrectionParams::Mode::LUT:
+            return Glib::ustring::compose("LUT %1", Glib::path_get_basename(r.lutFilename));
+            break;
         default: {
             const auto round_ab = [](float v) -> float
                                   {
@@ -274,6 +277,116 @@ private:
     bool rgb_;
 };
 
+
+class HueShiftBar: public Gtk::DrawingArea, public BackBuffer {
+public:
+    HueShiftBar():
+        cbar_(RTO_Left2Right) {}
+
+    void setColorProvider(ColorProvider *cp, int i)
+    {
+        cbar_.setColorProvider(cp, i);
+    }
+    
+    Gtk::SizeRequestMode get_request_mode_vfunc() const override { return Gtk::SIZE_REQUEST_CONSTANT_SIZE; }
+
+    void get_preferred_height_vfunc (int& minimum_height, int& natural_height) const override
+    {
+        int minimumWidth = 0;
+        int naturalWidth = 0;
+        get_preferred_width_vfunc (minimumWidth, naturalWidth);
+        get_preferred_height_for_width_vfunc (minimumWidth, minimum_height, natural_height);
+    }
+
+    void get_preferred_width_vfunc (int &minimum_width, int &natural_width) const override
+    {
+        int s = RTScalable::getScale();
+        Glib::RefPtr<Gtk::StyleContext> style = get_style_context();
+        Gtk::Border padding = getPadding(style);  // already scaled
+        int margins = padding.get_left() + padding.get_right();
+        minimum_width = 60 * s + margins;
+        natural_width = 150 * s + margins;
+    }
+        
+    void get_preferred_height_for_width_vfunc (int width, int &minimum_height, int &natural_height) const override
+    {
+        int s = RTScalable::getScale();
+        Glib::RefPtr<Gtk::StyleContext> style = get_style_context();
+        Gtk::Border padding = getPadding(style);  // already scaled
+        int margins = padding.get_left() + padding.get_right();
+        natural_height = minimum_height = 16 * s + margins;
+    }
+        
+    void get_preferred_width_for_height_vfunc (int height, int &minimum_width, int &natural_width) const override
+    {
+        get_preferred_width_vfunc (minimum_width, natural_width);
+    }
+        
+    bool on_draw(const ::Cairo::RefPtr< Cairo::Context> &cr) override
+    {
+        // on_realize & updateBackBuffer have to be called before
+        if (get_realized() && get_allocated_width() && get_allocated_height()) {
+            if (isDirty()) {
+                updateBackBuffer();
+            }
+
+            if (surface) {
+                copySurface(cr);
+            }
+        }
+
+        return true;
+    }
+
+private:
+    void updateBackBuffer()
+    {
+        if (!get_realized() || !isDirty() || !get_allocated_width() || !get_allocated_height())  {
+            return;
+        }
+
+        // This will create or update the size of the BackBuffer::surface
+        setDrawRectangle(Cairo::FORMAT_ARGB32, 0, 0, get_allocated_width(), get_allocated_height(), true);
+
+        if (!surface) {
+            return;
+        }
+
+        Cairo::RefPtr<Cairo::Context> cr = Cairo::Context::create(surface);
+        Glib::RefPtr<Gtk::StyleContext> style = get_style_context();
+        Gtk::Border padding = getPadding(style);  // already scaled
+
+        cr->set_source_rgba (0., 0., 0., 0.);
+        cr->set_operator (Cairo::OPERATOR_CLEAR);
+        cr->paint ();
+        cr->set_operator (Cairo::OPERATOR_OVER);
+
+        int w = get_allocated_width ();
+        int h = get_allocated_height ();
+
+
+        double innerBarX = (double)padding.get_left();
+        double innerBarY = padding.get_top();
+        double innerBarW = w - padding.get_right();
+        double innerBarH = h - padding.get_bottom();
+        if (cbar_.canGetColors()) {
+            cbar_.setDirty(true);
+            cbar_.setDrawRectangle(innerBarX, innerBarY, innerBarW, innerBarH);
+            cbar_.expose(*this, cr);
+        } else {
+            style->render_background(cr, innerBarX, innerBarY, innerBarW, innerBarH);
+        }
+        if (!is_sensitive()) {
+            cr->set_source_rgba(0., 0., 0., 0.5);
+            cr->rectangle(innerBarX, innerBarY, innerBarW, innerBarH);
+            cr->fill();
+        }
+    }       
+    
+    ColoredBar cbar_;
+};
+
+
 } // namespace
 
 ColorCorrection::ColorCorrection(): FoldableToolPanel(this, "colorcorrection", M("TP_COLORCORRECTION_LABEL"), false, true, true)
@@ -293,6 +406,7 @@ ColorCorrection::ColorCorrection(): FoldableToolPanel(this, "colorcorrection", M
     EvRgbLuminance = m->newEvent(EVENT, "HISTORY_MSG_COLORCORRECTION_RGBLUMINANCE");
     EvHueShift = m->newEvent(EVENT, "HISTORY_MSG_COLORCORRECTION_HUESHIFT");
     EvCompression = m->newEvent(EVENT, "HISTORY_MSG_COLORCORRECTION_COMPRESSION");
+    EvLUT = m->newEvent(EVENT, "HISTORY_MSG_COLORCORRECTION_LUT");
 
     EvList = m->newEvent(EVENT, "HISTORY_MSG_COLORCORRECTION_LIST");
     EvParametricMask = m->newEvent(EVENT, "HISTORY_MSG_COLORCORRECTION_PARAMETRICMASK");
@@ -317,6 +431,7 @@ ColorCorrection::ColorCorrection(): FoldableToolPanel(this, "colorcorrection", M
     mode->append(M("TP_COLORCORRECTION_MODE_JZAZBZ"));
     mode->append(M("TP_COLORCORRECTION_MODE_RGBCHANNELS"));
     mode->append(M("TP_COLORCORRECTION_MODE_HSL"));
+    mode->append(M("TP_COLORCORRECTION_MODE_LUT"));
     mode->set_active(0);
     mode->signal_changed().connect(sigc::mem_fun(*this, &ColorCorrection::modeChanged));
     
@@ -324,10 +439,20 @@ ColorCorrection::ColorCorrection(): FoldableToolPanel(this, "colorcorrection", M
     hb->pack_start(*mode);
     box->pack_start(*hb);
 
-    hueshift = Gtk::manage(new Adjuster(M("TP_COLORCORRECTION_HUESHIFT"), -180, 180, 0.1, 0));
-    box->pack_start(*hueshift, Gtk::PACK_SHRINK, 4);
-    hueshift->setLogScale(90, 0, true);
-    hueshift->setAdjusterListener(this);
+    {
+        hueframe = Gtk::manage(new Gtk::Frame(M("TP_COLORCORRECTION_HUESHIFT")));
+        Gtk::VBox *vb = Gtk::manage(new Gtk::VBox());
+
+        hueshift = Gtk::manage(new Adjuster(""/*M("TP_COLORCORRECTION_HUESHIFT")*/, -180, 180, 0.1, 0, nullptr, nullptr, nullptr, nullptr, false, true));
+        vb->pack_start(*hueshift, Gtk::PACK_SHRINK, 4);
+        hueshift->setLogScale(90, 0, true);
+        hueshift->setAdjusterListener(this);
+        hueshift_bar = Gtk::manage(new HueShiftBar());
+        vb->pack_start(*hueshift_bar, Gtk::PACK_SHRINK, 4);
+        static_cast<HueShiftBar *>(hueshift_bar)->setColorProvider(this, 1);
+        hueframe->add(*vb);
+        box->pack_start(*hueframe);
+    }
     
     box_combined = Gtk::manage(new Gtk::VBox());
     box_rgb = Gtk::manage(new Gtk::VBox());
@@ -344,7 +469,7 @@ ColorCorrection::ColorCorrection(): FoldableToolPanel(this, "colorcorrection", M
     }    
     box_combined->pack_start(*nb, Gtk::PACK_SHRINK, 4);//wheel);
 
-    Gtk::Frame *satframe = Gtk::manage(new Gtk::Frame(M("TP_COLORCORRECTION_SATURATION")));
+    satframe = Gtk::manage(new Gtk::Frame(M("TP_COLORCORRECTION_SATURATION")));
     Gtk::VBox *satbox = Gtk::manage(new Gtk::VBox());
     inSaturation = Gtk::manage(new Adjuster(M("TP_COLORCORRECTION_IN"), -100, 100, 1, 0, nullptr, nullptr, nullptr, nullptr, false, true));
     inSaturation->setAdjusterListener(this);
@@ -370,7 +495,7 @@ ColorCorrection::ColorCorrection(): FoldableToolPanel(this, "colorcorrection", M
 //    slope->setLogScale(32, 1, true);
     slope->setAdjusterListener(this);
     box_combined->pack_start(*slope);
-    offset = Gtk::manage(new Adjuster(M("TP_COLORCORRECTION_OFFSET"), -0.1, 0.1, 0.001, 0));
+    offset = Gtk::manage(new Adjuster(M("TP_COLORCORRECTION_OFFSET"), -0.1, 0.1, 0.0001, 0));
     offset->setAdjusterListener(this);
     box_combined->pack_start(*offset);
     power = Gtk::manage(new Adjuster(M("TP_COLORCORRECTION_POWER"), 0.1, 4.0, 0.001, 1));
@@ -424,7 +549,7 @@ ColorCorrection::ColorCorrection(): FoldableToolPanel(this, "colorcorrection", M
         //slope_rgb[c]->setLogScale(10, 1, true);
         slope_rgb[c]->setAdjusterListener(this);
         vb->pack_start(*slope_rgb[c]);
-        offset_rgb[c] = Gtk::manage(new Adjuster(M("TP_COLORCORRECTION_OFFSET"), -0.1, 0.1, 0.001, 0));
+        offset_rgb[c] = Gtk::manage(new Adjuster(M("TP_COLORCORRECTION_OFFSET"), -0.1, 0.1, 0.0001, 0));
         offset_rgb[c]->setAdjusterListener(this);
         vb->pack_start(*offset_rgb[c]);
         power_rgb[c] = Gtk::manage(new Adjuster(M("TP_COLORCORRECTION_POWER"), 0.1, 4.0, 0.001, 1));
@@ -435,9 +560,9 @@ ColorCorrection::ColorCorrection(): FoldableToolPanel(this, "colorcorrection", M
         pivot_rgb[c]->setAdjusterListener(this);
         pivot_rgb[c]->setLogScale(100, 0.18, true);
         vb->pack_start(*pivot_rgb[c]);
-        compression_rgb[c] = Gtk::manage(new Adjuster(M("TP_COLORCORRECTION_COMPRESSION"), 0, 100.0, 0.1, 0));
+        compression_rgb[c] = Gtk::manage(new Adjuster(M("TP_COLORCORRECTION_COMPRESSION"), 0, 1, 0.001, 0));
         compression_rgb[c]->setAdjusterListener(this);
-        compression_rgb[c]->setLogScale(50, 0);
+        compression_rgb[c]->setLogScale(25, 0);
         vb->pack_start(*compression_rgb[c]);
 
         //f->add(*vb);
@@ -467,7 +592,7 @@ ColorCorrection::ColorCorrection(): FoldableToolPanel(this, "colorcorrection", M
         vb->pack_start(*hb);
 
         if (c == 1) {
-            lfactor[c] = Gtk::manage(new Adjuster("", -10.0, 10.0, 0.01, 0, Gtk::manage(new RTImage("circle-black-small.png")), Gtk::manage(new RTImage("circle-white-small.png")), nullptr, nullptr, false, false));
+            lfactor[c] = Gtk::manage(new Adjuster("", -10.0, 10.0, 0.001, 0, Gtk::manage(new RTImage("circle-black-small.png")), Gtk::manage(new RTImage("circle-white-small.png")), nullptr, nullptr, false, false));
         } else {
             lfactor[c] = Gtk::manage(new Adjuster("", -50.0, 50.0, 0.1, 0, Gtk::manage(new RTImage("circle-black-small.png")), Gtk::manage(new RTImage("circle-white-small.png")), nullptr, nullptr, false, false));
         }
@@ -478,6 +603,33 @@ ColorCorrection::ColorCorrection(): FoldableToolPanel(this, "colorcorrection", M
         box_hsl->pack_start(*f);
     }
     box_hsl->pack_start(*box_hsl_h);
+
+    lut_filename = Gtk::manage(new MyFileChooserButton(M("TP_COLORCORRECTION_LUT")));
+    box_lut = Gtk::manage(new Gtk::HBox());
+    box_lut->pack_start(*Gtk::manage(new Gtk::Label(M("TP_COLORCORRECTION_LUT_FILENAME") + ": ")), Gtk::PACK_SHRINK, 4);
+    box_lut->pack_start(*lut_filename, Gtk::PACK_EXPAND_WIDGET, 4);
+
+    {
+        Glib::RefPtr<Gtk::FileFilter> filter_lut = Gtk::FileFilter::create();
+        filter_lut->set_name(M("FILECHOOSER_FILTER_LUT"));
+        filter_lut->add_pattern("*.png");
+        filter_lut->add_pattern("*.PNG");
+        filter_lut->add_pattern("*.tif");
+        filter_lut->add_pattern("*.tiff");
+#ifdef ART_USE_OCIO
+        filter_lut->add_pattern("*.clf");
+        filter_lut->add_pattern("*.CLF");
+        filter_lut->add_pattern("*.clfz");
+        filter_lut->add_pattern("*.CLFZ");
+#endif
+        Glib::RefPtr<Gtk::FileFilter> filter_any = Gtk::FileFilter::create();
+        filter_any->set_name(M("FILECHOOSER_FILTER_ANY"));
+        filter_any->add_pattern("*");
+
+        lut_filename->add_filter(filter_lut);
+        lut_filename->add_filter(filter_any);
+    }
+    lut_filename->signal_selection_changed().connect(sigc::mem_fun(*this, &ColorCorrection::lutChanged));
 
     hueshift->delay = options.adjusterMaxDelay;
     inSaturation->delay = options.adjusterMaxDelay;
@@ -503,6 +655,7 @@ ColorCorrection::ColorCorrection(): FoldableToolPanel(this, "colorcorrection", M
     box->pack_start(*box_combined);
     box->pack_start(*box_rgb);
     box->pack_start(*box_hsl);
+    box->pack_start(*box_lut);
 
     show_all_children();
 }
@@ -545,7 +698,7 @@ void ColorCorrection::write(ProcParams *pp)
 
 void ColorCorrection::setDefaults(const ProcParams *defParams)
 {
-    hueshift->setDefault(defParams->colorcorrection.regions[0].hueshift);
+    hueshift->setDefault(defParams->colorcorrection.regions[0].hueshift);//, defParams->colorcorrection.regions[0].hueshift);
     inSaturation->setDefault(defParams->colorcorrection.regions[0].inSaturation);
     outSaturation->setDefault(defParams->colorcorrection.regions[0].outSaturation);
     slope->setDefault(defParams->colorcorrection.regions[0].slope[0]);
@@ -583,6 +736,7 @@ void ColorCorrection::adjusterChanged(Adjuster* a, double newval)
         evt = EvPivot;
     } else if (a == hueshift) {
         evt = EvHueShift;
+        hueshift_bar->queue_draw();
     } else if (a == compression) {
         evt = EvCompression;
     } else {
@@ -605,7 +759,7 @@ void ColorCorrection::adjusterChanged(Adjuster* a, double newval)
                 targets = pivot_rgb;
                 break;
             } else if (a == compression_rgb[c]) {
-                evt = EvPivot;
+                evt = EvCompression;
                 targets = compression_rgb;
                 break;
             } else if (a == lfactor[c]) {
@@ -717,12 +871,18 @@ void ColorCorrection::regionGet(int idx)
     case 1:
         r.mode = rtengine::procparams::ColorCorrectionParams::Mode::JZAZBZ;
         break;
+    case 4:
+        r.mode = rtengine::procparams::ColorCorrectionParams::Mode::LUT;
+        break;
     default:
         r.mode = rtengine::procparams::ColorCorrectionParams::Mode::YUV;
     }
     r.inSaturation = inSaturation->getValue();
     r.outSaturation = outSaturation->getValue();
     r.hueshift = hueshift->getValue();
+    // double top, bot;
+    // hueshift->getValue(bot, top);
+    // r.hueshift = top;
     if (r.mode != rtengine::procparams::ColorCorrectionParams::Mode::RGB) {
         wheel->getParams(r.a, r.b, r.abscale);
         for (int c = 0; c < 3; ++c) {
@@ -750,6 +910,7 @@ void ColorCorrection::regionGet(int idx)
         r.factor[c] = lfactor[c]->getValue();
     }
     r.rgbluminance = rgbluminance->get_active();
+    r.lutFilename = Glib::filename_to_utf8(lut_filename->get_filename());
 }
 
 
@@ -770,12 +931,16 @@ void ColorCorrection::regionShow(int idx)
     case rtengine::procparams::ColorCorrectionParams::Mode::HSL:
         mode->set_active(3);
         break;
+    case rtengine::procparams::ColorCorrectionParams::Mode::LUT:
+        mode->set_active(4);
+        break;
     default:
         mode->set_active(0);
     }
     inSaturation->setValue(r.inSaturation);
     outSaturation->setValue(r.outSaturation);
     hueshift->setValue(r.hueshift);
+    // hueshift->setValue(0.0, r.hueshift);
     if (wheel->isCurrentSubscriber()) {
         wheel->unsubscribe();
     }
@@ -797,6 +962,7 @@ void ColorCorrection::regionShow(int idx)
         lfactor[c]->setValue(r.factor[c]);
     }
     rgbluminance->set_active(r.rgbluminance);
+    lut_filename->set_filename(Glib::filename_from_utf8(r.lutFilename));
     modeChanged();
     if (disable) {
         enableListener();
@@ -809,15 +975,19 @@ void ColorCorrection::modeChanged()
     removeIfThere(box, box_combined);
     removeIfThere(box, box_rgb);
     removeIfThere(box, box_hsl);
+    removeIfThere(box, box_lut);
     int row = mode->get_active_row_number();
     if (row < 2) {
         box->pack_start(*box_combined);
     } else if (row == 2) {
         box->pack_start(*box_rgb);
+    } else if (row == 4) {
+        box->pack_start(*box_lut);
     } else {
         box->pack_start(*box_hsl);
     }
-    hueshift->set_visible(mode->get_active_row_number() != 2);
+    satframe->set_visible(mode->get_active_row_number() != 4);
+    hueframe->set_visible(mode->get_active_row_number() != 2 && mode->get_active_row_number() != 4);
     if (listener && getEnabled()) {
         labMasks->setEdited(true);        
         listener->panelChanged(EvMode, mode->get_active_text());
@@ -853,11 +1023,47 @@ void ColorCorrection::setDeltaEColorProvider(DeltaEColorProvider *p)
 
 void ColorCorrection::adjusterChanged(ThresholdAdjuster *a, double newBottom, double newTop)
 {
+    // if (listener && getEnabled() && a == hueshift) {
+    //     Glib::ustring st, sb;
+    //     hueshift->getValue(sb, st);
+    //     listener->panelChanged(EvHueShift, st);
+    // }
 }
 
 
 void ColorCorrection::colorForValue(double valX, double valY, enum ColorCaller::ElemType elemType, int callerId, ColorCaller *caller)
 {
+    float R = 0.f, G = 0.f, B = 0.f;
+
+    const auto to_hue =
+        [](float x) -> float
+        {
+            //x -= 0.05f;
+            if (x < 0.f) {
+                x += 1.f;
+            } else if (x > 1.f) {
+                x -= 1.f;
+            }
+            return x;
+        };
+
+    if (callerId == 1) {  // Slider 1 background
+        if (valY <= 0.5) {
+            // the hue range
+            Color::hsv2rgb01(to_hue(valX), 1.0f, 0.65f, R, G, B);
+        } else {
+            // the shifted hue
+            // double b, t;
+            double t = hueshift->getValue();
+            double shift = SGN(t) * std::pow(std::abs(t) / 180.0, 0.8) * 0.5;
+            double hue = to_hue(valX + shift);
+            Color::hsv2rgb01(hue, 1.0f, 0.65f, R, G, B);
+        }
+    }
+
+    caller->ccRed = double(R);
+    caller->ccGreen = double(G);
+    caller->ccBlue = double(B);
 }
 
 
@@ -1037,5 +1243,14 @@ void ColorCorrection::drawCurve(bool rgb, Cairo::RefPtr<Cairo::Context> cr, Glib
             }
             cr->stroke();            
         }
+    }
+}
+
+
+void ColorCorrection::lutChanged()
+{
+    if (listener) {
+        auto fn = Glib::filename_to_utf8(lut_filename->get_filename());
+        listener->panelChanged(EvLUT, Glib::path_get_basename(fn));
     }
 }

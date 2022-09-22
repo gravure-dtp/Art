@@ -1,10 +1,14 @@
 #pragma once
 
-// This number has to be incremented whenever the PP3 file format is modified or the behaviour of a tool changes
-#define PPVERSION 1036
+// This number has to be incremented whenever the ARP file format is modified or the behaviour of a tool changes
+#define PPVERSION 1038
 
 /*
   Log of version changes
+  1038  2022-08-12
+        brush mask: changed "hardness" and "transparency" to "opacity"
+  1037  2022-07-23
+        log encoding saturation control
   1036  2022-05-01
         color correction: changed behaviour of hueshift in HSL mode
   1035  2022-04-30

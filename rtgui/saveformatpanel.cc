@@ -59,7 +59,7 @@ SaveFormatPanel::SaveFormatPanel(): listener(nullptr)
         format->append(sf_template.first);
     }
     for (auto &p : extrafmts_) {
-        format->append(p.second);
+        format->append(p.second.label);
     }
 
     hb1->attach (*flab, 0, 0, 1, 1);
@@ -252,4 +252,18 @@ void SaveFormatPanel::adjusterChanged(Adjuster* a, double newval)
 
 void SaveFormatPanel::adjusterAutoToggled(Adjuster* a, bool newval)
 {
+}
+
+
+Glib::ustring SaveFormatPanel::getExtension()
+{
+    const unsigned int sel = format->get_active_row_number();
+
+    if (sel < sf_templates.size()) {
+        return sf_templates[sel].second.format;
+    } else if (sel - sf_templates.size() < extrafmts_.size()) {
+        return extrafmts_[sel - sf_templates.size()].second.extension;
+    }
+
+    return "";
 }

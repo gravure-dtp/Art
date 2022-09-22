@@ -37,6 +37,7 @@
 
 #include "subprocess.h"
 #include "settings.h"
+#include "../rtgui/pathutils.h"
 
 
 namespace rtengine {
@@ -268,7 +269,7 @@ std::vector<Glib::ustring> split_command_line(const Glib::ustring &cmdl)
         auto argv = Glib::shell_parse_argv(cmdl);
         std::vector<Glib::ustring> ret;
         for (const auto &a : argv) {
-            ret.push_back(Glib::filename_to_utf8(a));
+            ret.push_back(fname_to_utf8(a));
         }
         return ret;
     } catch (Glib::Error &e) {

@@ -1301,16 +1301,39 @@ void PerceptualToneCurve::initApplyState(PerceptualToneCurveState &state, const 
 }
 
 
-NeutralToneCurve::ApplyState::ApplyState(const Glib::ustring &workingSpace, float whitept):
-    whitepoint(whitept)
+NeutralToneCurve::ApplyState::ApplyState(const Glib::ustring &workingSpace, const Glib::ustring &outprofile)
 {
     auto work = ICCStore::getInstance()->workingSpaceMatrix(workingSpace);
     auto iwork = ICCStore::getInstance()->workingSpaceInverseMatrix(workingSpace);
+
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
             ws[i][j] = work[i][j];
             iws[i][j] = iwork[i][j];
         }
+    }
+
+    Mat33<float> om;
+    if (ICCStore::getInstance()->getProfileMatrix(outprofile, om)) {
+        auto iom = inverse(om);
+        to_out = dot_product(work, iom);
+        to_work = dot_product(om, iwork);
+    } else {
+        to_out = identity<float>();
+        to_work = identity<float>();
+    }
+
+    hcurve(3600);
+    FlatCurve hc({
+            FCT_MinMaxCPoints,
+            0, 0, 0.35, 0.35,
+            0.09, 1.0, 0.35, 0.35,
+            0.18, 0, 0.35, 0.35
+        }, true);
+    for (int i = 0; i < 3600; ++i) {
+        float h = float(i)/3600.f;
+        float v = hc.getVal(h);
+        hcurve[i] = v;
     }
 }
 
@@ -1320,34 +1343,132 @@ void NeutralToneCurve::BatchApply(const size_t start, const size_t end, float *r
     Vec3f rgb;
     Vec3f jch;
 
+    const auto hcurve =
+        [&](float h) -> float
+        {
+            h *= 180.f / RT_PI_F;
+            if (h < 0.f) {
+                h += 1.f;
+            } else if (h > 1.f) {
+                h -= 1.f;
+            }
+            return state.hcurve[h * 10.f];
+        };
+
+    const float Lmax = whitept * 65535.f;
+
+    // from https://github.com/jedypod/gamut-compress
+
+    // Distance limit: How far beyond the gamut boundary to compress
+    //const Vec3<float> dl(1.147f, 1.264f, 1.312f); // original ACES values
+    const Vec3<float> dl(1.1f, 1.2f, 1.5f); // hand-tuned
+    // Amount of outer gamut to affect
+    //const Vec3<float> th(0.815f, 0.803f, 0.88f); // original ACES values
+    const Vec3<float> th(0.85f, 0.75f, 0.95f); // hand-tuned
+
+    // Power or Parabolic compression functions: https://www.desmos.com/calculator/nvhp63hmtj
+#if 0 // power compression
+    constexpr float p = 1.2f;
+    const auto scale =
+        [](float l, float t, float p) -> float
+        {
+            return (l - t) / std::pow(std::pow((1.f - t)/(l - t), -p) - 1.f, 1.f/p);
+        };
+    const Vec3<float> s(scale(dl[0], th[0], p),
+                        scale(dl[1], th[1], p),
+                        scale(dl[2], th[2], p));
+
+
+    const auto compr =
+        [&](float x, int i) -> float
+        {
+            float t = (x - th[i])/s[i];
+            return th[i] + s[i] * std::pow(t / (1.f + std::pow(t, p)), 1.f/p);
+        };
+#else // parabolic compression
+    const auto scale =
+        [](float l, float t) -> float
+        {
+            return (1.f - t) / std::sqrt(l-1.f);
+        };
+    Vec3<float> s(scale(dl[0], th[0]), scale(dl[1], th[1]), scale(dl[2], th[2]));
+
+    const auto compr =
+        [&](float x, int i) -> float
+        {
+            return s[i] * std::sqrt(x - th[i] + SQR(s[i])/4.0f) - s[i] * std::sqrt(SQR(s[i]) / 4.0f) + th[i];            
+        };
+#endif // power/parabolic compression
+
     for (size_t i = start; i < end; ++i) {
         rgb[0] = std::max(rc[i] / 65535.f, 0.f);
         rgb[1] = std::max(gc[i] / 65535.f, 0.f);
         rgb[2] = std::max(bc[i] / 65535.f, 0.f);
 
-        Color::rgb2jzazbz(rgb[0], rgb[1], rgb[2], jch[0], jch[1], jch[2], state.ws);
-        Color::jzazbz2jzch(jch[1], jch[2], jch[1], jch[2]);
+        Color::rgb2jzczhz(rgb[0], rgb[1], rgb[2], jch[0], jch[1], jch[2], state.ws);
 
+
+        float ilum = jch[0];
+        float hue = jch[2];
+
+        // gamut compression
+        float iY = (rgb[0] + rgb[1] + rgb[2]) / 3.f;
+
+        rgb = dot_product(state.to_out, rgb);
+
+        // Achromatic axis
+        float ac = max(rgb[0], rgb[1], rgb[2]);
+
+        // Inverse RGB Ratios: distance from achromatic axis
+        Vec3<float> d;
+        float aac = std::abs(ac);
+        if (ac != 0.f) {
+            d[0] = (ac - rgb[0])/aac;
+            d[1] = (ac - rgb[1])/aac;
+            d[2] = (ac - rgb[2])/aac;
+        }
+
+        Vec3<float> cd; // Compressed distance
+        for (int i = 0; i < 3; ++i) {
+            cd[i] = d[i] < th[i] ? d[i] : compr(d[i], i);
+        }
+
+        // Inverse RGB Ratios to RGB
+        rgb[0] = ac-cd[0]*aac;
+        rgb[1] = ac-cd[1]*aac;
+        rgb[2] = ac-cd[2]*aac;
+          
+        rgb = dot_product(state.to_work, rgb);
+        
+        float oY = (rgb[0] + rgb[1] + rgb[2]) / 3.f;
+        if (oY > 0.f) {
+            float f = iY / oY;
+            rgb[0] *= f;
+            rgb[1] *= f;
+            rgb[2] *= f;
+            Color::filmlike_clip(&rgb[0], &rgb[1], &rgb[2], Lmax);
+        }
+        
+        // apply the curve
         for (int j = 0; j < 3; ++j) {
             float nt = rgb[j] * 65535.f;
             curves::setLutVal(lutToneCurve, curve, nt);
             rgb[j] = nt / 65535.f;
         }
 
-        float ilum = jch[0];
-        float hue = jch[2];
-
-        Color::rgb2jzazbz(rgb[0], rgb[1], rgb[2], jch[0], jch[1], jch[2], state.ws);
-        Color::jzazbz2jzch(jch[1], jch[2], jch[1], jch[2]);
+        Color::rgb2jzczhz(rgb[0], rgb[1], rgb[2], jch[0], jch[1], jch[2], state.ws);
 
         float sat = jch[1];
         float olum = jch[0];
+        float ohue = jch[2];
 
-        float ccf = ilum > 1e-5f ? 1.f - (LIM01((olum / ilum) - 1.f) * 0.2f) : 1.f;
+        float ccf = ilum > 1e-5f ? (1.f - (LIM01((olum / ilum) - 1.f) * 0.2f)) : 1.f;
         sat *= ccf;
-        
-        Color::jzch2jzazbz(sat, hue, jch[1], jch[2]);
-        Color::jzazbz2rgb(jch[0], jch[1], jch[2], rgb[0], rgb[1], rgb[2], state.iws);
+
+        float hueblend = LIM01(oY) * hcurve(hue);
+        hue = intp(hueblend, ohue, hue);
+
+        Color::jzczhz2rgb(jch[0], sat, hue, rgb[0], rgb[1], rgb[2], state.iws);
 
         rc[i] = LIM(rgb[0] * 65535.f, 0.f, whitept);
         gc[i] = LIM(rgb[1] * 65535.f, 0.f, whitept);

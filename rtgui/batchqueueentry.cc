@@ -25,6 +25,7 @@
 #include "rtimage.h"
 #include "multilangmgr.h"
 #include "thumbbrowserbase.h"
+#include "../rtengine/processingjob.h"
 
 bool BatchQueueEntry::iconsLoaded(false);
 Glib::RefPtr<Gdk::Pixbuf> BatchQueueEntry::savedAsIcon;
@@ -61,6 +62,11 @@ BatchQueueEntry::BatchQueueEntry (rtengine::ProcessingJob* pjob, const rtengine:
 
     if (thumbnail) {
         thumbnail->increaseRef ();
+    }
+
+    use_batch_profile = true;
+    if (job) {
+        use_batch_profile = static_cast<rtengine::ProcessingJobImpl *>(job)->use_batch_profile;
     }
 }
 

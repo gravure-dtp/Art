@@ -17,79 +17,77 @@
  *  You should have received a copy of the GNU General Public License
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _PARAMEDITED_H_
-#define _PARAMEDITED_H_
+#pragma once
 
 #include <glibmm.h>
 #include <vector>
-//#include "../rtengine/procparams.h"
-//#include "../rtengine/rtengine.h"
+
 
 class ParamsEdited {
-
 public:
-    bool general;
-    bool exposure;
-    bool saturation;
-    bool toneCurve;
-    bool labCurve;
-    bool localContrast;
-    bool rgbCurves;
-    bool sharpening;
-    bool prsharpening;
-    bool wb;
-    bool defringe;
-    bool denoise;
-    bool textureBoost;
-    bool fattal;
-    bool logenc;
-    bool impulseDenoise;
-    bool toneEqualizer;
-    bool crop;
+    enum {
+        False = 0,
+        True,
+        Undef
+    };
+
+    bool blackwhite;
+    bool cacorrection;
+    bool chmixer;
     bool coarse;
     bool commonTrans;
-    bool rotate;
-    bool distortion;
-    bool lensProf;
-    bool perspective;
-    bool gradient;
-    bool pcvignette;
-    bool cacorrection;
-    bool vignetting;
-    bool chmixer;
-    bool blackwhite;
-    bool hsl;
-    bool resize;
-    bool icm;
-
-    //bool raw;
-    bool demosaic;
-    bool rawBlack;
-    bool rawWhite;
-    bool rawPreprocessing;
-    bool hotDeadPixelFilter;
+    bool crop;
     bool darkframe;
-    bool flatfield;
-    bool rawCA;
-    
-    bool filmSimulation;
-    bool softlight;
+    bool defringe;
     bool dehaze;
-    bool grain;
-    bool smoothing;
-    bool colorcorrection;
-    bool filmNegative;
-    bool metadata;
+    bool demosaic;
+    bool denoise;
+    bool distortion;
     bool exif;
+    bool exposure;
+    bool fattal;
+    bool filmNegative;
+    bool filmSimulation;
+    bool flatfield;
+    bool general;
+    bool gradient;
+    bool grain;
+    bool hotDeadPixelFilter;
+    bool hsl;
+    bool icm;
+    bool impulseDenoise;
     bool iptc;
-
+    bool labCurve;
+    bool lensProf;
+    bool logenc;
+    bool metadata;
+    bool pcvignette;
+    bool perspective;
+    bool prsharpening;
+    bool rawBlack;
+    bool rawCA;
+    bool rawPreprocessing;
+    bool rawWhite;
+    bool resize;
+    bool rgbCurves;
+    bool rotate;
+    bool saturation;
+    bool sharpening;
+    bool softlight;
     bool spot;
+    bool toneCurve;
+    bool toneEqualizer;
+    bool vignetting;
+    bool wb;
 
-    explicit ParamsEdited(bool value = false);
+    unsigned colorcorrection;
+    unsigned smoothing;
+    unsigned localContrast;
+    unsigned textureBoost;
+    
+    explicit ParamsEdited(bool value=false);
 
     void set(bool v);
-    // void initFrom(const std::vector<rtengine::procparams::ProcParams>& src);
-    // void combine(rtengine::procparams::ProcParams& toEdit, const rtengine::procparams::ProcParams& mods, bool forceSet);
+    void set_append(bool v);
 };
 
-#endif

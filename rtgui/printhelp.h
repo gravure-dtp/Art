@@ -42,6 +42,7 @@ inline void ART_print_help(std::ostream &out, const char *progname, bool gui)
         out << "Usage:" << std::endl;
         out << "  " << pn << " -c <dir>|<files>   Convert files in batch with default parameters." << std::endl;
         out << "  " << pn << " <other options> -c <dir>|<files>   Convert files in batch with your own settings." << std::endl;
+        out << "  " << pn << " --make-icc <make-icc options>   Build an ICC output color profile." << std::endl;
         out << std::endl;
         out << "Options:" << std::endl;
         out << "  " << pn << "[-o <output>|-O <output>] [-q] [-a] [-s|-S] [-p <one" << paramFileExtension << "> [-p <two" << paramFileExtension << "> ...] ] [-d] [ -j[1-100] -js<1-3> | -t[z] -b<8|16|16f|32> | -n -b<8|16> ] [-Y] [-f] -c <input>" << std::endl;

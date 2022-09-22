@@ -1503,7 +1503,7 @@ void detail_recovery(int width, int height, LabImage *labdn, array2D<float> *Lin
     if (detail_thresh > 0) {
         array2D<float> LL(width, height, labdn->L, ARRAY2D_BYREFERENCE);
         float amount = LIM01(float(detail_thresh)/100.f);
-        detail_mask(LL, mask, 65535.f, 25.f, 10000.f, amount, BlurType::BOX, 10.f / scale, false);
+        detail_mask(LL, mask, 65535.f, 25.f, 10000.f, amount, BlurType::GAUSS, 25.f / scale, false);
     }   
     
     if (numtiles == 1) {

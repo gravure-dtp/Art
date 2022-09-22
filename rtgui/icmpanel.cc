@@ -17,6 +17,7 @@
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iomanip>
+#include <tuple>
 #include "icmpanel.h"
 #include "options.h"
 #include "eventmapper.h"
@@ -212,10 +213,37 @@ ICMPanel::ICMPanel():
     oProfNames->append(M("TP_ICM_NOPROFILE"));
     oProfNames->set_active(0);
 
+    out_profiles_ = {
+        ColorManagementParams::NoICMString,
+        ColorManagementParams::NoProfileString
+    };
+
     std::vector<Glib::ustring> opnames = ICCStore::getInstance()->getProfiles(rtengine::ICCStore::ProfileType::OUTPUT);
 
+    const auto is_ART_profile =
+        [](cmsHPROFILE p) -> bool
+        {
+            return ICCStore::getProfileTag(p, cmsSigDeviceMfgDescTag) == "ART";
+        };
+
+    std::vector<std::tuple<int, Glib::ustring, Glib::ustring>> opl;
     for (size_t i = 0; i < opnames.size(); i++) {
-        oProfNames->append(opnames[i]);
+        auto lbl = opnames[i];
+        auto p = ICCStore::getInstance()->getProfile(opnames[i]);
+        int key = 1;
+        if (p) { 
+            auto s = ICCStore::getProfileTag(p, cmsSigProfileDescriptionTag);
+            if (is_ART_profile(p)) {
+                lbl = s;
+                key = 0;
+            }
+        }
+        opl.push_back({key, lbl, opnames[i]});
+    }
+    std::sort(opl.begin(), opl.end());
+    for (auto &t : opl) {
+        out_profiles_.push_back(std::get<2>(t));
+        oProfNames->append(std::get<1>(t));
     }
     
     oProfNames->set_active(0);
@@ -469,16 +497,12 @@ void ICMPanel::read(const ProcParams* pp)
 
     wProfNames->set_active_text(pp->icm.workingProfile);
 
-    if (pp->icm.outputProfile == ColorManagementParams::NoICMString) {
-        oProfNames->set_active_text(M("TP_ICM_NOICM"));
-    } else if (pp->icm.outputProfile == ColorManagementParams::NoProfileString) {
-        oProfNames->set_active_text(M("TP_ICM_NOPROFILE"));
-    } else {
-        oProfNames->set_active_text(pp->icm.outputProfile);
-    }
-
-    if (oProfNames->get_active_row_number() == -1) {
-        oProfNames->set_active_text(M("TP_ICM_NOICM"));
+    oProfNames->set_active(0);
+    for (size_t i = 0; i < out_profiles_.size(); ++i) {
+        if (out_profiles_[i] == pp->icm.outputProfile) {
+            oProfNames->set_active(i);
+            break;
+        }
     }
 
     oRendIntent->setSelected(pp->icm.outputIntent);
@@ -518,13 +542,14 @@ void ICMPanel::write(ProcParams* pp)
 
     pp->icm.workingProfile = wProfNames->get_active_text();
     pp->icm.dcpIlluminant = rtengine::max<int>(dcpIll->get_active_row_number(), 0);
-    if (oProfNames->get_active_row_number() == 0) {//M("TP_ICM_NOICM")) {
-        pp->icm.outputProfile  = ColorManagementParams::NoICMString;
-    } else if (oProfNames->get_active_row_number() == 1) {
-        pp->icm.outputProfile  = ColorManagementParams::NoProfileString;
-    } else {
-        pp->icm.outputProfile  = oProfNames->get_active_text();
-    }
+    // if (oProfNames->get_active_row_number() == 0) {//M("TP_ICM_NOICM")) {
+    //     pp->icm.outputProfile  = ColorManagementParams::NoICMString;
+    // } else if (oProfNames->get_active_row_number() == 1) {
+    //     pp->icm.outputProfile  = ColorManagementParams::NoProfileString;
+    // } else {
+    //     pp->icm.outputProfile  = oProfNames->get_active_text();
+    // }
+    pp->icm.outputProfile = out_profiles_[oProfNames->get_active_row_number()];
 
     int ointentVal = oRendIntent->getSelected();
 
@@ -653,7 +678,7 @@ void ICMPanel::ipChanged()
 
 void ICMPanel::opChanged()
 {
-    updateRenderingIntent(oProfNames->get_active_text());
+    updateRenderingIntent(out_profiles_[oProfNames->get_active_row_number()]);
 
     if (listener) {
         listener->panelChanged(EvOProfile, oProfNames->get_active_text());

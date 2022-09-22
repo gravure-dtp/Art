@@ -26,9 +26,10 @@
 #include "curveeditorgroup.h"
 #include "mycurve.h"
 #include "guiutils.h"
+#include "colorprovider.h"
 
-class ToneCurve: public ToolParamBlock, public FoldableToolPanel, public CurveListener, public AdjusterListener
-{
+
+class ToneCurve: public ToolParamBlock, public FoldableToolPanel, public CurveListener, public AdjusterListener, public ColorProvider {
 private:
     IdleRegister idle_register;
 
@@ -47,6 +48,7 @@ protected:
     DiagonalCurveEditor* shape2;
     CurveEditorGroup *satcurveG;
     FlatCurveEditor *satcurve;
+    DiagonalCurveEditor *satcurve2_;
     Adjuster *perceptualStrength;
     Adjuster *whitePoint;
 
@@ -74,6 +76,7 @@ protected:
     void contrastLegacyToggled();
     void modeChanged();
     void showWhitePoint();
+    void updateSatCurves(int i);
 
     rtengine::procparams::ToneCurveParams initial_params;
 
@@ -119,4 +122,6 @@ public:
 
     void toolReset(bool to_initial) override;
     void registerShortcuts(ToolShortcutManager *mgr) override;
+
+    void colorForValue(double valX, double valY, enum ColorCaller::ElemType elemType, int callerId, ColorCaller *caller) override;
 };

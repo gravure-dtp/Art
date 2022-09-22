@@ -39,12 +39,15 @@
 // PANASONIC DC-FZ10002
 // PANASONIC DMC-G8
 // RICOH GR III
-
 // updated on Tue Nov 30 09:54:05 2021:
 // RICOH GR II
-
 // updated on Fri Apr 1 15:05:00 2022:
 // OM DIGITAL SOLUTIONS OM-1
+
+// updated on Fri May 27 12:10:03 2022:
+// NIKON D4S
+// PANASONIC DC-S5
+// SONY ILCE-7M4
 
 [
   {
@@ -5849,7 +5852,56 @@
       { "name" : "shade", "multipliers" : [ 2.648, 1, 1.406 ] },
       { "name" : "daylight fluorescent", "multipliers" : [ 2.445, 1, 2.031 ] },
       { "name" : "day white fluorescent", "multipliers" : [ 2.547, 1, 1.719 ] },
-      { "name" : "cool white fluorescent", "multipliers" : [ 2.141, 1, 2.570 ] }
+      { "name" : "cool white fluorescent", "multipliers" : [ 2.141, 1, 2.57 ] }
+    ]
+  },
+  {
+    "make_model" : "NIKON D4S",
+    "presets" : [
+      { "name" : "direct sunlight", "multipliers" : [ 2.01953, 1, 1.44141 ] },
+      { "name" : "shade", "multipliers" : [ 2.51562, 1, 1.16016 ] },
+      { "name" : "cloudy", "multipliers" : [ 2.16797, 1, 1.30078 ] },
+      { "name" : "incandescent", "multipliers" : [ 1.28516, 1, 2.36328 ] },
+      { "name" : "warm white fluorescent", "multipliers" : [ 1.27344, 1, 2.12109 ] },
+      { "name" : "cool white fluorescent", "multipliers" : [ 1.85156, 1, 2.16406 ] },
+      { "name" : "day white fluorescent", "multipliers" : [ 1.87109, 1, 1.46094 ] },
+      { "name" : "daylight fluorescent", "multipliers" : [ 2.125, 1, 1.16016 ] },
+      { "name" : "white fluorescent", "multipliers" : [ 1.48828, 1, 2.48438 ] },
+      { "name" : "high temp. mercury-vapor fluorescent", "multipliers" : [ 2.53906, 1, 1.42969 ] },
+      { "name" : "sodium-vapor fluorescent", "multipliers" : [ 1.19141, 1, 2.59766 ] },
+      { "name" : "flash", "multipliers" : [ 2.28906, 1, 1.25 ] }
+    ]
+  },
+  {
+    "make_model" : "PANASONIC DC-S5",
+    "presets" : [
+      { "name" : "daylight", "multipliers" : [ 2.14844, 1, 1.75391 ] },
+      { "name" : "D55", "multipliers" : [ 2.10547, 1, 1.75391 ] },
+      { "name" : "shade", "multipliers" : [ 2.41406, 1, 1.53906 ] },
+      { "name" : "cloudy", "multipliers" : [ 2.28516, 1, 1.62109 ] },
+      { "name" : "incandescent", "multipliers" : [ 1.60156, 1, 2.59766 ] },
+      { "name" : "flash", "multipliers" : [ 2.24609, 1, 1.66406 ] }
+    ]
+  },
+  {
+    "make_model" : "SONY ILCE-7M4",
+    "presets" : [
+      { "name" : "daylight", "multipliers" : [ 2.39844, 1, 1.65137 ] },
+      { "name" : "shade", "multipliers" : [ 2.80664, 1, 1.34082 ] },
+      { "name" : "cloudy", "multipliers" : [ 2.58691, 1, 1.51562 ] },
+      { "name" : "tungsten", "multipliers" : [ 1.49219, 1, 2.95703 ] },
+      { "name" : "warm white fluorescent", "multipliers" : [ 1.75488, 1, 2.81348 ] },
+      { "name" : "cool white fluorescent", "multipliers" : [ 2.24023, 1, 2.26953 ] },
+      { "name" : "day white fluorescent", "multipliers" : [ 2.3916, 1, 1.67285 ] },
+      { "name" : "daylight fluorescent", "multipliers" : [ 2.64453, 1, 1.56152 ] },
+      { "name" : "underwater", "multipliers" : [ 2.38672, 1, 1.65137 ] },
+      { "name" : "flash", "multipliers" : [ 2.63965, 1, 1.47266 ] },
+      { "name" : "2500K", "multipliers" : [ 1.37402, 1, 3.27441 ] },
+      { "name" : "3200K", "multipliers" : [ 1.72363, 1, 2.44141 ] },
+      { "name" : "4500K", "multipliers" : [ 2.18164, 1, 1.80957 ] },
+      { "name" : "5500K", "multipliers" : [ 2.42871, 1, 1.58789 ] },
+      { "name" : "6000K", "multipliers" : [ 2.53027, 1, 1.51465 ] },
+      { "name" : "8500K", "multipliers" : [ 2.87012, 1, 1.28223 ] }
     ]
   }
 ]

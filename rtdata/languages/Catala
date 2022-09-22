@@ -13,6 +13,9 @@
 #12 2021-12-18 mrleemon, update for 1.12
 #13 2022-01-28 mrleemon, update for 1.12.1
 #14 2022-04-01 mrleemon, update for 1.13
+#15 2022-05-27 mrleemon, update for 1.14
+#16 2022-07-12 mrleemon, update for 1.15
+#17 2022-08-24 mrleemon, update for 1.16
 
 ABOUT_TAB_BUILD;Versió
 ABOUT_TAB_CREDITS;Crèdits
@@ -228,7 +231,8 @@ FILECHOOSER_FILTER_CURVE;Fitxers de corba
 FILECHOOSER_FILTER_LCP;Perfils de correcció de lents
 FILECHOOSER_FILTER_PP;Perfils de processament
 FILECHOOSER_FILTER_SAME;El mateix format que la foto actual
-FILECHOOSER_FILTER_TIFF;Fitxers TIFF 
+FILECHOOSER_FILTER_TIFF;Fitxers TIFF
+FILECHOOSER_FILTER_LUT;Fitxers LUT compatibles
 GENERAL_ABOUT;Sobre
 GENERAL_AFTER;Després
 GENERAL_APPLY;Aplica
@@ -539,6 +543,7 @@ HISTORY_MSG_COLORCORRECTION_DELTAEMASK;CC - màscara de similitud de color
 HISTORY_MSG_COLORCORRECTION_DRAWNMASK;CC - màscara de pinzell
 HISTORY_MSG_COLORCORRECTION_PARAMETRICMASK;CC - màscara paramètrica
 HISTORY_MSG_COLORCORRECTION_MASK_POSTPROCESS;CC - post-processament de màscara
+HISTORY_MSG_COLORCORRECTION_LUT;CC - LUT
 HISTORY_MSG_COLORTONING_LABGRID_VALUE;CC - Correcció de color
 HISTORY_MSG_DENOISE_CHROMINANCE_AUTO_FACTOR;RS - intensitat de crominància automàtica
 HISTORY_MSG_DENOISE_GUIDED_CHROMA_RADIUS;RS - Suavitzat final C
@@ -614,6 +619,8 @@ HISTORY_MSG_LOGENC_BLACK_EV;Log - Ev negre
 HISTORY_MSG_LOGENC_GAIN;Log - Guany
 HISTORY_MSG_LOGENC_WHITE_EV;Log - Ev blanc
 HISTORY_MSG_LOGENC_TARGET_GRAY;Log - Punt gris destí
+HISTORY_MSG_LOGENC_SATCONTROL;Log - Control de saturació
+HISTORY_MSG_LOGENC_HLCOMPRESSION;Log - Precompressió d'altes llums
 HISTORY_MSG_METADATA_MODE;Mode de còpia de metadades
 HISTORY_MSG_MICROCONTRAST_CONTRAST;Microcontrast - Llindar de contrast
 HISTORY_MSG_PCVIGNETTE_CENTER;FV - Centre
@@ -676,6 +683,7 @@ HISTORY_MSG_TONE_EQUALIZER_ENABLED;Equalitzador tonal
 HISTORY_MSG_TONE_EQUALIZER_BANDS;Equalitzador tonal - Bandes
 HISTORY_MSG_TONE_EQUALIZER_REGULARIZATION;Equalitzador tonal - Regularització
 HISTORY_MSG_TONE_EQUALIZER_SHOW_COLOR_MAP;Equalitzador tonal - Mapa tonal
+HISTORY_MSG_TONE_EQUALIZER_PIVOT;Equalitzador tonal - Pivot
 HISTORY_MSG_TONECURVE_SATCURVE;Corba tonal - Saturació
 HISTORY_MSG_TONECURVE_PERCEPTUAL_STRENGTH;Corba tonal - Intensitat perceptual
 HISTORY_MSG_TONECURVE_CONTRAST_LEGACY;Corba tonal - Mode antic de contrast 
@@ -851,7 +859,7 @@ MAIN_TOOLTIP_BACKCOLOR0;Color de fons de la vista prèvia: <b>basat en el tema</
 MAIN_TOOLTIP_BACKCOLOR1;Color de fons de la vista prèvia: <b>negre</b>\nDrecera: <b>9</b>
 MAIN_TOOLTIP_BACKCOLOR2;Color de fons de la vista prèvia: <b>blanc</b>\nDrecera: <b>9</b>
 MAIN_TOOLTIP_BACKCOLOR3;Color de fons de la vista prèvia: <b>gris mitjà</b>\nDrecera: <b>9</b>
-MAIN_TOOLTIP_BEFOREAFTERLOCK;<b>Bloqueja</b> / <b>Desbloqueja</b> la vista <b>Abans</b>\n\n<b>Bloqueja</b>: manté la vista <b>Abans</b> sense canvis.\nÚtil per avaluar l'efecte acumulatiu de diverses eines.\nA més, es pot fer una comparació amb qualsevol estat a l'historial.\n\n<b>Desbloqueja</b>: la vista <b>Abans</b> seguirà a la vista <b>Després</b> un pas per darrere, mostrant la imatge abans de l'efecte de l'eina que s'està utilitzant.
+MAIN_TOOLTIP_BEFOREAFTERLOCK;<b>Bloqueja</b> / <b>Desbloqueja</b> la vista <b>Abans</b>\n\n<b>Bloqueja</b>: manté la vista <b>Abans</b> inalterada.\n<b>Desbloqueja</b>: la vista <b>Abans</b> es manté sincronitzada amb la vista <b>Després</b>.
 MAIN_TOOLTIP_FALSECOLORS;Alterna la indicació de l'exposició mitjançant color fals.\nDrecera: <b>Majús-e</b>\n\nClau (Rang IRE):\n%1
 MAIN_TOOLTIP_HIDEHP;Mostra/Oculta el panell esquerre (incloent la història).\nDrecera: <b>l</b>
 MAIN_TOOLTIP_INDCLIPPEDH;Indicació d'altes llums retallades.\nDrecera: <b>&gt;</b>
@@ -865,7 +873,7 @@ MAIN_TOOLTIP_PREVIEWSHARPMASK;Vista prèvia de la <b>màscara de contrast d'enfo
 MAIN_TOOLTIP_QINFO;Informació breu sobre la imatge.\nDrecera: <b>Majús-i</b>
 MAIN_TOOLTIP_SHOWHIDELP1;Mostra/Oculta el panell esquerre.\nDrecera: <b>l</b>
 MAIN_TOOLTIP_SHOWHIDERP1;Mostra/Oculta el panell dret.\nDrecera: <b>Ctrl-l</b>
-MAIN_TOOLTIP_SHOWHIDETP1;Mostra/Oculta el panell superior.\nDrecera: <b>Majús-l</b>
+MAIN_TOOLTIP_SHOWHIDETP1;Mostra/Oculta el panell de tira de pel·lícula.\nDrecera: <b>Majús-l</b>
 MAIN_TOOLTIP_THRESHOLD;Llindar
 MAIN_TOOLTIP_TOGGLE;Canvia la vista <b>abans</b>/<b>després</b>.\nDrecera: <b>Majús-a</b>
 METADATA_LOAD_ERROR;Error en carregar les metadades de %1: %2
@@ -1133,7 +1141,7 @@ PREFERENCES_SHOWEXPOSURECOMPENSATION;Annexa la compensació d'exposició
 PREFERENCES_SHOWFILMSTRIPTOOLBAR;Mostra la barra d'eines estil tira de pel·lícula
 PREFERENCES_SHTHRESHOLD;Llindar per a les ombres retallades
 PREFERENCES_SINGLETAB;Mode de pestanyes d'un sol editor
-PREFERENCES_SINGLETABVERTAB;Mode de pestanyes d'un sol editor, pestanyes verticals
+PREFERENCES_SINGLETABBOTTOM;Mode de pestanyes d'un sol editor, tira de pel·lícula a sota de l'editor
 PREFERENCES_SND_HELP;Introduïu una ruta de fitxer completa per establir un so, o deixeu en blanc si no desitgeu cap so.\nPer als sons de sistema a Windows, utilitzeu "SystemDefault", "SystemAsterisk", etc., i a Linux feu servir "complete", "window-attention", etc.
 PREFERENCES_SND_LNGEDITPROCDONE;El processament de l'editor ha finalitzat
 PREFERENCES_SND_BATCHQUEUEDONE;Treballs en cua finalitzats
@@ -1176,7 +1184,7 @@ PROFILEPANEL_GLOBALPROFILES;Perfils proporcionats
 PROFILEPANEL_LABEL;Perfils de processament
 PROFILEPANEL_LOADDLGLABEL;Carrega paràmetres de processament...
 PROFILEPANEL_LOADPPASTE;Paràmetres a carregar
-PROFILEPANEL_MODE_TIP;Mode d'emplenat de perfils de processament.\n\nBotó premut: els perfils parcials es convertiran en perfils complets; els valors que falten es completaran amb valors predeterminats de fàbrica.\n\nBotó deixat anar: els perfils s'aplicaran tal com estan, alterant només els valors que contenen.
+PROFILEPANEL_MODE_TIP;Mode d'agregació del perfil de processament per a les eines d'edició local.\n\nBotó premut: els paràmetres d'edició local al perfil s'agreguen als actuals.\n\nBotó deixat anar: els paràmetres d'edició local al perfil sobreescriuran els actuals.
 PROFILEPANEL_MYPROFILES;Els meus perfils
 PROFILEPANEL_PASTEPPASTE;Paràmetres a enganxar
 PROFILEPANEL_PCUSTOM;Personalitzat
@@ -1269,8 +1277,8 @@ SAVEDLG_SUBSAMP_TOOLTIP;Millor compressió:\nJ:a:b 4:2:0\nh/v 2/2\nCroma dividid
 SAVEDLG_TIFFUNCOMPRESSED;TIFF sense compressió
 SAVEDLG_WARNFILENAME;S'assignarà un nom al fitxer
 SHCSELECTOR_TOOLTIP;Cliqueu amb el botó dret del ratolí per restablir la posició d'aquests 3 controls lliscants.
-SOFTPROOF_GAMUTCHECK_TOOLTIP;Ressalta els píxels amb colors fora de rang pel que fa al perfil de sortida.
-SOFTPROOF_GAMUTCHECK_MONITOR_TOOLTIP;Ressalta els píxels amb colors fora de rang pel que fa a:\n- el perfil de la prova en pantalla, si està establert i la prova en pantalla està activada,\n- el perfil del monitor, si la prova en pantalla està desactivada.
+SOFTPROOF_GAMUTCHECK_MONITOR_TOOLTIP;Ressalta els píxels amb colors fora de rang pel que fa al perfil del monitor.
+SOFTPROOF_GAMUTCHECK_TOOLTIP;Ressalta els píxels amb colors fora de rang pel que fa a:\n- el perfil de prova en pantalla, si està establert i la prova en pantalla està activada,\n- el perfil de sortida, si la prova en pantalla està desactivada.
 SOFTPROOF_TOOLTIP;La prova en pantalla simula l'aparença de la imatge quan la reprodueix una impressora o monitor específic, si s'ha establert un perfil adequat a Preferències > Gestió de color.\n(Manteniu premuda la tecla <b>Ctrl</b> mentre feu clic per canviar el perfil de la prova en pantalla.)
 THRESHOLDSELECTOR_B;Inferior
 THRESHOLDSELECTOR_BL;Inferior esquerre
@@ -1372,6 +1380,8 @@ TP_COLORCORRECTION_H;To
 TP_COLORCORRECTION_S;Saturació
 TP_COLORCORRECTION_HUESAT;To/Saturació
 TP_COLORCORRECTION_HUESHIFT;Alteració de to
+TP_COLORCORRECTION_LUT_FILENAME;Fitxer LUT
+TP_COLORCORRECTION_MODE_LUT;LUT
 TP_CROP_FIXRATIO;Bloqueja l'aspecte
 TP_CROP_GTDIAGONALS;Regla de diagonals
 TP_CROP_GTEPASSPORT;Passaport biomètric
@@ -1635,10 +1645,10 @@ TP_LABMASKS_DRAWNMASK_PEN_SETTINGS;Configuració de pinzell
 TP_LABMASKS_DRAWNMASK_RESET_TIP;Esborra tots els traços
 TP_LABMASKS_DRAWNMASK_UNDO_TIP;Esborra l'últim grup de traços
 TP_LABMASKS_DRAWNMASK_RADIUS;Radi
-TP_LABMASKS_DRAWNMASK_TRANSPARENCY;Transparència
+TP_LABMASKS_DRAWNMASK_OPACITY;Opacitat
 TP_LABMASKS_DRAWNMASK_SMOOTHNESS;Suavitzat
 TP_LABMASKS_DRAWNMASK_ERASE;Mode esborrador
-TP_LABMASKS_DRAWNMASK_HARDNESS;Duresa
+TP_LABMASKS_DRAWNMASK_GLOBAL;Opcions globals
 TP_LABMASKS_DRAWNMASK_INFO;%1 traç(os)
 TP_LABMASKS_DRAWNMASK_INTERSECT_TOOLTIP;Interseca la màscara de pinzell amb les altres màscares
 TP_LABMASKS_DRAWNMASK_ADD_TOOLTIP;Afegeix la màscara de pinzell sobre les altres màscares
@@ -1650,7 +1660,8 @@ TP_LABMASKS_POSTPROCESS_POSTERIZATION;Posterització
 TP_LABMASKS_POSTPROCESS_SMOOTHING;Suavitzat
 TP_LENSGEOM_AUTOCROP;Retallada automàtica
 TP_LENSGEOM_FILL;Emplenat automàtic
-TP_LENSGEOM_LABEL;Lent / Geometria
+TP_GEOM_LABEL;Geometria
+TP_LENS_LABEL;Lent
 TP_LENSPROFILE_CORRECTION_AUTOMATCH;Automàtic des de la base de dades
 TP_LENSPROFILE_CORRECTION_EXIF;Incrustat a les metadades
 TP_LENSPROFILE_CORRECTION_LCPFILE;Fitxer LCP
@@ -1673,6 +1684,7 @@ TP_LOGENC_WHITE_EV;Exposició relativa al blanc (Ev)
 TP_LOGENC_TARGET_GRAY;Punt gris destí (brillantor)
 TP_LOGENC_LABEL;Mapeig de tons logarítmic
 TP_LOGENC_REGULARIZATION;Regularització
+TP_LOGENC_HLCOMPRESSION;Precompressió d'altes llums
 TP_METADATA_EDIT;Aplica modificacions
 TP_METADATA_MODE;Mode de còpia de metadades
 TP_METADATA_STRIP;Elimina totes les metadades
@@ -1920,6 +1932,7 @@ TP_TONE_EQUALIZER_BAND_4;Blancs
 TP_TONE_EQUALIZER_DETAIL;Regularització
 TP_TONE_EQUALIZER_LABEL;Equalitzador tonal
 TP_TONE_EQUALIZER_SHOW_COLOR_MAP;Mostra mapa tonal
+TP_TONE_EQUALIZER_PIVOT;Pivot (Ev)
 TP_VIGNETTING_AMOUNT;Quantitat
 TP_VIGNETTING_CENTER_X;Centre X
 TP_VIGNETTING_CENTER_Y;Centre Y

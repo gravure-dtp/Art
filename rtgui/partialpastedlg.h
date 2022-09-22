@@ -27,7 +27,8 @@
 
 class PartialPasteDlg: public Gtk::Dialog {
 public:
-    PartialPasteDlg (const Glib::ustring &title, Gtk::Window* parent);
+    PartialPasteDlg(const Glib::ustring &title, Gtk::Window* parent);
+    void set_allow_3way(bool yes) { allow_3way_ = yes; }
     ParamsEdited getParamsEdited();
 
 private:
@@ -41,8 +42,10 @@ private:
         std::vector<Gtk::CheckButton *> related;
         bool is_master;
         bool *edited;
+        unsigned *edited3;
     };
     std::unordered_map<Gtk::CheckButton *, ButtonInfo> buttons_;
+    bool allow_3way_;
 
     void toggled(Gtk::CheckButton *which);
 };

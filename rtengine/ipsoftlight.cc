@@ -30,7 +30,6 @@ namespace {
 
 inline float sl(float blend, float x)
 {
-    x = CLIP(x);
     float v = Color::gamma_srgb(x) / MAXVALF;
     // Pegtop's formula from
     // https://en.wikipedia.org/wiki/Blend_modes#Soft_Light
@@ -60,14 +59,24 @@ void ImProcFunctions::softLight(Imagefloat *rgb)
         f[i] = sl(blend, i);
     }
 
+    const auto apply =
+        [&](float x) -> float
+        {
+            if (x <= 65535.f) {
+                return f[x];
+            } else {
+                return x;
+            }
+        };
+
 #ifdef _OPENMP
     #pragma omp parallel for
 #endif
     for (int y = 0; y < rgb->getHeight(); ++y) {
         for (int x = 0; x < rgb->getWidth(); ++x) {
-            rgb->r(y, x) = f[rgb->r(y, x)];
-            rgb->g(y, x) = f[rgb->g(y, x)];
-            rgb->b(y, x) = f[rgb->b(y, x)];
+            rgb->r(y, x) = apply(rgb->r(y, x));
+            rgb->g(y, x) = apply(rgb->g(y, x));
+            rgb->b(y, x) = apply(rgb->b(y, x));
         }
     }
 }

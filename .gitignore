@@ -42,3 +42,4 @@ clean
 *.xz
 *.zip
 
+.DS_Store

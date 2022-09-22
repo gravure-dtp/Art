@@ -732,7 +732,7 @@ rtengine::ProcessingJob* BatchQueue::imageReady(rtengine::IImagefloat* img)
             // We keep the extension to avoid overwriting the profile when we have
             // the same output filename with different extension
             //processing->params.save (removeExtension(fname) + paramFileExtension);
-            if (batch_profile_) {
+            if (batch_profile_ && processing->use_batch_profile) {
                 batch_profile_->applyTo(processing->params);
             }
             auto sidecar = fname + ".out" + paramFileExtension;

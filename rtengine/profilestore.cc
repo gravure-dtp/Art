@@ -144,12 +144,12 @@ void ProfileStore::_parseProfiles ()
     // entries and partProfiles are empty, but the entry and profiles already exist (they have survived to clearFileList and clearProfileList)
     if (!internalDefaultEntry) {
         assert(!internalDefaultProfile);
-        internalDefaultProfile = new rtengine::procparams::FilePartialProfile(nullptr, "", true);
-        internalDefaultEntry = new ProfileStoreEntry (Glib::ustring ("(") + M ("PROFILEPANEL_PINTERNAL") + Glib::ustring (")"), PSET_FILE, 0, 0);
+        internalDefaultProfile = new rtengine::procparams::FullPartialProfile(rtengine::procparams::ProcParams());
+        internalDefaultEntry = new ProfileStoreEntry(Glib::ustring ("(") + M ("PROFILEPANEL_PINTERNAL") + Glib::ustring (")"), PSET_FILE, 0, 0);
     }
 
     entries.push_back (internalDefaultEntry);
-    partProfiles[internalDefaultEntry] = *internalDefaultProfile; 
+    //partProfiles[internalDefaultEntry] = *internalDefaultProfile; 
 
     if (!internalDynamicEntry) {
         internalDynamicEntry = new ProfileStoreEntry (Glib::ustring ("(") + M ("PROFILEPANEL_PDYNAMIC") + Glib::ustring (")"), PSET_FILE, 0, 0);
@@ -242,7 +242,7 @@ bool ProfileStore::parseDir (Glib::ustring& realPath, Glib::ustring& virtualPath
                         entries.push_back (filePSE);
 
                         // map the partial profile
-                        partProfiles[filePSE] = FilePartialProfile(pl_, fname);
+                        partProfiles[filePSE] = FilePartialProfile(pl_, fname, false);
                     } else if (options.rtSettings.verbose > 1) {
                         printf ("failed!\n");
                     }
@@ -376,6 +376,10 @@ const PartialProfile *ProfileStore::getProfile(const ProfileStoreEntry* entry)
     }
 
     MyMutex::MyLock lock (parseMutex);
+
+    if (entry == internalDefaultEntry) {
+        return internalDefaultProfile;
+    }
 
     auto iter = partProfiles.find(entry);
 
@@ -516,7 +520,7 @@ std::unique_ptr<PartialProfile> ProfileStore::loadDynamicProfile(const FramesMet
                 printf("found matching profile %s\n", rule.profilepath.c_str());
             }
 
-            FilePartialProfile fp(pl_, pth);
+            FilePartialProfile fp(pl_, pth, false);
             if (!fp.applyTo(pp)) {
                 printf ("ERROR loading matching profile from: %s\n", pth.c_str());
             }

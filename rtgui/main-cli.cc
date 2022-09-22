@@ -40,6 +40,7 @@
 #include "pathutils.h"
 #include "../rtengine/profilestore.h"
 #include "fastexport.h"
+#include "makeicc.h"
 
 #ifndef WIN32
 #include <glibmm/fileutils.h>
@@ -72,27 +73,7 @@ Glib::ustring argv1;
 bool progress = false;
 //bool simpleEditor;
 
-namespace
-{
-
-// For an unknown reason, Glib::filename_to_utf8 doesn't work on reliably Windows,
-// so we're using Glib::filename_to_utf8 for Linux/Apple and Glib::locale_to_utf8 for Windows.
-Glib::ustring fname_to_utf8 (const char* fname)
-{
-#ifdef WIN32
-
-    try {
-        return Glib::locale_to_utf8 (fname);
-    } catch (Glib::Error&) {
-        return Glib::convert_with_fallback (fname, "UTF-8", "ISO-8859-1", "?");
-    }
-
-#else
-
-    return Glib::filename_to_utf8 (fname);
-
-#endif
-}
+namespace {
 
 bool fast_export = false;
 
@@ -124,9 +105,17 @@ int main (int argc, char **argv)
 #ifdef WITH_MIMALLOC
     mi_version();
 #endif
-    
+
     setlocale (LC_ALL, "");
     setlocale (LC_NUMERIC, "C"); // to set decimal point to "."
+
+    if (argc > 1 && std::string(argv[1]) == "--make-icc") {
+        std::vector<std::string> args;
+        for (int i = 2; i < argc; ++i) {
+            args.push_back(argv[i]);
+        }
+        return ART_makeicc_main(std::cout, args);
+    }
 
     Gio::init ();
 
@@ -268,6 +257,8 @@ std::pair<bool, int> dontLoadCache(int argc, char **argv)
             case '?':
             case 'h':
                 ART_print_help(argv[0], false);
+                std::cout << "\nOptions for --make-icc:\n";
+                ART_makeicc_help(std::cout, 2);
                 exit(0);
             case 'V':
                 ++verbose;
@@ -421,7 +412,7 @@ int processLineParams ( int argc, char **argv )
                             return -3;
                         }
 
-                        PartialProfile currentParams(new rtengine::procparams::FilePartialProfile(nullptr, fname));
+                        PartialProfile currentParams(new rtengine::procparams::FilePartialProfile(nullptr, fname, false));
 
                         if (check_partial_profile(currentParams)) {
                             processingParams.push_back(std::move(currentParams));
@@ -670,13 +661,15 @@ int processLineParams ( int argc, char **argv )
 
     if (useDefault) {
         Glib::ustring profPath = options.findProfilePath(options.defProfRaw);
-        Glib::ustring fname =
-            profPath == Options::DEFPROFILE_INTERNAL ?
-            Options::DEFPROFILE_INTERNAL :
-            Glib::build_filename(profPath,
-                                 Glib::path_get_basename(options.defProfRaw) +
-                                 paramFileExtension);
-        rawParams.reset(new rtengine::procparams::FilePartialProfile(nullptr, fname));
+        if (profPath == Options::DEFPROFILE_INTERNAL) {
+            rawParams.reset(new rtengine::procparams::FullPartialProfile());
+        } else {
+            Glib::ustring fname =
+                Glib::build_filename(profPath,
+                                     Glib::path_get_basename(options.defProfRaw) +
+                                     paramFileExtension);
+            rawParams.reset(new rtengine::procparams::FilePartialProfile(nullptr, fname, false));
+        }
 
         if (options.is_defProfRawMissing() || profPath.empty() || (profPath != Options::DEFPROFILE_DYNAMIC && !check_partial_profile(rawParams))) {
             std::cerr << "Error: default raw processing profile not found." << std::endl;
@@ -684,13 +677,15 @@ int processLineParams ( int argc, char **argv )
         }
 
         profPath = options.findProfilePath(options.defProfImg);
-        fname =
-            profPath == Options::DEFPROFILE_INTERNAL ?
-            Options::DEFPROFILE_INTERNAL :
-            Glib::build_filename(profPath,
-                                 Glib::path_get_basename(options.defProfImg) +
-                                 paramFileExtension);
-        imgParams.reset(new rtengine::procparams::FilePartialProfile(nullptr, fname));
+        if (profPath == Options::DEFPROFILE_INTERNAL) {
+            imgParams.reset(new rtengine::procparams::FullPartialProfile());
+        } else {
+            auto fname =
+                Glib::build_filename(profPath,
+                                     Glib::path_get_basename(options.defProfImg) +
+                                     paramFileExtension);
+            imgParams.reset(new rtengine::procparams::FilePartialProfile(nullptr, fname, false));
+        }
 
         if (options.is_defProfImgMissing() || profPath.empty() || (profPath != Options::DEFPROFILE_DYNAMIC && !check_partial_profile(imgParams))) {
             std::cerr << "Error: default non-raw processing profile not found." << std::endl;
@@ -785,14 +780,14 @@ int processLineParams ( int argc, char **argv )
         if (useDefault) {
             if (isRaw) {
                 if (options.defProfRaw == Options::DEFPROFILE_DYNAMIC) {
-                    rawParams = ProfileStore::getInstance()->loadDynamicProfile (ii->getMetaData());
+                    rawParams = ProfileStore::getInstance()->loadDynamicProfile(ii->getMetaData());
                 }
                 
                 cpl.info("Merging default raw processing profile.");
                 rawParams->applyTo(currentParams);
             } else {
                 if (options.defProfImg == Options::DEFPROFILE_DYNAMIC) {
-                    imgParams = ProfileStore::getInstance()->loadDynamicProfile (ii->getMetaData());
+                    imgParams = ProfileStore::getInstance()->loadDynamicProfile(ii->getMetaData());
                 }
 
                 cpl.info("Merging default non-raw processing profile.");

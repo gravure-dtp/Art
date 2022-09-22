@@ -94,6 +94,8 @@ protected:
     PParamsSnapshotListener *snapshotListener;
     bool shapshot_update_;
 
+    bool blistenerLock;
+    
     bool on_query_tooltip(int x, int y, bool keyboard_tooltip, const Glib::RefPtr<Gtk::Tooltip>& tooltip);
 
     std::vector<std::pair<Glib::ustring, rtengine::procparams::ProcParams>> getSnapshots();
@@ -113,6 +115,9 @@ public:
     {
         blistener = bll;
     }
+
+    void setBeforeAfterLock(bool yes);
+    bool getBeforeAfterLock() const { return blistenerLock; }
 
     // pparamschangelistener interface
     void procParamsChanged(
@@ -139,7 +144,6 @@ public:
     void undo ();
     void redo ();
 
-    bool blistenerLock;
     void resetSnapShotNumber()
     {
         bmnum = 1;

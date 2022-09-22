@@ -355,7 +355,7 @@ public:
         radius_->setLogScale(2, 0);
         vb->pack_start(*radius_);
 
-        hardness_ = Gtk::manage(new Adjuster(M("TP_LABMASKS_DRAWNMASK_HARDNESS"), 0, 100, 1, 100, Gtk::manage(new RTImage("pen-ocra-small.png"))));
+        hardness_ = Gtk::manage(new Adjuster(M("TP_LABMASKS_DRAWNMASK_OPACITY"), 0, 100, 1, 100, Gtk::manage(new RTImage("pen-ocra-small.png"))));
         vb->pack_start(*hardness_);
 
         erase_ = Gtk::manage(new Gtk::CheckButton(M("TP_LABMASKS_DRAWNMASK_ERASE")));
@@ -375,15 +375,20 @@ public:
         hb->pack_start(*grid, Gtk::PACK_SHRINK, 2);
         
         tb->pack_start(*hb);
+
+        auto glbl = Gtk::manage(new Gtk::Label(M("TP_LABMASKS_DRAWNMASK_GLOBAL")));
+        setExpandAlignProperties(glbl, false, false, Gtk::ALIGN_START, Gtk::ALIGN_CENTER);
+        tb->pack_start(*glbl);
+        tb->pack_start(*Gtk::manage(new Gtk::HSeparator()));
         
         feather_ = Gtk::manage(new Adjuster(M("TP_LABMASKS_AREA_FEATHER"), 0, 100, 0.1, 0));
         tb->pack_start(*feather_);
         feather_->setAdjusterListener(this);
         feather_->setLogScale(10.0, 0.0);
 
-        transparency_ = Gtk::manage(new Adjuster(M("TP_LABMASKS_DRAWNMASK_TRANSPARENCY"), 0, 100, 1, 0));
-        tb->pack_start(*transparency_);
-        transparency_->setAdjusterListener(this);
+        opacity_ = Gtk::manage(new Adjuster(M("TP_LABMASKS_DRAWNMASK_OPACITY"), 0, 100, 1, 0));
+        tb->pack_start(*opacity_);
+        opacity_->setAdjusterListener(this);
 
         smoothness_ = Gtk::manage(new Adjuster(M("TP_LABMASKS_DRAWNMASK_SMOOTHNESS"), 0, 100, 1, 0));
         tb->pack_start(*smoothness_);
@@ -414,7 +419,7 @@ public:
     {
         if (mask_) {
             mask_->feather = feather_->getValue();
-            mask_->transparency = transparency_->getValue() / 100.0;
+            mask_->opacity = rtengine::LIM01(opacity_->getValue() / 100.0);
             mask_->smoothness = smoothness_->getValue() / 100.0;
             sig_draw_updated_.emit();
         }
@@ -580,7 +585,7 @@ public:
                 info_->set_markup(Glib::ustring::compose(M("TP_LABMASKS_DRAWNMASK_INFO"), mask->strokes.size()));
                 setEnabled(mask->enabled);
                 feather_->setValue(mask->feather);
-                transparency_->setValue(mask->transparency * 100.0);
+                opacity_->setValue(rtengine::LIM01(mask->opacity) * 100.0);
                 smoothness_->setValue(mask->smoothness * 100.0);
                 contrast_->setCurve(mask->contrast);
                 set_mode(int(mask->mode));
@@ -725,7 +730,7 @@ private:
                     s.x = prev.x + (dx / steps) * i;
                     s.y = prev.y + (dy / steps) * i;
                     s.radius = prev.radius + (dr / steps) * i;
-                    s.hardness = hardness;
+                    s.opacity = hardness;
                     s.erase = erase;
 
                     brush_preview_->strokes.push_back(s);
@@ -738,7 +743,7 @@ private:
         s.x = x;
         s.y = y;
         s.radius = radius;
-        s.hardness = hardness;
+        s.opacity = hardness;
         s.erase = erase;
         info_->set_markup(Glib::ustring::compose(M("TP_LABMASKS_DRAWNMASK_INFO"), mask_->strokes.size()));
 
@@ -797,7 +802,7 @@ private:
             undo_stack_.clear();
             info_->set_markup(Glib::ustring::compose(M("TP_LABMASKS_DRAWNMASK_INFO"), mask_->strokes.size()));
             feather_->setValue(mask_->feather);
-            transparency_->setValue(mask_->transparency * 100.0);
+            opacity_->setValue(rtengine::LIM01(mask_->opacity) * 100.0);
             smoothness_->setValue(mask_->smoothness * 100.0);
             contrast_->setCurve(mask_->contrast);
             set_mode(int(mask_->mode));
@@ -832,10 +837,10 @@ private:
             p = 0;
             if (pressure_mode_ == PRESSURE_HARDNESS) {
                 for (size_t i = stroke_idx_; i < s.size(); ++i) {
-                    p = std::max(p, s[i].hardness);
+                    p = std::max(p, s[i].opacity);
                 }
                 for (size_t i = stroke_idx_; i < s.size(); ++i) {
-                    s[i].hardness = p;
+                    s[i].opacity = p;
                 }
             } else if (pressure_mode_ == PRESSURE_RADIUS) {
                 for (size_t i = stroke_idx_; i < s.size(); ++i) {
@@ -882,7 +887,7 @@ private:
     Gtk::Button *undo_;
     Adjuster *feather_;
     Adjuster *radius_;
-    Adjuster *transparency_;
+    Adjuster *opacity_;
     Adjuster *smoothness_;
     Adjuster *hardness_;
     Gtk::CheckButton *erase_;

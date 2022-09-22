@@ -34,7 +34,8 @@ private:
     void cycleUnitsLCH(GdkEventButton *event);
 
 protected:
-    Gtk::Label* dimension;
+    Gtk::Label* metaInfo;
+    Glib::ustring dimension;
     Gtk::Label* position;
     Gtk::Label *R, *G, *B;
     Gtk::Label *L, *C, *H;
@@ -54,6 +55,7 @@ public:
     //  void pointerMoved (bool validPos, int x, int y, int r, int g, int b);
     void pointerMoved (bool validPos, const Glib::ustring &profile, const Glib::ustring &profileW, int x, int y, int r, int g, int b, bool raw = false) override;
     void setInvalid (int fullWidth = -1, int fullHeight = -1);
+    void setMetaInfo (const rtengine::FramesMetaData* idata);
 
     void getRGBText (int r, int g, int b, Glib::ustring &sR, Glib::ustring &sG, Glib::ustring &sB, bool isRaw = false) override;
     void getLCHText (float l, float c, float h, Glib::ustring &sL, Glib::ustring &sC, Glib::ustring &sH) override;

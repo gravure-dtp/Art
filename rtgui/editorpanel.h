@@ -195,7 +195,7 @@ public:
     
 private:
 
-    BatchQueueEntry *createBatchQueueEntry(bool fast_export=false);
+    BatchQueueEntry *createBatchQueueEntry(bool fast_export, bool use_batch_queue_profile, const rtengine::procparams::PartialProfile *export_profile);
     bool idle_imageSaved(ProgressConnector<int> *pc, rtengine::IImagefloat* img, Glib::ustring fname, SaveFormat sf, rtengine::procparams::ProcParams &pparams);
     bool idle_saveImage(ProgressConnector<rtengine::IImagefloat*> *pc, Glib::ustring fname, SaveFormat sf, rtengine::procparams::ProcParams &pparams);
     bool idle_sendToGimp( ProgressConnector<rtengine::IImagefloat*> *pc, Glib::ustring fname);

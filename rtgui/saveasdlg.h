@@ -23,26 +23,12 @@
 #include "adjuster.h"
 #include "saveformatpanel.h"
 #include "options.h"
+#include "profilestorecombobox.h"
+#include "../rtengine/procparams.h"
 #include <unordered_map>
 
 
-class SaveAsDialog : public Gtk::Dialog, public FormatChangeListener {
-protected:
-    Gtk::FileChooserWidget *fchooser;
-    Gtk::CheckButton *autoSuffix;
-    Gtk::CheckButton *forceFormatOpts;
-    SaveFormatPanel *formatOpts;
-    Glib::ustring fname;
-    std::unordered_map<std::string, Glib::RefPtr<Gtk::FileFilter>> filters_;
-    Gtk::RadioButton* saveMethod[3]; /*  0 -> immediately
-                                      *  1 -> putToQueueHead
-                                      *  2 -> putToQueueTail
-                                      */
-    void forceFmtOptsSwitched();
-    void saveImmediatlyClicked();
-    void putToQueueClicked();
-    void fixExtension(const Glib::ustring &name, const Glib::ustring &format);
-
+class SaveAsDialog: public Gtk::Dialog, public FormatChangeListener {
 public:
     SaveAsDialog(const Glib::ustring &initialDir, Gtk::Window *parent);
 
@@ -63,4 +49,28 @@ public:
     void cancelPressed();
     void formatChanged(const Glib::ustring &format) override;
     bool keyPressed(GdkEventKey *event);
+
+    const rtengine::procparams::PartialProfile *getExportProfile();
+
+private:
+    Gtk::FileChooserWidget *fchooser;
+    Gtk::CheckButton *autoSuffix;
+    Gtk::CheckButton *forceFormatOpts;
+    SaveFormatPanel *formatOpts;
+    Glib::ustring fname;
+    std::unordered_map<std::string, Glib::RefPtr<Gtk::FileFilter>> filters_;
+    Gtk::RadioButton* saveMethod[3]; /*  0 -> immediately
+                                      *  1 -> putToQueueHead
+                                      *  2 -> putToQueueTail
+                                      */
+    Gtk::CheckButton *apply_export_profile_;
+    ProfileStoreComboBox *profiles_cb_;
+    sigc::connection apply_export_profile_conn_;
+    sigc::connection profiles_cb_conn_;
+    
+    void forceFmtOptsSwitched();
+    void saveImmediatlyClicked();
+    void putToQueueClicked();
+    void fixExtension(const Glib::ustring &name);
+    void exportProfileChanged();
 };

@@ -107,12 +107,6 @@ LUTf Color::denoiseIGammaTab;
 
 LUTf Color::igammatab_24_17;
 LUTf Color::gammatab_24_17a;
-LUTf Color::gammatab_13_2;
-LUTf Color::igammatab_13_2;
-LUTf Color::gammatab_115_2;
-LUTf Color::igammatab_115_2;
-LUTf Color::gammatab_145_3;
-LUTf Color::igammatab_145_3;
 
 /*
  * Munsell Lch correction
@@ -198,12 +192,6 @@ void Color::init ()
 
     igammatab_24_17(maxindex, 0);
     gammatab_24_17a(maxindex, LUT_CLIP_ABOVE | LUT_CLIP_BELOW);
-    gammatab_13_2(maxindex, 0);
-    igammatab_13_2(maxindex, 0);
-    gammatab_115_2(maxindex, 0);
-    igammatab_115_2(maxindex, 0);
-    gammatab_145_3(maxindex, 0);
-    igammatab_145_3(maxindex, 0);
 
     jzazbz_pq_(maxindex, 0);
     jzazbz_pq_inv_(maxindex, 0);
@@ -303,54 +291,6 @@ void Color::init ()
 
         for (int i = 0; i < maxindex; i++) {
             denoiseIGammaTab[i] = 65535.0 * igamma55 (i / 65535.0);
-        }
-
-#ifdef _OPENMP
-        #pragma omp section
-#endif
-
-        for (int i = 0; i < maxindex; i++) {
-            gammatab_13_2[i] = 65535.0 * gamma13_2 (i / 65535.0);
-        }
-
-#ifdef _OPENMP
-        #pragma omp section
-#endif
-
-        for (int i = 0; i < maxindex; i++) {
-            igammatab_13_2[i] = 65535.0 * igamma13_2 (i / 65535.0);
-        }
-
-#ifdef _OPENMP
-        #pragma omp section
-#endif
-
-        for (int i = 0; i < maxindex; i++) {
-            gammatab_115_2[i] = 65535.0 * gamma115_2 (i / 65535.0);
-        }
-
-#ifdef _OPENMP
-        #pragma omp section
-#endif
-
-        for (int i = 0; i < maxindex; i++) {
-            igammatab_115_2[i] = 65535.0 * igamma115_2 (i / 65535.0);
-        }
-
-#ifdef _OPENMP
-        #pragma omp section
-#endif
-
-        for (int i = 0; i < maxindex; i++) {
-            gammatab_145_3[i] = 65535.0 * gamma145_3 (i / 65535.0);
-        }
-
-#ifdef _OPENMP
-        #pragma omp section
-#endif
-
-        for (int i = 0; i < maxindex; i++) {
-            igammatab_145_3[i] = 65535.0 * igamma145_3 (i / 65535.0);
         }
 
 #ifdef _OPENMP
@@ -1278,8 +1218,11 @@ void Color::interpolateRGBColor (float realL, float iplow, float iphigh, int alg
     Color::xyz2rgb(X, Y, Z, ro, go, bo, rgb_xyz);// ro go bo in gamut
 }
 
-void Color::calcGamma (double pwr, double ts, int mode, GammaValues &gamma)
+void Color::compute_LCMS_tone_curve_params(double gamma, double slope, LMCSToneCurveParams &params)
 {
+    double ts = slope;
+    double pwr = 1.0 / gamma;
+    
     //from Dcraw (D.Coffin)
     int i;
     double g[6], bnd[2] = {0., 0.};
@@ -1313,17 +1256,15 @@ void Color::calcGamma (double pwr, double ts, int mode, GammaValues &gamma)
         g[5] = 1. / (g[1] * SQR(g[3]) / 2. + 1. - g[2] - g[3] - g[2] * g[3] * (log(g[3]) - 1.)) - 1.;
     }
 
-    if (!mode--) {
-        gamma[0] = g[0];
-        gamma[1] = g[1];
-        gamma[2] = g[2];
-        gamma[3] = g[3];
-        gamma[4] = g[4];
-        gamma[5] = g[5];
-        gamma[6] = 0.;
-        return;
-    }
+    params[0] = gamma;
+    params[1] = 1. / (1.0 + g[4]);
+    params[2] = g[4] / (1.0 + g[4]);
+    params[3] = 1. / std::max(slope, 1e-9);
+    params[4] = g[3] * ts;
+    params[5] = 0.;
+    params[6] = 0.;
 }
+
 void Color::gammaf2lut (LUTf &gammacurve, float gamma, float start, float slope, float divisor, float factor)
 {
 #ifdef __SSE2__
@@ -6939,5 +6880,124 @@ void Color::jzazbz2xyz(float Jz, float az, float bz, float &X, float &Y, float &
 
     XYZ_D65_to_D50(X, Y, Z);
 }
+
+
+//-----------------------------------------------------------------------------
+// oklab color space from https://bottosson.github.io/posts/oklab/
+//-----------------------------------------------------------------------------
+
+void Color::xyz2oklab(float X, float Y, float Z, float &L, float &a, float &b)
+{
+    XYZ_D50_to_D65(X, Y, Z);
+    
+    constexpr float M1[3][3] = {
+        {0.8189330101f, 0.3618667424f, -0.1288597137f},
+        {0.0329845436f, 0.9293118715f, 0.0361456387f},
+        {0.0482003018f, 0.2643662691f, 0.6338517070f}        
+    };
+    
+    A3 lms = dot_product(M1, A3(X, Y, Z));
+    for (int i = 0; i < 3; ++i) {
+        lms[i] = xcbrtf(lms[i]);
+    }
+    
+    constexpr float M2[3][3] = {
+        {0.2104542553f, 0.7936177850f, -0.0040720468f},
+        {1.9779984951f, -2.4285922050f, 0.4505937099f},
+        {0.0259040371f, 0.7827717662f, -0.8086757660f}
+    };
+
+    lms = dot_product(M2, lms);
+    
+    L = lms[0];
+    a = lms[1];
+    b = lms[2];
+}
+
+
+void Color::oklab2xyz(float L, float a, float b, float &X, float &Y, float &Z)
+{
+    constexpr float M2_inv[3][3] = {
+        {1.f, 0.39633779f, 0.21580376f},
+        {1.00000001f, -0.10556134f, -0.06385417f},
+        {1.00000005f, -0.08948418f, -1.29148554f}
+    };
+
+    A3 lms = dot_product(M2_inv, A3(L, a, b));
+    for (int i = 0; i < 3; ++i) {
+        lms[i] = SQR(lms[i])*lms[i];
+    }
+
+    constexpr float M1_inv[3][3] = {
+        {1.22701385f, -0.55779998f, 0.28125615f},
+        {-0.04058018f, 1.11225687f, -0.07167668f},
+        {-0.07638128f, -0.42148198f, 1.58616322}
+    };
+
+    lms = dot_product(M1_inv, lms);
+    X = lms[0];
+    Y = lms[1];
+    Z = lms[2];
+    
+    XYZ_D65_to_D50(X, Y, Z);
+}
+
+
+// https://www.itu.int/dms_pubrec/itu-r/rec/bt/R-REC-BT.2100-2-201807-I!!PDF-F.pdf
+// Perceptual Quantization / SMPTE standard ST.2084
+float Color::eval_PQ_curve(float x, bool oetf)
+{
+    constexpr float M1 = 2610.0 / 16384.0;
+    constexpr float M2 = (2523.0 / 4096.0) * 128.0;
+    constexpr float C1 = 3424.0 / 4096.0;
+    constexpr float C2 = (2413.0 / 4096.0) * 32.0;
+    constexpr float C3 = (2392.0 / 4096.0) * 32.0;
+
+    if (x == 0.f) {
+        return 0.f;
+    }
+
+    float res = 0.f;
+    if (oetf) {
+        // assume 1.0 is 100 nits, normalise so that 1.0 is 10000 nits
+        float p = std::pow(std::max(x, 0.f) / 100.f, M1);
+        float num = C1 + C2 * p;
+        float den = 1.f + C3 * p;
+        res = std::pow(num / den, M2);
+    } else {
+        float p = std::pow(x, 1.f / M2);
+        float num = std::max(p - C1, 0.f);
+        float den = C2 - C3 * p;
+        res = std::pow(num / den, 1.f / M1) * 100.f;
+    }
+    return res;
+}
+
+
+// https://www.itu.int/dms_pubrec/itu-r/rec/bt/R-REC-BT.2100-2-201807-I!!PDF-F.pdf
+// Hybrid Log-Gamma
+float Color::eval_HLG_curve(float x, bool oetf)
+{
+    constexpr float A = 0.17883277f;
+    constexpr float B = 0.28466892f; // 1.f - 4.f * A
+    constexpr float C = 0.55991072953f; // 0.5f - A * std::log(4.f * A)
+
+    if (x == 0.f) {
+        return 0.f;
+    }
+
+    float res = 0.f;
+    if (oetf) {
+        // assume 1.0 is 100 nits, normalise so that 1.0 is 1000 nits
+        float e = LIM01(x / 10.f);
+        res = (e <= 1.f/12.f) ? std::sqrt(3.f * e) : A * std::log(12.f * e - B) + C;
+    } else {
+        res = (x <= 0.5f) ? SQR(x) / 3.f : (std::exp((x - C) / A) + B) / 12.f;
+        res *= 10.f;
+    }
+
+    return res;
+}
+
 
 } // namespace rtengine

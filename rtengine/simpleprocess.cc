@@ -577,7 +577,7 @@ void batchProcessingThread (ProcessingJob* job, BatchProcessingListener* bpl)
 
     while (currentJob) {
         auto p = bpl->getBatchProfile();
-        if (p) {
+        if (p && static_cast<ProcessingJobImpl *>(currentJob)->use_batch_profile) {
             p->applyTo(static_cast<ProcessingJobImpl *>(currentJob)->pparams);
         }
 

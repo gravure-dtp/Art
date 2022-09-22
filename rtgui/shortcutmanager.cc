@@ -96,6 +96,7 @@ bool ToolShortcutManager::keyPressed(GdkEventKey *event)
             return true;
         case GDK_KEY_asterisk:
         case GDK_KEY_KP_Multiply:
+        case GDK_KEY_0:
             doit(DIRECTION_ZERO);
             return true;
         case GDK_KEY_slash:

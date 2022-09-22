@@ -81,6 +81,7 @@ private:
     void syncSlidersToggled();
     void wheelChanged();
     void hslWheelChanged(int c);
+    void lutChanged();
     
     rtengine::ProcEvent EvEnabled;
     rtengine::ProcEvent EvColorWheel;
@@ -95,6 +96,7 @@ private:
     rtengine::ProcEvent EvRgbLuminance;
     rtengine::ProcEvent EvHueShift;
     rtengine::ProcEvent EvCompression;
+    rtengine::ProcEvent EvLUT;
 
     rtengine::ProcEvent EvList;
     rtengine::ProcEvent EvParametricMask;
@@ -121,11 +123,16 @@ private:
     Gtk::VBox *box_combined;
     Gtk::VBox *box_rgb;
     Gtk::VBox *box_hsl;
+    Gtk::HBox *box_lut;
     
     ColorWheel *wheel;
     Adjuster *inSaturation;
     Adjuster *outSaturation;
     Adjuster *hueshift;
+    Gtk::DrawingArea *hueshift_bar;
+    Gtk::Frame *hueframe;
+    Gtk::Frame *satframe;
+    MyFileChooserButton *lut_filename;
     
     Adjuster *slope;
     Adjuster *offset;

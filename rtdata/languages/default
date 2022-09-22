@@ -217,6 +217,7 @@ FILECHOOSER_FILTER_LCP;Lens correction profiles
 FILECHOOSER_FILTER_PP;Processing profiles
 FILECHOOSER_FILTER_SAME;Same format as current photo
 FILECHOOSER_FILTER_TIFF;TIFF files
+FILECHOOSER_FILTER_LUT;Supported LUT files
 GENERAL_ABOUT;About
 GENERAL_AFTER;After
 GENERAL_APPLY;Apply
@@ -527,6 +528,7 @@ HISTORY_MSG_COLORCORRECTION_DELTAEMASK;CC - color similarity mask
 HISTORY_MSG_COLORCORRECTION_DRAWNMASK;CC - brush mask
 HISTORY_MSG_COLORCORRECTION_PARAMETRICMASK;CC - parametric mask
 HISTORY_MSG_COLORCORRECTION_MASK_POSTPROCESS;CC - mask post-processing
+HISTORY_MSG_COLORCORRECTION_LUT;CC - LUT
 HISTORY_MSG_COLORTONING_LABGRID_VALUE;CC - Color correction
 HISTORY_MSG_DENOISE_CHROMINANCE_AUTO_FACTOR;NR - auto chroma strength
 HISTORY_MSG_DENOISE_GUIDED_CHROMA_RADIUS;NR - Fin. smooth. C
@@ -597,6 +599,8 @@ HISTORY_MSG_LOGENC_BLACK_EV;Log - Black Ev
 HISTORY_MSG_LOGENC_GAIN;Log - Gain
 HISTORY_MSG_LOGENC_WHITE_EV;Log - White Ev
 HISTORY_MSG_LOGENC_TARGET_GRAY;Log - Target gray point
+HISTORY_MSG_LOGENC_SATCONTROL;Log - Saturation control
+HISTORY_MSG_LOGENC_HLCOMPRESSION;Log - Highlight precompression
 HISTORY_MSG_METADATA_MODE;Metadata copy mode
 HISTORY_MSG_MICROCONTRAST_CONTRAST;Microcontrast - Contrast threshold
 HISTORY_MSG_PCVIGNETTE_CENTER;VF - Center
@@ -835,7 +839,7 @@ MAIN_TOOLTIP_BACKCOLOR0;Background color of the preview: <b>theme-based</b>\nSho
 MAIN_TOOLTIP_BACKCOLOR1;Background color of the preview: <b>black</b>\nShortcut: <b>9</b>
 MAIN_TOOLTIP_BACKCOLOR2;Background color of the preview: <b>white</b>\nShortcut: <b>9</b>
 MAIN_TOOLTIP_BACKCOLOR3;Background color of the preview: <b>middle grey</b>\nShortcut: <b>9</b>
-MAIN_TOOLTIP_BEFOREAFTERLOCK;<b>Lock</b> / <b>Unlock</b> the <b>Before</b> view\n\n<b>Lock</b>: keep the <b>Before</b> view unchanged.\nUseful to evaluate the cumulative effect of multiple tools.\nAdditionally, comparisons can be made to any state in the History.\n\n<b>Unlock</b>: the <b>Before</b> view will follow the <b>After</b> view one step behind, showing the image before the effect of the currently used tool.
+MAIN_TOOLTIP_BEFOREAFTERLOCK;<b>Lock</b> / <b>Unlock</b> the <b>Before</b> view\n\n<b>Lock</b>: keep the <b>Before</b> view unchanged.\n<b>Unlock</b>: the <b>Before</b> view is kept in sync with the <b>After</b> view.
 MAIN_TOOLTIP_FALSECOLORS;Toggle exposure indication using false color.\nShortcut: <b>Shift-e</b>\n\nKey (IRE range):\n%1
 MAIN_TOOLTIP_HIDEHP;Show/Hide the left panel (including the history).\nShortcut: <b>l</b>
 MAIN_TOOLTIP_INDCLIPPEDH;Clipped highlight indication.\nShortcut: <b>&gt;</b>
@@ -849,7 +853,7 @@ MAIN_TOOLTIP_PREVIEWSHARPMASK;Preview the <b>sharpening contrast mask</b>.\nShor
 MAIN_TOOLTIP_QINFO;Quick info on the image.\nShortcut: <b>Shift-i</b>
 MAIN_TOOLTIP_SHOWHIDELP1;Show/Hide the left panel.\nShortcut: <b>l</b>
 MAIN_TOOLTIP_SHOWHIDERP1;Show/Hide the right panel.\nShortcut: <b>Ctrl-l</b>
-MAIN_TOOLTIP_SHOWHIDETP1;Show/Hide the top panel.\nShortcut: <b>Shift-l</b>
+MAIN_TOOLTIP_SHOWHIDETP1;Show/Hide the filmstrip panel.\nShortcut: <b>Shift-l</b>
 MAIN_TOOLTIP_THRESHOLD;Threshold
 MAIN_TOOLTIP_TOGGLE;Toggle the <b>Before</b>/<b>After</b> view.\nShortcut: <b>Shift-a</b>
 METADATA_LOAD_ERROR;Error loading metadata from %1: %2
@@ -1117,7 +1121,7 @@ PREFERENCES_SHOWEXPOSURECOMPENSATION;Append exposure compensation
 PREFERENCES_SHOWFILMSTRIPTOOLBAR;Show Filmstrip toolbar
 PREFERENCES_SHTHRESHOLD;Threshold for clipped shadows
 PREFERENCES_SINGLETAB;Single Editor Tab Mode
-PREFERENCES_SINGLETABVERTAB;Single Editor Tab Mode, Vertical Tabs
+PREFERENCES_SINGLETABBOTTOM;Single Editor Tab Mode, Filmstrip below Editor
 PREFERENCES_SND_HELP;Enter a full file path to set a sound, or leave blank for no sound.\nFor system sounds on Windows use "SystemDefault", "SystemAsterisk" etc., and on Linux use "complete", "window-attention" etc.
 PREFERENCES_SND_LNGEDITPROCDONE;Editor processing done
 PREFERENCES_SND_BATCHQUEUEDONE;Queue processing done
@@ -1160,7 +1164,7 @@ PROFILEPANEL_GLOBALPROFILES;Bundled profiles
 PROFILEPANEL_LABEL;Processing Profiles
 PROFILEPANEL_LOADDLGLABEL;Load Processing Parameters...
 PROFILEPANEL_LOADPPASTE;Parameters to load
-PROFILEPANEL_MODE_TIP;Processing profile fill mode.\n\nButton pressed: partial profiles will be converted to full profiles; the missing values will be replaced with hard-coded defaults.\n\nButton released: profiles will be applied as they are, altering only those values which they contain.
+PROFILEPANEL_MODE_TIP;Processing profile append mode for local editing tools.\n\nButton pressed: local editing parameters in the profile will be appended to the current ones.\n\nButton released: local editing parameters in the profile will overwrite the current ones.
 PROFILEPANEL_MYPROFILES;My profiles
 PROFILEPANEL_PASTEPPASTE;Parameters to paste
 PROFILEPANEL_PCUSTOM;Custom
@@ -1253,8 +1257,8 @@ SAVEDLG_SUBSAMP_TOOLTIP;Best compression:\nJ:a:b 4:2:0\nh/v 2/2\nChroma halved h
 SAVEDLG_TIFFUNCOMPRESSED;Uncompressed TIFF
 SAVEDLG_WARNFILENAME;File will be named
 SHCSELECTOR_TOOLTIP;Click right mouse button to reset the position of those 3 sliders.
-SOFTPROOF_GAMUTCHECK_TOOLTIP;Highlight pixels with out-of-gamut colors with respect to the output profile.
-SOFTPROOF_GAMUTCHECK_MONITOR_TOOLTIP;Highlight pixels with out-of-gamut colors with respect to:\n- the soft-proofing profile, if one is set and soft-proofing is enabled,\n- the monitor profile, if soft-proofing is disabled.
+SOFTPROOF_GAMUTCHECK_MONITOR_TOOLTIP;Highlight pixels with out-of-gamut colors with respect to the monitor profile.
+SOFTPROOF_GAMUTCHECK_TOOLTIP;Highlight pixels with out-of-gamut colors with respect to:\n- the soft-proofing profile, if one is set and soft-proofing is enabled,\n- the output profile, if soft-proofing is disabled.
 SOFTPROOF_TOOLTIP;Soft-proofing simulates the appearance of the image when reproduced by a specific printer or monitor, if a proper profile is set in Preferences > Color Management.\n(Hold <b>Ctrl</b> while clicking to change the soft-proofing profile.)
 THRESHOLDSELECTOR_B;Bottom
 THRESHOLDSELECTOR_BL;Bottom-left
@@ -1356,6 +1360,8 @@ TP_COLORCORRECTION_H;Hue
 TP_COLORCORRECTION_S;Saturation
 TP_COLORCORRECTION_HUESAT;Hue/Saturation
 TP_COLORCORRECTION_HUESHIFT;Hue shift
+TP_COLORCORRECTION_LUT_FILENAME;LUT file
+TP_COLORCORRECTION_MODE_LUT;LUT
 TP_CROP_FIXRATIO;Lock ratio
 TP_CROP_GTDIAGONALS;Rule of Diagonals
 TP_CROP_GTEPASSPORT;Biometric Passport
@@ -1619,10 +1625,10 @@ TP_LABMASKS_DRAWNMASK_PEN_SETTINGS;Brush settings
 TP_LABMASKS_DRAWNMASK_RESET_TIP;Clear all strokes
 TP_LABMASKS_DRAWNMASK_UNDO_TIP;Remove the last group of strokes
 TP_LABMASKS_DRAWNMASK_RADIUS;Radius
-TP_LABMASKS_DRAWNMASK_TRANSPARENCY;Transparency
+TP_LABMASKS_DRAWNMASK_OPACITY;Opacity
 TP_LABMASKS_DRAWNMASK_SMOOTHNESS;Smoothness
 TP_LABMASKS_DRAWNMASK_ERASE;Eraser mode
-TP_LABMASKS_DRAWNMASK_HARDNESS;Hardness
+TP_LABMASKS_DRAWNMASK_GLOBAL;Global settings
 TP_LABMASKS_DRAWNMASK_INFO;%1 stroke(s)
 TP_LABMASKS_DRAWNMASK_INTERSECT_TOOLTIP;Intersect the brush mask with the other masks
 TP_LABMASKS_DRAWNMASK_ADD_TOOLTIP;Add the brush mask on top of the other masks
@@ -1658,6 +1664,7 @@ TP_LOGENC_WHITE_EV;White relative exposure (Ev)
 TP_LOGENC_TARGET_GRAY;Target gray point (brightness)
 TP_LOGENC_LABEL;Log Tone Mapping
 TP_LOGENC_REGULARIZATION;Regularization
+TP_LOGENC_HLCOMPRESSION;Highlights precompression
 TP_METADATA_EDIT;Apply modifications
 TP_METADATA_MODE;Metadata copy mode
 TP_METADATA_STRIP;Strip all metadata

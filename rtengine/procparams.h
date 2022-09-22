@@ -218,7 +218,7 @@ struct DrawnMask {
         double x; // [0,1], with 0 as leftmost point of the image
         double y; // [0,1]
         double radius; // [0,1], with 1 as 10% of the image smallest dimension
-        double hardness; // [0,1] with 1 as opaque (strongest)
+        double opacity; // [0,1] with 1 as opaque (strongest)
         bool erase;
         Stroke();
         bool operator==(const Stroke &other) const;
@@ -226,7 +226,7 @@ struct DrawnMask {
     };
     bool enabled;
     double feather; // [0,100]    
-    double transparency; // [0,1] (0 = opaque, 1 = fully transparent)
+    double opacity; // [0,1] (1 = opaque, 0 = fully transparent)
     double smoothness; // [0,1] (0 = harsh edges, 1 = fully blurred)
     std::vector<double> contrast; // curve
     std::vector<Stroke> strokes;
@@ -538,6 +538,7 @@ struct ToneCurveParams {
     bool histmatching; // histogram matching
     bool fromHistMatching;
     std::vector<double> saturation;
+    std::vector<double> saturation2;
     int perceptualStrength;
     bool contrastLegacyMode;
     double whitePoint;
@@ -767,6 +768,8 @@ struct LogEncodingParams {
     double blackEv;
     double whiteEv;
     int regularization;
+    bool satcontrol;
+    int highlightCompression;
 
     LogEncodingParams();
 
@@ -1279,7 +1282,8 @@ struct ColorCorrectionParams {
         YUV,
         RGB,
         HSL,
-        JZAZBZ
+        JZAZBZ,
+        LUT
     };
     struct Region {
         double a;
@@ -1297,6 +1301,7 @@ struct ColorCorrectionParams {
         std::array<double, 3> compression;
         bool rgbluminance;
         double hueshift;
+        Glib::ustring lutFilename;
         Mode mode;
 
         Region();
@@ -1671,6 +1676,7 @@ public:
 
 class FullPartialProfile: public PartialProfile {
 public:
+    FullPartialProfile();
     explicit FullPartialProfile(const ProcParams &pp);
     bool applyTo(ProcParams &pp) const override;
 
@@ -1681,14 +1687,14 @@ private:
 
 class FilePartialProfile: public PartialProfile {
 public:
-    FilePartialProfile(): pl_(nullptr), fname_(""), full_(true) {}
-    explicit FilePartialProfile(ProgressListener *pl, const Glib::ustring &fname, bool full=false);
+    FilePartialProfile(): pl_(nullptr), fname_(""), append_(false) {}
+    FilePartialProfile(ProgressListener *pl, const Glib::ustring &fname, bool append);
     bool applyTo(ProcParams &pp) const override;
 
 private:
     ProgressListener *pl_;
     Glib::ustring fname_;
-    bool full_;
+    bool append_;
 };
 
 

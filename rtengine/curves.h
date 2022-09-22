@@ -17,8 +17,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef __CURVES_H__
-#define __CURVES_H__
+#pragma once
 
 #include <map>
 #include <string>
@@ -39,6 +38,7 @@
 #define CURVES_MIN_POLY_POINTS  1000
 
 #include "rt_math.h"
+#include "linalgebra.h"
 
 #define CLIPI(a) ((a)>0?((a)<65534?(a):65534):0)
 
@@ -598,9 +598,11 @@ public:
     struct ApplyState {
         float ws[3][3];
         float iws[3][3];
-        float whitepoint;
+        Mat33<float> to_work;
+        Mat33<float> to_out;
+        LUTf hcurve;
         
-        explicit ApplyState(const Glib::ustring &workingSpace, float whitept);
+        explicit ApplyState(const Glib::ustring &workingSpace, const Glib::ustring &outprofile);
     };
     void BatchApply(const size_t start, const size_t end, float *r, float *g, float *b, const ApplyState &state) const;
 };
@@ -922,4 +924,3 @@ inline void SatAndValueBlendingToneCurve::Apply (float& ir, float& ig, float& ib
 
 #undef CLIPI
 
-#endif

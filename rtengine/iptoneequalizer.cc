@@ -56,13 +56,13 @@ const std::vector<std::array<float, 3>> colormap = {
     {0.5f, 0.f, 0.5f},
     {0.5f, 0.f, 0.5f},
     {0.5f, 0.f, 0.5f},
-    {0.5f, 0.f, 0.5f},
     {0.5f, 0.f, 0.5f}, // blacks
     {0.f, 0.f, 1.f}, // shadows
     {0.5f, 0.5f, 0.5f}, // midtones
     {1.f, 1.f, 0.f}, // highlights
     {1.f, 0.f, 0.f}, // whites
     {1.f, 0.f, 0.f}, 
+    {1.f, 0.f, 0.f},
     {1.f, 0.f, 0.f}
 };
 
@@ -88,8 +88,8 @@ void tone_eq(array2D<float> &R, array2D<float> &G, array2D<float> &B, const Tone
      // Build the luma channels: band-pass filters with gaussian windows of
      // std 2 EV, spaced by 2 EV
     const float centers[12] = {
-        -18.0f, -16.0f, -14.0f, -12.0f, -10.0f, -8.0f, -6.0f,
-        -4.0f, -2.0f, 0.0f, 2.0f, 4.0f
+        -16.0f, -14.0f, -12.0f, -10.0f, -8.0f, -6.0f,
+        -4.0f, -2.0f, 0.0f, 2.0f, 4.0f, 6.0f
     };
 
     const auto conv = [&](int v, float lo, float hi) -> float
@@ -99,7 +99,6 @@ void tone_eq(array2D<float> &R, array2D<float> &G, array2D<float> &B, const Tone
                       };
 
     const float factors[12] = {
-        conv(pp.bands[0], 2.f, 3.f), // -18 EV
         conv(pp.bands[0], 2.f, 3.f), // -16 EV
         conv(pp.bands[0], 2.f, 3.f), // -14 EV
         conv(pp.bands[0], 2.f, 3.f), // -12 EV
@@ -110,7 +109,8 @@ void tone_eq(array2D<float> &R, array2D<float> &G, array2D<float> &B, const Tone
         conv(pp.bands[3], 3.f, 2.f), //  -2 EV
         conv(pp.bands[4], 3.f, 2.f), //   0 EV
         conv(pp.bands[4], 3.f, 2.f), //   2 EV
-        conv(pp.bands[4], 3.f, 2.f)  //   4 EV
+        conv(pp.bands[4], 3.f, 2.f), //   4 EV
+        conv(pp.bands[4], 3.f, 2.f)  //   6 EV
     };
 
     TMatrix ws = ICCStore::getInstance()->workingSpaceMatrix(workingProfile);
@@ -124,7 +124,7 @@ void tone_eq(array2D<float> &R, array2D<float> &G, array2D<float> &B, const Tone
         }
     }
 
-    const int detail = pp.regularization > 0 ? 5 : 0;//LIM(pp.regularization + 5, 0, 5);
+    const int detail = pp.regularization > 0 ? 5 : 0;
     int radius = float(detail) / scale + 0.5f;
     float epsilon = 0.01f + 0.002f * max(detail - 3, 0);
     if (radius > 0) {
@@ -169,11 +169,14 @@ void tone_eq(array2D<float> &R, array2D<float> &G, array2D<float> &B, const Tone
         w_sum += gauss(centers[i], 0.f);
     }
 
+    constexpr float luma_lo = -14.f;
+    constexpr float luma_hi = 4.f;
+
     const auto process_pixel =
         [&](float y) -> float
         {
             // convert to log space
-            const float luma = max(log2(max(y, 0.f)), -18.0f);
+            const float luma = LIM(log2(max(y, 0.f)), luma_lo, luma_hi);
 
             // build the correction as the sum of the contribution of each
             // luminance channel to current pixel
@@ -212,7 +215,7 @@ void tone_eq(array2D<float> &R, array2D<float> &G, array2D<float> &B, const Tone
             std::array<float, 3> ret = { 0.f, 0.f, 0.f };
             
             // convert to log space
-            const float luma = max(log2(max(y, 0.f)), -18.0f);
+            const float luma = LIM(log2(max(y, 0.f)), luma_lo, luma_hi);
 
             // build the correction as the sum of the contribution of each
             // luminance channel to current pixel
@@ -248,13 +251,14 @@ void tone_eq(array2D<float> &R, array2D<float> &G, array2D<float> &B, const Tone
     vfloat zerov = F2V(0.f);
     vfloat vw_sum = F2V(w_sum);
 
-    const vfloat noisev = F2V(-18.f);
+    const vfloat vluma_lo = F2V(luma_lo);
+    const vfloat vluma_hi = F2V(luma_hi);
     const vfloat xlog2v = F2V(xlogf(2.f));
     
     const auto vprocess_pixel =
         [&](vfloat y) -> vfloat
         {
-            const vfloat luma = vmaxf(xlogf(vmaxf(y, zerov))/xlog2v, noisev);
+            const vfloat luma = vminf(vmaxf(xlogf(vmaxf(y, zerov))/xlog2v, vluma_lo), vluma_hi);
 
             vfloat correction = zerov;
             for (int c = 0; c < 12; ++c) {
@@ -360,8 +364,8 @@ bool ImProcFunctions::toneEqualizer(Imagefloat *rgb)
 
     bool show_color_map = params->toneEqualizer.show_colormap && cur_pipeline == Pipeline::PREVIEW;
     tone_eq(R, G, B, params->toneEqualizer, params->icm.workingProfile, scale, multiThread, show_color_map, monitor);
-    
-    rgb->multiply(1.f/gain, multiThread);
+
+    rgb->multiply(!show_color_map ? 1.f/gain : 65535.f, multiThread);
 
     return show_color_map;
 }

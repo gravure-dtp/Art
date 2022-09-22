@@ -103,7 +103,7 @@ std::unique_ptr<Exiv2::Image> exiftool_import(const Glib::ustring &fname, const 
     if (fd < 0) {
         throw exc;
     }
-    Glib::ustring outname = Glib::filename_to_utf8(templ) + ".xmp";
+    Glib::ustring outname = fname_to_utf8(templ) + ".xmp";
     // int exit_status = -1;
     std::vector<Glib::ustring> argv = {
         exiftool,
@@ -744,7 +744,7 @@ std::unordered_map<std::string, std::string> Exiv2Metadata::getExiftoolMakernote
     if (fd < 0) {
         return ret;
     }
-    Glib::ustring outname = Glib::filename_to_utf8(templ);
+    Glib::ustring outname = fname_to_utf8(templ);
     
     std::vector<Glib::ustring> argv = {
         exiftool,

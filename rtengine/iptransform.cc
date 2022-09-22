@@ -594,6 +594,10 @@ void ImProcFunctions::transform(Imagefloat* original, Imagefloat* transformed, i
         std::unique_ptr<Imagefloat> logimg;
         if (do_encode) {
             logimg.reset(new Imagefloat(original->getWidth(), original->getHeight()));
+            if (needs_luminance) {
+                transformLuminanceOnly(original, logimg.get(), cx, cy, oW, oH, fW, fH, false);
+                original = logimg.get();
+            }
             encode(original, logimg.get(), multiThread);
             original = logimg.get();
         }
@@ -1054,7 +1058,7 @@ void ImProcFunctions::transformGeneral(bool highQuality, Imagefloat *original, I
     const bool enableCA = highQuality && needsCA();
     constexpr bool enableGradient = false;
     constexpr bool enablePCVignetting = false;
-    bool enableVignetting = needsVignetting();
+    bool enableVignetting = !highQuality && needsVignetting();
     bool enableDistortion = needsDistortion();
 
     double w2 = (double) oW  / 2.0 - 0.5;

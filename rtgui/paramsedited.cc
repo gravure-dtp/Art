@@ -17,9 +17,6 @@
  *  along with RawTherapee.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "paramsedited.h"
-// #include <cstring>
-// #include "options.h"
-// #include "addsetids.h"
 
 
 ParamsEdited::ParamsEdited(bool value)
@@ -82,4 +79,36 @@ void ParamsEdited::set(bool v)
     exif = v;
     iptc = v;
     spot = v;
+}
+
+
+void ParamsEdited::set_append(bool v)
+{
+    if (v) {
+        if (colorcorrection) {
+            colorcorrection = Undef;
+        }
+        if (smoothing) {
+            smoothing = Undef;
+        }
+        if (localContrast) {
+            localContrast = Undef;
+        }
+        if (textureBoost) {
+            textureBoost = Undef;
+        }
+    } else {
+        if (colorcorrection == Undef) {
+            colorcorrection = true;
+        }
+        if (smoothing == Undef) {
+            smoothing = true;
+        }
+        if (localContrast == Undef) {
+            localContrast = true;
+        }
+        if (textureBoost == Undef) {
+            textureBoost = true;
+        }
+    }
 }

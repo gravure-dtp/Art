@@ -29,6 +29,8 @@ using namespace rtengine::procparams;
 
 namespace {
 
+//constexpr int ID_HUE_MASK = 1;
+
 const std::vector<double> default_satcurve{
     FCT_MinMaxCPoints,
     0, 0.5,
@@ -36,6 +38,26 @@ const std::vector<double> default_satcurve{
     1, 0.5,
     0.35, 0.35
 };
+
+int mode2idx(ToneCurveParams::TcMode mode)
+{
+    switch (mode) {
+    case ToneCurveParams::TcMode::STD: return 1;
+    case ToneCurveParams::TcMode::WEIGHTEDSTD: return 2;
+    case ToneCurveParams::TcMode::FILMLIKE: return 3;
+    case ToneCurveParams::TcMode::SATANDVALBLENDING: return 4;
+    case ToneCurveParams::TcMode::LUMINANCE: return 5;
+    case ToneCurveParams::TcMode::PERCEPTUAL: return 6;
+    case ToneCurveParams::TcMode::NEUTRAL: return 0;
+    }
+    return 0;
+}
+
+
+ToneCurveParams::TcMode idx2mode(int idx)
+{
+    return idx == 0 ? ToneCurveParams::TcMode::NEUTRAL : ToneCurveParams::TcMode(idx-1);
+}
 
 } // namespace
 
@@ -74,13 +96,13 @@ ToneCurve::ToneCurve():
     pack_start(*histmatching, true, true, 2);
 
     toneCurveMode = Gtk::manage (new MyComboBoxText ());
+    toneCurveMode->append (M("TP_EXPOSURE_TCMODE_NEUTRAL"));
     toneCurveMode->append (M("TP_EXPOSURE_TCMODE_STANDARD"));
     toneCurveMode->append (M("TP_EXPOSURE_TCMODE_WEIGHTEDSTD"));
     toneCurveMode->append (M("TP_EXPOSURE_TCMODE_FILMLIKE"));
     toneCurveMode->append (M("TP_EXPOSURE_TCMODE_SATANDVALBLENDING"));
     toneCurveMode->append (M("TP_EXPOSURE_TCMODE_LUMINANCE"));
     toneCurveMode->append (M("TP_EXPOSURE_TCMODE_PERCEPTUAL"));
-    toneCurveMode->append (M("TP_EXPOSURE_TCMODE_NEUTRAL"));
     toneCurveMode->set_active (0);
     toneCurveMode->set_tooltip_text(M("TP_EXPOSURE_TCMODE_LABEL1"));
 
@@ -115,13 +137,13 @@ ToneCurve::ToneCurve():
 //----------- Curve 2 ------------------------------
 
     toneCurveMode2 = Gtk::manage (new MyComboBoxText ());
+    toneCurveMode2->append (M("TP_EXPOSURE_TCMODE_NEUTRAL"));
     toneCurveMode2->append (M("TP_EXPOSURE_TCMODE_STANDARD"));
     toneCurveMode2->append (M("TP_EXPOSURE_TCMODE_WEIGHTEDSTD"));
     toneCurveMode2->append (M("TP_EXPOSURE_TCMODE_FILMLIKE"));
     toneCurveMode2->append (M("TP_EXPOSURE_TCMODE_SATANDVALBLENDING"));
     toneCurveMode2->append (M("TP_EXPOSURE_TCMODE_LUMINANCE"));
     toneCurveMode2->append (M("TP_EXPOSURE_TCMODE_PERCEPTUAL"));
-    toneCurveMode2->append (M("TP_EXPOSURE_TCMODE_NEUTRAL"));
     toneCurveMode2->set_active (0);
     toneCurveMode2->set_tooltip_text(M("TP_EXPOSURE_TCMODE_LABEL2"));
 
@@ -148,12 +170,21 @@ ToneCurve::ToneCurve():
 
     satcurveG = Gtk::manage(new CurveEditorGroup(options.lastColorToningCurvesDir, M("TP_TONECURVE_SATCURVE"), 0.7));
     satcurveG->setCurveListener(this);
+
     satcurve = static_cast<FlatCurveEditor *>(satcurveG->addCurve(CT_Flat, "", nullptr, false, false));
     satcurve->setResetCurve(FlatCurveType(default_satcurve[0]), default_satcurve);
     satcurve->setEditID(EUID_ToneCurveSaturation, BT_SINGLEPLANE_FLOAT);
     satcurve->setBottomBarBgGradient(bottomMilestones);
+    
+    satcurve2_ = static_cast<DiagonalCurveEditor *>(satcurveG->addCurve(CT_Diagonal, ""));
+    satcurve2_->setBottomBarColorProvider(this, 1);
+    satcurve2_->setLeftBarColorProvider(this, 2);
+    satcurve2_->setEditID(EUID_ToneCurveSaturation2, BT_SINGLEPLANE_FLOAT);
+
     satcurveG->curveListComplete();
     satcurveG->show();
+
+    // satcurve->getCurveTypeButton()->signal_changed().connect(sigc::mem_fun(*this, &ToneCurve::updateSatCurves));
 
     pack_start(*satcurveG, Gtk::PACK_SHRINK, 2);
 
@@ -167,19 +198,19 @@ ToneCurve::ToneCurve():
     }
     contrast_legacy_box_->show_all();
 
-    whitePoint = Gtk::manage(new Adjuster(M("TP_TONECURVE_WHITEPOINT"), 1, 40.0, 0.1, 1.0));
+    whitePoint = Gtk::manage(new Adjuster(M("TP_TONECURVE_WHITEPOINT"), 1, 100.0, 0.1, 1.0));
     whitePoint->setAdjusterListener(this);
-    whitePoint->setLogScale(10, 1);
+    whitePoint->setLogScale(40, 1);
     pack_start(*whitePoint);
     
     mode_ = Gtk::manage(new MyComboBoxText());
+    mode_->append(M("TP_EXPOSURE_TCMODE_NEUTRAL"));
     mode_->append(M("TP_EXPOSURE_TCMODE_STANDARD"));
     mode_->append(M("TP_EXPOSURE_TCMODE_WEIGHTEDSTD"));
     mode_->append(M("TP_EXPOSURE_TCMODE_FILMLIKE"));
     mode_->append(M("TP_EXPOSURE_TCMODE_SATANDVALBLENDING"));
     mode_->append(M("TP_EXPOSURE_TCMODE_LUMINANCE"));
     mode_->append(M("TP_EXPOSURE_TCMODE_PERCEPTUAL"));
-    mode_->append(M("TP_EXPOSURE_TCMODE_NEUTRAL"));
     mode_->set_active(0);
     mode_->signal_changed().connect(sigc::mem_fun(*this, &ToneCurve::modeChanged), true);
     
@@ -218,14 +249,15 @@ void ToneCurve::read(const ProcParams* pp)
     shape->setCurve (pp->toneCurve.curve);
     shape2->setCurve (pp->toneCurve.curve2);
 
-    toneCurveMode->set_active(rtengine::toUnderlying(pp->toneCurve.curveMode));
-    toneCurveMode2->set_active(rtengine::toUnderlying(pp->toneCurve.curveMode2));
+    toneCurveMode->set_active(mode2idx(pp->toneCurve.curveMode));
+    toneCurveMode2->set_active(mode2idx(pp->toneCurve.curveMode2));
 
     histmatching->set_active(pp->toneCurve.histmatching);
     fromHistMatching = pp->toneCurve.fromHistMatching;
 
     satcurve->setCurve(default_satcurve);
     satcurve->setCurve(pp->toneCurve.saturation);
+    satcurve2_->setCurve(pp->toneCurve.saturation2);
 
     tcmode2conn.block(false);
     tcmodeconn.block(false);
@@ -234,7 +266,7 @@ void ToneCurve::read(const ProcParams* pp)
 
     showPerceptualStrength();
 
-    mode_->set_active(rtengine::toUnderlying(pp->toneCurve.curveMode));
+    mode_->set_active(mode2idx(pp->toneCurve.curveMode));
     contrast_legacy_->set_active(pp->toneCurve.contrastLegacyMode);
 
     removeIfThere(this, mode_box_, false);
@@ -264,16 +296,19 @@ void ToneCurve::read(const ProcParams* pp)
 
     whitePoint->setValue(pp->toneCurve.whitePoint);
     showWhitePoint();
+
+    //updateSatCurves(0);
     
     enableListener();
 }
 
 
-void ToneCurve::autoOpenCurve  ()
+void ToneCurve::autoOpenCurve()
 {
     shape->openIfNonlinear();
     shape2->openIfNonlinear();
     satcurve->openIfNonlinear();
+    satcurve2_->openIfNonlinear();
 }
 
 
@@ -282,6 +317,7 @@ void ToneCurve::setEditProvider(EditDataProvider *provider)
     shape->setEditProvider(provider);
     shape2->setEditProvider(provider);
     satcurve->setEditProvider(provider);
+    satcurve2_->setEditProvider(provider);
 }
 
 
@@ -299,46 +335,19 @@ void ToneCurve::write(ProcParams* pp)
         tcMode = toneCurveMode->get_active_row_number();
     }
 
-    if (tcMode == 0) {
-        pp->toneCurve.curveMode = ToneCurveParams::TcMode::STD;
-    } else if (tcMode == 1) {
-        pp->toneCurve.curveMode = ToneCurveParams::TcMode::WEIGHTEDSTD;
-    } else if (tcMode == 2) {
-        pp->toneCurve.curveMode = ToneCurveParams::TcMode::FILMLIKE;
-    } else if (tcMode == 3) {
-        pp->toneCurve.curveMode = ToneCurveParams::TcMode::SATANDVALBLENDING;
-    } else if (tcMode == 4) {
-        pp->toneCurve.curveMode = ToneCurveParams::TcMode::LUMINANCE;
-    } else if (tcMode == 5) {
-        pp->toneCurve.curveMode = ToneCurveParams::TcMode::PERCEPTUAL;
-    } else if (tcMode == 6) {
-        pp->toneCurve.curveMode = ToneCurveParams::TcMode::NEUTRAL;
-    }
+    pp->toneCurve.curveMode = idx2mode(tcMode);
 
     if (legacy_curve_mode) {
         tcMode = toneCurveMode2->get_active_row_number();
     }
 
-    if (tcMode == 0) {
-        pp->toneCurve.curveMode2 = ToneCurveParams::TcMode::STD;
-    } else if (tcMode == 1) {
-        pp->toneCurve.curveMode2 = ToneCurveParams::TcMode::WEIGHTEDSTD;
-    } else if (tcMode == 2) {
-        pp->toneCurve.curveMode2 = ToneCurveParams::TcMode::FILMLIKE;
-    } else if (tcMode == 3) {
-        pp->toneCurve.curveMode2 = ToneCurveParams::TcMode::SATANDVALBLENDING;
-    } else if (tcMode == 4) {
-        pp->toneCurve.curveMode2 = ToneCurveParams::TcMode::LUMINANCE;
-    } else if (tcMode == 5) {
-        pp->toneCurve.curveMode2 = ToneCurveParams::TcMode::PERCEPTUAL;
-    } else if (tcMode == 6) {
-        pp->toneCurve.curveMode2 = ToneCurveParams::TcMode::NEUTRAL;
-    }
+    pp->toneCurve.curveMode2 = idx2mode(tcMode);
 
     pp->toneCurve.histmatching = histmatching->get_active();
     pp->toneCurve.fromHistMatching = fromHistMatching;
 
     pp->toneCurve.saturation = satcurve->getCurve();
+    pp->toneCurve.saturation2 = satcurve2_->getCurve();
 
     pp->toneCurve.perceptualStrength = perceptualStrength->getValue();
     pp->toneCurve.contrastLegacyMode = contrast_legacy_->get_active();
@@ -375,7 +384,7 @@ void ToneCurve::curveChanged(CurveEditor *ce)
         } else if (ce == shape2) {
             setHistmatching(false);
             listener->panelChanged(EvToneCurve2, M("HISTORY_CUSTOMCURVE"));
-        } else if (ce == satcurve) {
+        } else if (ce == satcurve || ce == satcurve2_) {
             listener->panelChanged(EvSatCurve, M("HISTORY_CUSTOMCURVE"));
         }
     }
@@ -598,3 +607,27 @@ void ToneCurve::registerShortcuts(ToolShortcutManager *mgr)
 {
     mgr->addShortcut(GDK_KEY_c, this, contrast);
 }
+
+
+void ToneCurve::colorForValue(double valX, double valY, enum ColorCaller::ElemType elemType, int callerId, ColorCaller *caller)
+{
+    float R = 0.5, G = 0.5, B = 0.5;
+
+    if (callerId == 1) {
+        rtengine::Color::hsv2rgb01(float(valY), float(valX), 0.8f, R, G, B);
+    } else if (callerId == 2) {
+        rtengine::Color::hsv2rgb01(float(valY), 1.f-float(valX), 0.8f, R, G, B);
+    } 
+    caller->ccRed = R;
+    caller->ccGreen = G;
+    caller->ccBlue = B;
+}
+
+
+// void ToneCurve::updateSatCurves(int i)
+// {
+//     auto b = satcurve->getCurveTypeButton();
+//     bool show = b->getSelected() > 0;
+//     satcurve_h_->getCurveTypeButton()->buttonGroup->set_visible(show);
+//     satcurve_c_->getCurveTypeButton()->buttonGroup->set_visible(show);
+// }

@@ -1,4 +1,5 @@
-/*
+/* -*- C++ -*-
+ *  
  *  This file is part of RawTherapee.
  *
  *  Copyright (c) 2016 Ingo Weyrich <heckflosse67@gmx.de>
@@ -41,6 +42,11 @@ public:
     T *operator[](size_t index)
     {
         return array2D<T>::operator[](index);
+    }
+
+    T *operator[](int index)
+    {
+        return operator[](size_t(index));
     }
 };
 

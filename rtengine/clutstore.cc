@@ -7,9 +7,9 @@
 #include "opthelper.h"
 #include "rt_math.h"
 #include "stdimagesource.h"
+#include "linalgebra.h"
 
 #include "../rtgui/options.h"
-
 
 namespace rtengine {
 namespace {
@@ -109,7 +109,9 @@ vfloat2 getClutValues(const AlignedBuffer<std::uint16_t>& clut_image, size_t ind
 }
 #endif
 
-}
+constexpr int TS = 112;
+
+} // namespace
 
 rtengine::HaldCLUT::HaldCLUT() :
     clut_level(0),
@@ -308,6 +310,7 @@ rtengine::CLUTStore& rtengine::CLUTStore::getInstance()
 
 std::shared_ptr<rtengine::HaldCLUT> rtengine::CLUTStore::getClut(const Glib::ustring& filename) const
 {
+    MyMutex::MyLock lock(mutex_);
     std::shared_ptr<rtengine::HaldCLUT> result;
 
     const Glib::ustring full_filename =
@@ -327,13 +330,100 @@ std::shared_ptr<rtengine::HaldCLUT> rtengine::CLUTStore::getClut(const Glib::ust
     return result;
 }
 
+
+#ifdef ART_USE_OCIO
+
+namespace {
+
+std::string decompress_to_temp(const Glib::ustring &fname)
+{
+    std::string templ = Glib::build_filename(Glib::get_tmp_dir(), Glib::ustring::compose("ART-ocio-clf-%1-XXXXXX", Glib::path_get_basename(fname)));
+    int fd = Glib::mkstemp(templ);
+    if (fd < 0) {
+        throw "error";
+    }
+    close(fd);
+
+    auto f = Gio::File::create_for_path(templ);
+    auto s = f->append_to();
+    auto c = Gio::ZlibDecompressor::create(Gio::ZLIB_COMPRESSOR_FORMAT_GZIP);
+    {
+        auto stream = Gio::ConverterOutputStream::create(s, c);
+        stream->set_close_base_stream(true);
+        constexpr gsize chunk = 512;
+        char buffer[chunk];
+        auto src_fname = Glib::filename_from_utf8(fname);
+        FILE *src = g_fopen(src_fname.c_str(), "rb");
+        if (!src) {
+            throw "error";
+        }
+        size_t n = 0;
+        while ((n = fread(buffer, 1, chunk, src)) > 0) {
+            stream->write(buffer, n);
+        }
+        fclose(src);
+    }
+    
+    return templ;
+}
+
+} // namespace
+
+OCIO::ConstProcessorRcPtr rtengine::CLUTStore::getOCIOLut(const Glib::ustring& filename) const
+{
+    MyMutex::MyLock lock(mutex_);
+    
+    OCIO::ConstProcessorRcPtr result;
+
+    const Glib::ustring full_filename =
+        !Glib::path_is_absolute(filename)
+            ? Glib::ustring(Glib::build_filename(options.clutsDir, filename))
+            : filename;
+
+    if (!ocio_cache_.get(full_filename, result)) {
+        try {
+            OCIO::ConstConfigRcPtr config = OCIO::Config::CreateRaw();
+            OCIO::FileTransformRcPtr t = OCIO::FileTransform::Create();
+            std::string fn;
+            bool del_fn = false;
+            if (getFileExtension(full_filename) == "clfz") {
+                fn = decompress_to_temp(full_filename);
+                del_fn = true;
+            } else {
+                fn = Glib::filename_from_utf8(full_filename);
+            }
+            t->setSrc(fn.c_str());
+            t->setInterpolation(OCIO::INTERP_BEST);
+            result = config->getProcessor(t);
+            ocio_cache_.insert(full_filename, result);
+            if (del_fn) {
+                g_remove(fn.c_str());
+            }
+        } catch (...) {
+        }
+    }
+
+    return result;
+}
+
+#endif // ART_USE_OCIO
+
+
 void rtengine::CLUTStore::clearCache()
 {
+    MyMutex::MyLock lock(mutex_);
+    
     cache.clear();
+#ifdef ART_USE_OCIO
+    ocio_cache_.clear();
+#endif // ART_USE_OCIO
 }
 
 rtengine::CLUTStore::CLUTStore() :
     cache(options.clutCacheSize)
+#ifdef ART_USE_OCIO
+    , ocio_cache_(options.clutCacheSize)
+#endif
 {
 }
 
@@ -342,27 +432,28 @@ rtengine::CLUTStore::CLUTStore() :
 // HaldCLUTApplication
 //-----------------------------------------------------------------------------
 
-HaldCLUTApplication::HaldCLUTApplication(const Glib::ustring &clut_filename, const Glib::ustring &working_profile):
+HaldCLUTApplication::HaldCLUTApplication(const Glib::ustring &clut_filename, const Glib::ustring &working_profile, float strength, bool multiThread):
     clut_filename_(clut_filename),
     working_profile_(working_profile),
     ok_(false),
     clut_and_working_profiles_are_same_(false),
-    TS_(0),
-    strength_(0)
+    multiThread_(multiThread),
+    strength_(strength)
 {
+    init();
 }
 
 
-void HaldCLUTApplication::init(float strength, int tile_size)
+void HaldCLUTApplication::init()
 {
     hald_clut_ = CLUTStore::getInstance().getClut(clut_filename_);
     if (!hald_clut_) {
-        ok_ = false;
+#ifdef ART_USE_OCIO
+        if (!OCIO_init())
+#endif // ART_USE_OCIO
+            ok_ = false;
         return;
     }
-
-    strength_ = strength;
-    TS_ = tile_size;
 
     clut_and_working_profiles_are_same_ = hald_clut_->getProfile() == working_profile_;
 
@@ -389,16 +480,79 @@ void HaldCLUTApplication::init(float strength, int tile_size)
 }
 
 
-void HaldCLUTApplication::operator()(float *r, float *g, float *b, int istart, int jstart, int tW, int tH)
+#ifdef ART_USE_OCIO
+
+bool HaldCLUTApplication::OCIO_init()
+{
+    auto proc = CLUTStore::getInstance().getOCIOLut(clut_filename_);
+    if (!proc) {
+        ok_ = false;
+        return false;
+    }
+
+    try {
+        ok_ = true;
+
+        ocio_processor_ = proc->getOptimizedCPUProcessor(OCIO::BIT_DEPTH_F32, 
+                                                         OCIO::BIT_DEPTH_F32,
+                                                         OCIO::OPTIMIZATION_DEFAULT);
+        wprof_ = ICCStore::getInstance()->workingSpaceMatrix(working_profile_);
+        wiprof_ = ICCStore::getInstance()->workingSpaceInverseMatrix(working_profile_);
+        auto ws = dot_product(ACESp0_xyz, wprof_);
+        auto iws = dot_product(wiprof_, xyz_ACESp0);
+
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                conv_[i][j] = ws[i][j];
+                iconv_[i][j] = iws[i][j] * 65535.f;
+            }
+        }
+        
+        return true;
+    } catch (...) {
+        ok_ = false;
+        return false;
+    }
+}
+#endif // ART_USE_OCIO
+
+
+
+void HaldCLUTApplication::operator()(Imagefloat *img)
 {
     if (!ok_) {
         return;
     }
 
-    float out_rgbx[4 * TS_] ALIGNED16; // Line buffer for CLUT
-    float clutr[TS_] ALIGNED16;
-    float clutg[TS_] ALIGNED16;
-    float clutb[TS_] ALIGNED16;
+#ifdef ART_USE_OCIO
+    if (ocio_processor_) {
+        OCIO_apply(img);
+        return;
+    }
+#endif // ART_USE_OCIO
+
+#ifdef _OPENMP
+#   pragma omp parallel for if (multiThread_)
+#endif
+    for (int y = 0; y < img->getHeight(); ++y) {
+        for (int jj = 0; jj < img->getWidth(); jj += TS) {
+            int jstart = jj;
+            float *r = img->r(y)+jstart;
+            float *g = img->g(y)+jstart;
+            float *b = img->b(y)+jstart;
+            int tW = min(jj + TS, img->getWidth());
+            apply_tile(r, g, b, 0, jstart, tW, 1);
+        }
+    }
+}
+
+
+inline void HaldCLUTApplication::apply_tile(float *r, float *g, float *b, int istart, int jstart, int tW, int tH)
+{
+    float out_rgbx[4 * TS] ALIGNED16; // Line buffer for CLUT
+    float clutr[TS] ALIGNED16;
+    float clutg[TS] ALIGNED16;
+    float clutb[TS] ALIGNED16;
     
     for (int i = istart, ti = 0; i < tH; i++, ti++) {
         if (!clut_and_working_profiles_are_same_) {
@@ -408,9 +562,9 @@ void HaldCLUTApplication::operator()(float *r, float *g, float *b, int istart, i
 
 #ifdef __SSE2__
             for (; j < tW - 3; j += 4, tj += 4) {
-                vfloat sourceR = LVF(r[ti * TS_ + tj]);
-                vfloat sourceG = LVF(g[ti * TS_ + tj]);
-                vfloat sourceB = LVF(b[ti * TS_ + tj]);
+                vfloat sourceR = LVF(r[ti * TS + tj]);
+                vfloat sourceG = LVF(g[ti * TS + tj]);
+                vfloat sourceB = LVF(b[ti * TS + tj]);
 
                 vfloat x;
                 vfloat y;
@@ -426,18 +580,18 @@ void HaldCLUTApplication::operator()(float *r, float *g, float *b, int istart, i
 #endif
 
             for (; j < tW; j++, tj++) {
-                float sourceR = r[ti * TS_ + tj];
-                float sourceG = g[ti * TS_ + tj];
-                float sourceB = b[ti * TS_ + tj];
+                float sourceR = r[ti * TS + tj];
+                float sourceG = g[ti * TS + tj];
+                float sourceB = b[ti * TS + tj];
 
                 float x, y, z;
                 Color::rgbxyz(sourceR, sourceG, sourceB, x, y, z, wprof_);
                 Color::xyz2rgb(x, y, z, clutr[tj], clutg[tj], clutb[tj], xyz2clut_);
             }
         } else {
-            memcpy(clutr, &r[ti * TS_], sizeof(float) * TS_);
-            memcpy(clutg, &g[ti * TS_], sizeof(float) * TS_);
-            memcpy(clutb, &b[ti * TS_], sizeof(float) * TS_);
+            memcpy(clutr, &r[ti * TS], sizeof(float) * TS);
+            memcpy(clutg, &g[ti * TS], sizeof(float) * TS);
+            memcpy(clutb, &b[ti * TS], sizeof(float) * TS);
         }
 
         for (int j = jstart, tj = 0; j < tW; j++, tj++) {
@@ -451,7 +605,7 @@ void HaldCLUTApplication::operator()(float *r, float *g, float *b, int istart, i
             sourceB = Color::gamma_srgbclipped(sourceB);
         }
 
-        hald_clut_->getRGB(strength_, std::min(TS_, tW - jstart), clutr, clutg, clutb, out_rgbx);
+        hald_clut_->getRGB(strength_, std::min(TS, tW - jstart), clutr, clutg, clutb, out_rgbx);
 
         for (int j = jstart, tj = 0; j < tW; j++, tj++) {
             float &sourceR = clutr[tj];
@@ -501,11 +655,62 @@ void HaldCLUTApplication::operator()(float *r, float *g, float *b, int istart, i
         }
 
         for (int j = jstart, tj = 0; j < tW; j++, tj++) {
-            r[ti * TS_ + tj] = clutr[tj];
-            g[ti * TS_ + tj] = clutg[tj];
-            b[ti * TS_ + tj] = clutb[tj];
+            r[ti * TS + tj] = clutr[tj];
+            g[ti * TS + tj] = clutg[tj];
+            b[ti * TS + tj] = clutb[tj];
+        }
+    }    
+}
+
+
+#ifdef ART_USE_OCIO
+
+void HaldCLUTApplication::OCIO_apply(Imagefloat *img)
+{
+    const int W = img->getWidth();
+    const int H = img->getHeight();
+
+    const bool blend = strength_ < 1.f;
+
+#ifdef _OPENMP
+#   pragma omp parallel for if (multiThread_)
+#endif
+    for (int y = 0; y < H; ++y) {
+        Vec3<float> v;
+        std::vector<float> data(W * 3);
+        for (int x = 0, i = 0; x < W; ++x) {
+            v[0] = img->r(y, x) / 65535.f;
+            v[1] = img->g(y, x) / 65535.f;
+            v[2] = img->b(y, x) / 65535.f;
+            v = dot_product(conv_, v);
+            data[i++] = v[0];
+            data[i++] = v[1];
+            data[i++] = v[2];
+        }
+
+        OCIO::PackedImageDesc pd(&data[0], W, 1, 3);
+        ocio_processor_->apply(pd);
+            
+        for (int x = 0, i = 0; x < W; ++x) {
+            v[0] = data[i++];
+            v[1] = data[i++];
+            v[2] = data[i++];
+            v = dot_product(iconv_, v);
+            // no need to renormalize to 65535 as this is already done in iconv_
+            if (blend) {
+                img->r(y, x) = intp(strength_, v[0], img->r(y, x));
+                img->g(y, x) = intp(strength_, v[1], img->g(y, x));
+                img->b(y, x) = intp(strength_, v[2], img->b(y, x));
+            } else {
+                img->r(y, x) = v[0];
+                img->g(y, x) = v[1];
+                img->b(y, x) = v[2];
+            }
         }
     }
+
 }
+
+#endif // ART_USE_OCIO
 
 } // namespace rtengine

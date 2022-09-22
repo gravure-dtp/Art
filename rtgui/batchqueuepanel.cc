@@ -156,10 +156,14 @@ BatchQueuePanel::BatchQueuePanel (FileCatalog* aFileCatalog) : parent(nullptr)
         hb->pack_start(*apply_batch_profile_, Gtk::PACK_SHRINK);
         hb->pack_start(*profiles_cb_, Gtk::PACK_SHRINK);
         vb->pack_start(*hb, Gtk::PACK_SHRINK, 4);
-        apply_batch_profile_->set_active(options.batch_queue_use_profile);
         profiles_cb_->updateProfileList();
-        profiles_cb_->setActiveRowFromFullPath(options.batch_queue_profile_path);
-        apply_batch_profile_->signal_toggled().connect(sigc::mem_fun(*this, &BatchQueuePanel::applyBatchProfileToggled));
+        auto &info = options.export_profile_map[options.saveFormatBatch.getKey()];
+        apply_batch_profile_->set_active(info.enabled);
+        if (!profiles_cb_->setActiveRowFromFullPath(info.profile)) {
+            profiles_cb_->unset_active();
+        }
+        apply_batch_profile_conn_ = apply_batch_profile_->signal_toggled().connect(sigc::mem_fun(*this, &BatchQueuePanel::applyBatchProfileToggled));
+        profiles_cb_conn_ = profiles_cb_->signal_changed().connect(sigc::mem_fun(*this, &BatchQueuePanel::applyBatchProfileToggled));
     }
     
     topBox->pack_start (*vb, Gtk::PACK_EXPAND_WIDGET, 4);
@@ -231,7 +235,7 @@ void BatchQueuePanel::updateTab (int qsize, int forceOrientation)
     }
 
     Gtk::Grid* grid = Gtk::manage (new Gtk::Grid ());
-    if ((forceOrientation == 0 && options.mainNBVertical) || (forceOrientation == 2)) {
+    if ((forceOrientation == 0 && !options.tabbedUI) || (forceOrientation == 2)) {
         Gtk::Label* l;
 
         if(!qsize ) {
@@ -365,8 +369,8 @@ void BatchQueuePanel::saveOptions ()
     options.savePathTemplate    = outdirTemplate->get_text();
     options.saveUsePathTemplate = useTemplate->get_active();
     options.procQueueEnabled    = qAutoStart->get_active();
-    options.batch_queue_use_profile = apply_batch_profile_->get_active();
-    options.batch_queue_profile_path = profiles_cb_->getFullPathFromActiveRow();
+    // options.batch_queue_use_profile = apply_batch_profile_->get_active();
+    // options.batch_queue_profile_path = profiles_cb_->getFullPathFromActiveRow();
 }
 
 bool BatchQueuePanel::handleShortcutKey (GdkEventKey* event)
@@ -424,10 +428,29 @@ void BatchQueuePanel::pathFolderChanged ()
 void BatchQueuePanel::formatChanged(const Glib::ustring& format)
 {
     options.saveFormatBatch = saveFormatPanel->getFormat();
+    auto &info = options.export_profile_map[options.saveFormatBatch.getKey()];
+    ConnectionBlocker b1(apply_batch_profile_conn_);
+    ConnectionBlocker b2(profiles_cb_conn_);
+    apply_batch_profile_->set_active(info.enabled);
+    if (!profiles_cb_->setActiveRowFromFullPath(info.profile)) {
+        profiles_cb_->unset_active();
+    }
 }
 
 
 void BatchQueuePanel::applyBatchProfileToggled()
 {
+    auto &info = options.export_profile_map[saveFormatPanel->getFormat().getKey()];
+    info.enabled = apply_batch_profile_->get_active();
+    info.profile = profiles_cb_->getFullPathFromActiveRow();
+}
+
+
+void BatchQueuePanel::refreshProfiles()
+{
+    auto pth = profiles_cb_->getFullPathFromActiveRow();
     profiles_cb_->updateProfileList();
+    if (!profiles_cb_->setActiveRowFromFullPath(pth)) {
+        profiles_cb_->unset_active();
+    }
 }

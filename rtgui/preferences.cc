@@ -714,10 +714,10 @@ Gtk::Widget* Preferences::getGeneralPanel ()
     setExpandAlignProperties (flayoutlab, false, false, Gtk::ALIGN_START, Gtk::ALIGN_BASELINE);
     editorLayout = Gtk::manage (new MyComboBoxText ());
     setExpandAlignProperties (editorLayout, true, false, Gtk::ALIGN_FILL, Gtk::ALIGN_BASELINE);
-    editorLayout->append (M ("PREFERENCES_SINGLETAB"));
-    editorLayout->append (M ("PREFERENCES_SINGLETABVERTAB"));
-    editorLayout->append (M ("PREFERENCES_MULTITAB"));
-    editorLayout->append (M ("PREFERENCES_MULTITABDUALMON"));
+    editorLayout->append(M("PREFERENCES_SINGLETAB"));
+    editorLayout->append(M("PREFERENCES_SINGLETABBOTTOM"));
+    editorLayout->append(M("PREFERENCES_MULTITAB"));
+    editorLayout->append(M("PREFERENCES_MULTITABDUALMON"));
     editorLayout->set_active (2);
     Gtk::CellRendererText* cellRenderer = dynamic_cast<Gtk::CellRendererText*> (editorLayout->get_first_cell());
     cellRenderer->property_ellipsize() = Pango::ELLIPSIZE_MIDDLE;
@@ -1819,7 +1819,7 @@ void Preferences::storePreferences ()
     int editorMode = editorLayout->get_active_row_number();
     moptions.tabbedUI = (editorMode > 1);
     moptions.multiDisplayMode = editorMode == 3 ? 1 : 0;
-    moptions.mainNBVertical = editorMode == 1;
+    moptions.filmstripBottom = editorMode == 1;
 
     moptions.curvebboxpos = curveBBoxPosC->get_active_row_number();
     moptions.histogramPosition = ckbHistogramPositionLeft->get_active() ? 1 : 2;
@@ -2079,9 +2079,9 @@ void Preferences::fillPreferences ()
     useBundledProfiles->set_active(moptions.useBundledProfiles);
 
     if (!moptions.tabbedUI) {
-        editorLayout->set_active (moptions.mainNBVertical ? 1 : 0);
+        editorLayout->set_active(moptions.filmstripBottom ? 1 : 0);
     } else {
-        editorLayout->set_active (moptions.multiDisplayMode ? 3 : 2);
+        editorLayout->set_active(moptions.multiDisplayMode ? 3 : 2);
     }
 
     curveBBoxPosC->set_active (moptions.curvebboxpos);

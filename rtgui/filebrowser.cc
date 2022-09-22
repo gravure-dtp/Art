@@ -1111,7 +1111,8 @@ void FileBrowser::partPasteProfile ()
         }
 
         auto toplevel = static_cast<Gtk::Window*> (get_toplevel ());
-        PartialPasteDlg partialPasteDlg (M("PARTIALPASTE_DIALOGLABEL"), toplevel);
+        PartialPasteDlg partialPasteDlg(M("PARTIALPASTE_DIALOGLABEL"), toplevel);
+        partialPasteDlg.set_allow_3way(true);
 
         int i = partialPasteDlg.run ();
 
@@ -1415,7 +1416,8 @@ void FileBrowser::applyPartialMenuItemActivated (ProfileStoreLabel *label)
     if (srcProfiles) {
 
         auto toplevel = static_cast<Gtk::Window*> (get_toplevel ());
-        PartialPasteDlg partialPasteDlg (M("PARTIALPASTE_DIALOGLABEL"), toplevel);
+        PartialPasteDlg partialPasteDlg(M("PARTIALPASTE_DIALOGLABEL"), toplevel);
+        partialPasteDlg.set_allow_3way(true);
 
         if (partialPasteDlg.run() == Gtk::RESPONSE_OK) {
             MYREADERLOCK(l, entryRW);

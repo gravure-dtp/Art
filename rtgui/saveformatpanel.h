@@ -23,6 +23,7 @@
 #include "adjuster.h"
 #include "guiutils.h"
 #include "options.h"
+#include "../rtengine/imgiomanager.h"
 
 class FormatChangeListener {
 public:
@@ -42,7 +43,7 @@ protected:
     Gtk::Label *jpegSubSampLabel;
     FormatChangeListener *listener;
     Gtk::CheckButton *savesPP;
-    std::vector<std::pair<std::string, Glib::ustring>> extrafmts_;
+    std::vector<std::pair<std::string, rtengine::ImageIOManager::SaveFormatInfo>> extrafmts_;
 
 public:
     SaveFormatPanel();
@@ -58,5 +59,7 @@ public:
     void formatChanged();
     void adjusterChanged(Adjuster *a, double newval) override;
     void adjusterAutoToggled(Adjuster *a, bool newval) override;
+
+    Glib::ustring getExtension();
 };
 

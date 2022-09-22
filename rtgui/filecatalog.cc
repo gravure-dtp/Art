@@ -920,7 +920,7 @@ void FileCatalog::_refreshProgressBar ()
         Gtk::Label *label = nullptr;
 
         int tot = previewsToLoad ? previewsToLoad : previewsLoaded;
-        grid->attach_next_to(*Gtk::manage(new RTImage("folder-closed.png")), options.mainNBVertical ? Gtk::POS_TOP : Gtk::POS_RIGHT, 1, 1);
+        grid->attach_next_to(*Gtk::manage(new RTImage("folder-closed.png")), options.tabbedUI ? Gtk::POS_RIGHT : Gtk::POS_TOP, 1, 1);
         int filteredCount = fileBrowser->getNumFiltered() < 0 ? tot : min(fileBrowser->getNumFiltered(), tot);
 
         label = Gtk::manage(new Gtk::Label(M("MAIN_FRAME_FILEBROWSER") +
@@ -928,25 +928,10 @@ void FileCatalog::_refreshProgressBar ()
                                                + Glib::ustring::format(tot) +
                                                (filteredCount != tot ? "]" : ")")));
 
-        // if (!previewsToLoad) {
-        //     grid->attach_next_to(*Gtk::manage(new RTImage("folder-closed.png")), options.mainNBVertical ? Gtk::POS_TOP : Gtk::POS_RIGHT, 1, 1);
-        //     int filteredCount = min(fileBrowser->getNumFiltered(), previewsLoaded);
-
-        //     label = Gtk::manage(new Gtk::Label(M("MAIN_FRAME_FILEBROWSER") +
-        //                                        (filteredCount != previewsLoaded ? " [" + Glib::ustring::format(filteredCount) + "/" : " (")
-        //                                        + Glib::ustring::format(previewsLoaded) +
-        //                                        (filteredCount != previewsLoaded ? "]" : ")")));
-        // } else {
-        //     grid->attach_next_to(*Gtk::manage(new RTImage("magnifier.png")), options.mainNBVertical ? Gtk::POS_TOP : Gtk::POS_RIGHT, 1, 1);
-        //     label = Gtk::manage(new Gtk::Label(M("MAIN_FRAME_FILEBROWSER") + " [" + Glib::ustring::format(std::fixed, std::setprecision(0), std::setw(3), (double)previewsLoaded / previewsToLoad * 100 ) + "%]" ));
-        //     filepanel->loadingThumbs("", (double)previewsLoaded / previewsToLoad);
-        // }
-
-        if (options.mainNBVertical) {
+        if (!options.tabbedUI) {
             label->set_angle(90);
         }
-
-        grid->attach_next_to(*label, options.mainNBVertical ? Gtk::POS_TOP : Gtk::POS_RIGHT, 1, 1);
+        grid->attach_next_to(*label, !options.tabbedUI ? Gtk::POS_TOP : Gtk::POS_RIGHT, 1, 1);
         grid->set_tooltip_markup(M("MAIN_FRAME_FILEBROWSER_TOOLTIP"));
         grid->show_all();
 
